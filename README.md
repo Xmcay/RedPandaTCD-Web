@@ -193,4 +193,12 @@ Author
 
 Developed by Earth Rhoy O. Sanchez as a student software project.
 
+## Copyright
+
+Copyright © 2026 Earth Rhoy O. Sanchez.
+
+All rights reserved. The source code, game systems, card designs,
+written content, and visual presentation may not be copied,
+modified, redistributed, or republished without permission.
+
 
