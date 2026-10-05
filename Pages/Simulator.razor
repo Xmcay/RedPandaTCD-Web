@@ -1,0 +1,1261 @@
+@page "/simulator"
+@using RedPandaTCD_Web.Game
+@using Microsoft.AspNetCore.Components
+@inject GameSessionState Session
+
+<PageTitle>Battle Simulator - Red Panda TCD</PageTitle>
+
+<div class="simulator-page @GetPageTutorialClass("simulator-page")">
+
+    <section class="simulator-panel">
+
+        <div class="simulator-header">
+            <div>
+                <h1>Battle Simulator</h1>
+
+                <p>
+                    Run automated Bot-vs-Bot matches through the real game engine.
+                </p>
+            </div>
+
+            <button class="back-button"
+                    @onclick="GoHome">
+                Main Menu
+            </button>
+        </div>
+
+        <div class="deck-grid">
+
+            <div class="deck-select-group @GetPageTutorialClass("bot-one-deck")">
+
+                <label>
+                    BOT 1 DECK
+                </label>
+
+                <select @bind="player1DeckIndex">
+
+                    @for (int i = 0;
+                         i < DeckManager.Decks.Count;
+                         i++)
+                    {
+                        int index = i;
+
+                        Deck deck =
+                            DeckManager.Decks[index];
+
+                        <option value="@index">
+                            @deck.Name (@GetStructureName(deck.Structure))
+                        </option>
+                    }
+
+                </select>
+
+            </div>
+
+            <div class="deck-select-group @GetPageTutorialClass("bot-two-deck")">
+
+                <label>
+                    BOT 2 DECK
+                </label>
+
+                <select @bind="player2DeckIndex">
+
+                    @for (int i = 0;
+                         i < DeckManager.Decks.Count;
+                         i++)
+                    {
+                        int index = i;
+
+                        Deck deck =
+                            DeckManager.Decks[index];
+
+                        <option value="@index">
+                            @deck.Name (@GetStructureName(deck.Structure))
+                        </option>
+                    }
+
+                </select>
+
+            </div>
+
+        </div>
+
+        <div class="simulation-controls @GetPageTutorialClass("simulation-controls")">
+
+            <button @onclick="() => RunSimulations(1)">
+                Run 1 Match
+            </button>
+
+            <button @onclick="() => RunSimulations(10)">
+                Run 10
+            </button>
+
+            <button @onclick="() => RunSimulations(100)">
+                Run 100
+            </button>
+
+            <button @onclick="() => RunSimulations(1000)">
+                Run 1000
+            </button>
+
+        </div>
+
+        @if (results != null)
+        {
+            <section class="results @GetPageTutorialClass("simulation-results")">
+
+                <h2>
+                    Results
+                </h2>
+
+                <div class="result-grid">
+
+                    <div class="result-card">
+                        <span>MATCHES</span>
+                        <strong>@results.RequestedMatches</strong>
+                    </div>
+
+                    <div class="result-card success">
+                        <span>COMPLETED</span>
+                        <strong>@results.CompletedMatches</strong>
+                    </div>
+
+                    <div class="result-card danger">
+                        <span>STALLED</span>
+                        <strong>@results.StalledMatches</strong>
+                    </div>
+
+                    <div class="result-card danger">
+                        <span>EXCEPTIONS</span>
+                        <strong>@results.Exceptions</strong>
+                    </div>
+
+                    <div class="result-card bot-one">
+                        <span>BOT 1 WINS</span>
+                        <strong>@results.Player1Wins</strong>
+                    </div>
+
+                    <div class="result-card draw">
+                        <span>DRAWS</span>
+                        <strong>@results.Draws</strong>
+                    </div>
+
+                    <div class="result-card bot-two">
+                        <span>BOT 2 WINS</span>
+                        <strong>@results.Player2Wins</strong>
+                    </div>
+
+                    <div class="result-card">
+                        <span>AVERAGE TURNS</span>
+                        <strong>
+                            @results.AverageTurns.ToString("0.00")
+                        </strong>
+                    </div>
+
+                    <div class="result-card">
+                        <span>LONGEST MATCH</span>
+                        <strong>@results.LongestMatch</strong>
+                    </div>
+
+                    <div class="result-card">
+                        <span>SHORTEST MATCH</span>
+                        <strong>@results.ShortestMatch</strong>
+                    </div>
+
+                </div>
+
+                @if (results.StalledMatches > 0 ||
+                     results.Exceptions > 0)
+                {
+                    <div class="warning-box">
+                        Simulator detected a possible engine problem.
+                        Check the diagnostics below.
+                    </div>
+                }
+
+                @if (results.Diagnostics.Count > 0)
+                {
+                    <div class="diagnostics">
+
+                        <h3>
+                            Diagnostics
+                        </h3>
+
+                        @foreach (string message in results.Diagnostics)
+                        {
+                            <div class="diagnostic-entry">
+                                @message
+                            </div>
+                        }
+
+                    </div>
+                }
+
+                @if (singleMatchLog.Count > 0)
+                {
+                    <div class="single-log">
+
+                        <h3>
+                            Last Single-Match Log
+                        </h3>
+
+                        @foreach (BattleLogEntry entry in singleMatchLog)
+                        {
+                            <div class="log-line">
+                                <strong>
+                                    [@entry.Label.ToUpperInvariant()]
+                                </strong>
+
+                                @entry.Message
+                            </div>
+                        }
+
+                    </div>
+                }
+
+            </section>
+        }
+
+    </section>
+
+</div>
+
+<PageTutorialOverlay
+    Visible="@showPageTutorial"
+    Label="BATTLE SIMULATOR TUTORIAL"
+    Steps="@SimulatorPageTutorialSteps"
+    CurrentIndex="@pageTutorialStep"
+    CurrentIndexChanged="SetPageTutorialStep"
+    OnExit="ExitPageTutorial"
+    OnFinished="FinishPageTutorial" />
+
+<style>
+* {
+    box-sizing: border-box;
+}
+
+.simulator-page {
+    min-height: calc(100vh - 58px);
+    padding: 36px 20px;
+    display: flex;
+    justify-content: center;
+    background:
+        linear-gradient(
+            160deg,
+            #18212b 0%,
+            #23364a 55%,
+            #3a2428 100%
+        );
+    color: #f5f5f5;
+}
+
+.simulator-panel {
+    width: min(950px, 100%);
+    display: flex;
+    flex-direction: column;
+    gap: 24px;
+}
+
+.simulator-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 20px;
+}
+
+.simulator-header h1 {
+    margin: 0;
+    color: #f4efe3;
+    font-size: clamp(30px, 4vw, 46px);
+}
+
+.simulator-header p {
+    margin: 7px 0 0;
+    color: #c8d0d8;
+}
+
+.back-button {
+    padding: 11px 18px;
+    border: 1px solid #9b9383;
+    border-radius: 6px;
+    background: #f4efe3;
+    color: #222;
+    cursor: pointer;
+    font-weight: bold;
+}
+
+.back-button:hover {
+    background: #e5ddcc;
+}
+
+.deck-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 18px;
+}
+
+.deck-select-group {
+    padding: 18px;
+    display: flex;
+    flex-direction: column;
+    gap: 9px;
+    border: 1px solid #596674;
+    border-radius: 9px;
+    background: rgba(17, 24, 32, .9);
+}
+
+.deck-select-group label {
+    color: #e5cc67;
+    font-size: 10px;
+    font-weight: 900;
+    letter-spacing: .8px;
+}
+
+.deck-select-group select {
+    width: 100%;
+    padding: 11px 12px;
+    border: 1px solid #8b949e;
+    border-radius: 6px;
+    background: #f4efe3;
+    color: #222;
+    font-size: 12px;
+}
+
+.deck-select-group select:focus {
+    border-color: #e5cc67;
+    outline: none;
+    box-shadow:
+        0 0 0 2px rgba(229, 204, 103, .18);
+}
+
+.simulation-controls {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 10px;
+}
+
+.simulation-controls button {
+    padding: 13px 9px;
+    border: 2px solid #9b9383;
+    border-radius: 7px;
+    background: #f4efe3;
+    color: #222;
+    cursor: pointer;
+    font-size: 11px;
+    font-weight: bold;
+}
+
+.simulation-controls button:hover {
+    border-color: #e5cc67;
+    background: #fff9e9;
+    transform: translateY(-2px);
+}
+
+.results {
+    padding: 20px;
+    border: 1px solid #596674;
+    border-radius: 10px;
+    background: rgba(17, 24, 32, .93);
+}
+
+.results h2 {
+    margin: 0 0 16px;
+    color: #f4efe3;
+}
+
+.result-grid {
+    display: grid;
+    grid-template-columns:
+        repeat(5, minmax(0, 1fr));
+    gap: 9px;
+}
+
+.result-card {
+    min-width: 0;
+    padding: 12px 8px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 5px;
+    border: 1px solid #52606c;
+    border-radius: 7px;
+    background: #1a252f;
+    text-align: center;
+}
+
+.result-card span {
+    color: #919ca6;
+    font-size: 7px;
+    font-weight: 900;
+    letter-spacing: .6px;
+}
+
+.result-card strong {
+    color: #f4efe3;
+    font-size: 19px;
+}
+
+.result-card.success {
+    border-color: #4e8d61;
+}
+
+.result-card.success strong {
+    color: #81c784;
+}
+
+.result-card.danger {
+    border-color: #985a5a;
+}
+
+.result-card.danger strong {
+    color: #ef9a9a;
+}
+
+.result-card.bot-one {
+    border-color: #5689d6;
+}
+
+.result-card.bot-one strong {
+    color: #8faee0;
+}
+
+.result-card.bot-two {
+    border-color: #cf5959;
+}
+
+.result-card.bot-two strong {
+    color: #ef9a9a;
+}
+
+.result-card.draw {
+    border-color: #b69d55;
+}
+
+.result-card.draw strong {
+    color: #e5cc67;
+}
+
+.warning-box {
+    margin-top: 14px;
+    padding: 11px 12px;
+    border: 1px solid #985a5a;
+    border-left: 4px solid #ef9a9a;
+    border-radius: 6px;
+    background: rgba(152, 70, 70, .12);
+    color: #efb0b0;
+    font-size: 11px;
+}
+
+.diagnostics,
+.single-log {
+    margin-top: 16px;
+    padding: 13px;
+    border: 1px solid #46515d;
+    border-radius: 7px;
+    background: #111820;
+}
+
+.diagnostics h3,
+.single-log h3 {
+    margin: 0 0 11px;
+    color: #e5cc67;
+    font-size: 14px;
+}
+
+.diagnostic-entry {
+    margin-bottom: 6px;
+    padding: 7px 8px;
+    border-left: 3px solid #ef9a9a;
+    background: rgba(255, 255, 255, .04);
+    color: #c8d0d8;
+    font-size: 10px;
+    line-height: 1.4;
+}
+
+.log-line {
+    margin-bottom: 5px;
+    padding: 6px 7px;
+    border-bottom: 1px solid #35414c;
+    color: #c8d0d8;
+    font-size: 10px;
+    line-height: 1.4;
+}
+
+.log-line strong {
+    margin-right: 5px;
+    color: #e5cc67;
+}
+
+.page-tutorial-target {
+    position: relative;
+    z-index: 8995;
+    outline: 4px solid #ffe078;
+    outline-offset: 5px;
+    border-radius: 8px;
+    box-shadow:
+        0 0 0 3px rgba(0, 0, 0, .5),
+        0 0 20px rgba(255, 224, 120, .72),
+        0 0 42px rgba(229, 204, 103, .4);
+    animation:
+        pageTutorialTargetPulse
+        1s
+        ease-in-out
+        infinite alternate;
+}
+
+@@keyframes pageTutorialTargetPulse {
+    from {
+        outline-color:
+            rgba(255, 224, 120, .65);
+
+        box-shadow:
+            0 0 0 3px rgba(0, 0, 0, .45),
+            0 0 10px rgba(255, 224, 120, .4);
+    }
+
+    to {
+        outline-color:
+            #ffe078;
+
+        box-shadow:
+            0 0 0 3px rgba(0, 0, 0, .55),
+            0 0 24px rgba(255, 224, 120, .85),
+            0 0 48px rgba(229, 204, 103, .45);
+    }
+}
+
+@@media (max-width: 700px) {
+    .deck-grid,
+    .result-grid {
+        grid-template-columns: 1fr;
+    }
+
+    .simulation-controls {
+        grid-template-columns: 1fr 1fr;
+    }
+
+    .simulator-header {
+        align-items: stretch;
+        flex-direction: column;
+    }
+}
+</style>
+
+@code {
+    [Inject]
+    private NavigationManager Navigation
+    {
+        get;
+        set;
+    } = default!;
+
+    [SupplyParameterFromQuery(
+        Name = "tutorial")]
+    public bool PageTutorialRequested
+    {
+        get;
+        set;
+    }
+
+    private bool showPageTutorial;
+
+    private int pageTutorialStep;
+
+    private int player1DeckIndex;
+
+    private int player2DeckIndex =
+        1;
+
+    private SimulationResults? results;
+
+    private List<BattleLogEntry> singleMatchLog =
+        new();
+
+    private static readonly IReadOnlyList<PageTutorialStep>
+        SimulatorPageTutorialSteps =
+        new List<PageTutorialStep>
+        {
+            new()
+            {
+                Title =
+                    "Battle Simulator",
+
+                Message =
+                    "The Battle Simulator runs automated Bot-versus-Bot " +
+                    "matches through the real game engine.",
+
+                Target =
+                    "simulator-page"
+            },
+
+            new()
+            {
+                Title =
+                    "Bot 1 Deck",
+
+                Message =
+                    "Select the first deck. Its cards, order, and data " +
+                    "structure affect how the first Bot plays.",
+
+                Target =
+                    "bot-one-deck"
+            },
+
+            new()
+            {
+                Title =
+                    "Bot 2 Deck",
+
+                Message =
+                    "Select the opposing deck. Comparing different deck " +
+                    "structures reveals matchup strengths and weaknesses.",
+
+                Target =
+                    "bot-two-deck"
+            },
+
+            new()
+            {
+                Title =
+                    "Simulation Size",
+
+                Message =
+                    "Choose how many matches to run. One match provides a " +
+                    "battle log, while larger batches provide more stable " +
+                    "win-rate information.",
+
+                Target =
+                    "simulation-controls"
+            },
+
+            new()
+            {
+                Title =
+                    "Simulation Results",
+
+                Message =
+                    "After a batch runs, Results reports completed matches, " +
+                    "stalls, exceptions, wins, draws, and match length.",
+
+                Target =
+                    "simulator-page"
+            },
+
+            new()
+            {
+                Title =
+                    "Win Rates and Match Length",
+
+                Message =
+                    "Use wins, draws, average turns, shortest match, and " +
+                    "longest match to compare the selected decks. Larger " +
+                    "batches reduce the effect of individual random outcomes.",
+
+                Target =
+                    "simulator-page"
+            },
+
+            new()
+            {
+                Title =
+                    "Diagnostics",
+
+                Message =
+                    "Stalled matches and exceptions are recorded as " +
+                    "diagnostics. A single-match run also includes its last " +
+                    "battle log for closer inspection.",
+
+                Target =
+                    "simulator-page"
+            },
+
+            new()
+            {
+                Title =
+                    "Simulator Tutorial Complete",
+
+                Message =
+                    "You now know how to select two decks, choose a batch " +
+                    "size, run simulations, and interpret the results.",
+
+                Target =
+                    "simulator-page"
+            }
+        };
+
+    protected override void OnInitialized()
+    {
+        DeckManager.InitializeDefaultDecks();
+
+        showPageTutorial =
+            PageTutorialRequested;
+
+        pageTutorialStep =
+            0;
+    }
+
+    private string GetPageTutorialClass(
+        string target)
+    {
+        if (!showPageTutorial ||
+            pageTutorialStep < 0 ||
+            pageTutorialStep >=
+                SimulatorPageTutorialSteps.Count)
+        {
+            return "";
+        }
+
+        PageTutorialStep step =
+            SimulatorPageTutorialSteps[
+                pageTutorialStep];
+
+        return string.Equals(
+            step.Target,
+            target,
+            StringComparison.OrdinalIgnoreCase)
+                ? "page-tutorial-target"
+                : "";
+    }
+
+    private Task SetPageTutorialStep(
+        int step)
+    {
+        pageTutorialStep =
+            step;
+
+        return Task.CompletedTask;
+    }
+
+private void FinishPageTutorial()
+{
+    Session.Tutorial.SimulatorCompleted =
+        true;
+
+    showPageTutorial =
+        false;
+
+    Navigation.NavigateTo(
+        "/tutorial");
+}
+
+    private void ExitPageTutorial()
+    {
+        showPageTutorial =
+            false;
+
+        Navigation.NavigateTo(
+            "/tutorial");
+    }
+
+    private void RunSimulations(
+        int matchCount)
+    {
+        results =
+            new SimulationResults
+            {
+                RequestedMatches =
+                    matchCount
+            };
+
+        singleMatchLog.Clear();
+
+        if (DeckManager.Decks.Count < 2)
+        {
+            results.Exceptions++;
+
+            results.Diagnostics.Add(
+                "At least two decks are required.");
+
+            return;
+        }
+
+        player1DeckIndex =
+            Math.Clamp(
+                player1DeckIndex,
+                0,
+                DeckManager.Decks.Count - 1);
+
+        player2DeckIndex =
+            Math.Clamp(
+                player2DeckIndex,
+                0,
+                DeckManager.Decks.Count - 1);
+
+        for (int matchNumber = 1;
+             matchNumber <= matchCount;
+             matchNumber++)
+        {
+            try
+            {
+                RunSingleSimulation(
+                    matchNumber,
+                    matchCount);
+            }
+            catch (Exception exception)
+            {
+                results.Exceptions++;
+
+                if (results.Diagnostics.Count < 20)
+                {
+                    results.Diagnostics.Add(
+                        $"Match {matchNumber}: " +
+                        exception.Message);
+                }
+            }
+        }
+
+        if (results.CompletedMatches > 0)
+        {
+            results.AverageTurns =
+                (double)results.TotalTurns /
+                results.CompletedMatches;
+        }
+    }
+
+private void RunSingleSimulation(
+    int matchNumber,
+    int requestedMatches)
+{
+    Deck player1Deck =
+        DeckManager.Decks[
+            player1DeckIndex];
+
+    Deck player2Deck =
+        DeckManager.Decks[
+            player2DeckIndex];
+
+    Player bot1 =
+        new Player
+        {
+            Name =
+                "Bot 1",
+
+            IsBot =
+                true,
+
+            Deck =
+                DeckCloner.Clone(
+                    player1Deck)
+        };
+
+    Player bot2 =
+        new Player
+        {
+            Name =
+                "Bot 2",
+
+            IsBot =
+                true,
+
+            Deck =
+                DeckCloner.Clone(
+                    player2Deck)
+        };
+
+    MatchState match =
+        BattleEngine.StartMatch(
+            bot1,
+            bot2,
+            GameMode.BotMatch);
+
+    int simulationSteps =
+        0;
+
+    const int maxSimulationSteps =
+        1000;
+
+    string? stopReason =
+        null;
+
+    while (!MatchManager.IsMatchOver(
+               match.Player1,
+               match.Player2) &&
+           simulationSteps <
+               maxSimulationSteps)
+    {
+        bool progressed =
+            PhaseManager
+                .RunBotPhaseIfNeeded(
+                    match);
+
+        if (!progressed)
+        {
+            stopReason =
+                "RunBotPhaseIfNeeded returned false " +
+                "before the match was terminal.";
+
+            break;
+        }
+
+        simulationSteps++;
+    }
+
+    /*
+        The match never reached a terminal state.
+        This is an actual Simulator stall candidate.
+    */
+    if (!MatchManager.IsMatchOver(
+            match.Player1,
+            match.Player2))
+    {
+        results!.StalledMatches++;
+
+        if (results.Diagnostics.Count < 20)
+        {
+            string reason =
+                stopReason ??
+                $"Reached the " +
+                $"{maxSimulationSteps}-step " +
+                $"Simulator safety limit.";
+
+            Player actingPlayer =
+    match.GetActingPlayer();
+
+results.Diagnostics.Add(
+    $"STALL | " +
+    $"Match={matchNumber} | " +
+    $"Reason={reason} | " +
+    $"SimulationSteps={simulationSteps} | " +
+    $"EngineTurn={match.TurnNumber} | " +
+    $"Phase={match.CurrentPhase} | " +
+    $"Acting={actingPlayer.Name} | " +
+    $"Bot1Energy={match.Player1.Energy} | " +
+    $"Bot2Energy={match.Player2.Energy} | " +
+    $"Bot1Deck=" +
+    $"{match.Player1.Deck.RuntimeStorage?.Count ?? 0} | " +
+    $"Bot2Deck=" +
+    $"{match.Player2.Deck.RuntimeStorage?.Count ?? 0}");
+
+        }
+
+        if (requestedMatches == 1)
+        {
+            singleMatchLog =
+                BattleLog
+                    .GetPhaseActions()
+                    .ToList();
+        }
+
+        return;
+    }
+
+    /*
+        Determine whether the terminal state is a draw
+        before interpreting a null winner as abnormal.
+    */
+    bool isDraw =
+        MatchManager.IsDraw(
+            match.Player1,
+            match.Player2);
+
+    Player? winner =
+        BattleEngine.CompleteMatch(
+            match);
+
+    if (isDraw ||
+        match.IsDraw)
+    {
+        RecordCompletedMatch(
+            match);
+
+        results!.Draws++;
+
+        if (requestedMatches == 1)
+        {
+            singleMatchLog =
+                BattleLog
+                    .GetPhaseActions()
+                    .ToList();
+        }
+
+        return;
+    }
+
+    /*
+        Terminal plus not a draw plus no winner is
+        genuinely unexpected and remains visible.
+    */
+    if (winner == null)
+    {
+        results!.StalledMatches++;
+
+        if (results.Diagnostics.Count < 20)
+        {
+            results.Diagnostics.Add(
+                $"Match {matchNumber}: " +
+                $"terminal state returned no winner " +
+                $"and was not a draw. " +
+                $"Turn={match.TurnNumber}, " +
+                $"Phase={match.CurrentPhase}, " +
+                $"Bot1Energy={match.Player1.Energy}, " +
+                $"Bot2Energy={match.Player2.Energy}, " +
+                $"Bot1Surrendered=" +
+                $"{match.Player1.HasSurrendered}, " +
+                $"Bot2Surrendered=" +
+                $"{match.Player2.HasSurrendered}.");
+        }
+
+        if (requestedMatches == 1)
+        {
+            singleMatchLog =
+                BattleLog
+                    .GetPhaseActions()
+                    .ToList();
+        }
+
+        return;
+    }
+
+    RecordCompletedMatch(
+        match);
+
+    if (winner ==
+        match.Player1)
+    {
+        results!.Player1Wins++;
+    }
+    else if (winner ==
+             match.Player2)
+    {
+        results!.Player2Wins++;
+    }
+
+    if (requestedMatches == 1)
+    {
+        singleMatchLog =
+            BattleLog
+                .GetPhaseActions()
+                .ToList();
+    }
+}
+
+    private static void RunSimulatorUtilityPhase(
+        Player actingPlayer,
+        Player opponent)
+    {
+        int safety =
+            0;
+
+        while (actingPlayer.UtilityActionsRemaining > 0 &&
+               safety < 10)
+        {
+            int before =
+                actingPlayer.UtilityActionsRemaining;
+
+            BotManager.RunNextUtilityAction(
+                actingPlayer,
+                opponent);
+
+            safety++;
+
+            if (actingPlayer.UtilityActionsRemaining >=
+                before)
+            {
+                break;
+            }
+        }
+    }
+
+    private static void RunSimulatorPlacementPhase(
+        Player actingPlayer)
+    {
+        if (actingPlayer.Deck.Structure ==
+            DeckStructure.Stack)
+        {
+            PlacementManager.AutoStackPlacement(
+                actingPlayer);
+
+            return;
+        }
+
+        for (int step = 0;
+             step <= 4;
+             step++)
+        {
+            BotManager.RunNextPlacementAction(
+                actingPlayer,
+                step);
+        }
+    }
+
+    private static void RunSimulatorAttackPhase(
+        Player actingPlayer,
+        Player opponent)
+    {
+        for (int step = 0;
+             step <= 2;
+             step++)
+        {
+            if (MatchManager.IsMatchOver(
+                    actingPlayer,
+                    opponent))
+            {
+                return;
+            }
+
+            BotManager.RunNextAttackAction(
+                actingPlayer,
+                opponent,
+                step);
+        }
+    }
+
+    private void RecordCompletedMatch(
+        MatchState match)
+    {
+        if (results == null)
+        {
+            return;
+        }
+
+        results.CompletedMatches++;
+
+        results.TotalTurns +=
+            match.TurnNumber;
+
+        if (results.ShortestMatch == 0 ||
+            match.TurnNumber <
+                results.ShortestMatch)
+        {
+            results.ShortestMatch =
+                match.TurnNumber;
+        }
+
+        if (match.TurnNumber >
+            results.LongestMatch)
+        {
+            results.LongestMatch =
+                match.TurnNumber;
+        }
+
+        if (match.IsDraw)
+        {
+            results.Draws++;
+            return;
+        }
+
+        Player? winner =
+            MatchManager.GetWinner(
+                match.Player1,
+                match.Player2);
+
+        if (winner == match.Player1)
+        {
+            results.Player1Wins++;
+        }
+        else if (winner == match.Player2)
+        {
+            results.Player2Wins++;
+        }
+        else
+        {
+            results.Draws++;
+        }
+    }
+
+    private static string GetStructureName(
+        DeckStructure structure)
+    {
+        return structure switch
+        {
+            DeckStructure.Queue =>
+                "Queue",
+
+            DeckStructure.Stack =>
+                "Stack",
+
+            DeckStructure.PriorityQueue =>
+                "Priority Queue",
+
+            DeckStructure.RandomList =>
+                "Random List",
+
+            DeckStructure.LinkedList =>
+                "Linked List",
+
+            _ =>
+                structure.ToString()
+        };
+    }
+
+    private void GoHome()
+    {
+        Navigation.NavigateTo(
+            "/");
+    }
+
+    private sealed class SimulationResults
+    {
+        public int RequestedMatches
+        {
+            get;
+            set;
+        }
+
+        public int CompletedMatches
+        {
+            get;
+            set;
+        }
+
+        public int StalledMatches
+        {
+            get;
+            set;
+        }
+
+        public int Exceptions
+        {
+            get;
+            set;
+        }
+
+        public int Player1Wins
+        {
+            get;
+            set;
+        }
+
+        public int Player2Wins
+        {
+            get;
+            set;
+        }
+
+        public int Draws
+        {
+            get;
+            set;
+        }
+
+        public int TotalTurns
+        {
+            get;
+            set;
+        }
+
+        public int LongestMatch
+        {
+            get;
+            set;
+        }
+
+        public int ShortestMatch
+        {
+            get;
+            set;
+        }
+
+        public double AverageTurns
+        {
+            get;
+            set;
+        }
+
+        public List<string> Diagnostics
+        {
+            get;
+        } =
+            new();
+    }
+}

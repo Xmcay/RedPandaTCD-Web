@@ -1,0 +1,217 @@
+@using RedPandaTCD_Web.Game
+@using Microsoft.AspNetCore.Components
+
+
+@if (Visible && Steps.Count > 0)
+{
+    PageTutorialStep step = Steps[CurrentIndex];
+
+    <div class="page-tutorial-shade"></div>
+
+    <aside class="page-tutorial-panel">
+        <div class="page-tutorial-header">
+            <div>
+                <span class="page-tutorial-kicker">@Label</span>
+                <span class="page-tutorial-count">
+                    STEP @(CurrentIndex + 1) OF @Steps.Count
+                </span>
+            </div>
+
+            <button type="button"
+                    class="page-tutorial-exit"
+                    title="Exit Tutorial"
+                    @onclick="ExitAsync">
+                ×
+            </button>
+        </div>
+
+        <h2>@step.Title</h2>
+        <p>@step.Message</p>
+
+        <div class="page-tutorial-actions">
+            <button type="button"
+                    class="page-tutorial-back"
+                    disabled="@(CurrentIndex == 0)"
+                    @onclick="Back">
+                BACK
+            </button>
+
+            <button type="button"
+                    class="page-tutorial-next"
+                    @onclick="NextAsync">
+                @(CurrentIndex == Steps.Count - 1 ? "FINISH" : "NEXT")
+                <span>→</span>
+            </button>
+        </div>
+    </aside>
+}
+
+<style>
+.page-tutorial-shade {
+    position: fixed;
+    inset: 0;
+    z-index: 8990;
+    pointer-events: none;
+    background: rgba(6, 10, 14, .38);
+}
+
+.page-tutorial-panel {
+    position: fixed;
+    left: 24px;
+    bottom: 24px;
+    z-index: 9000;
+    width: min(410px, calc(100vw - 48px));
+    padding: 19px;
+    border: 1px solid #a8904d;
+    border-left: 4px solid #e5cc67;
+    border-radius: 10px;
+    background: linear-gradient(145deg, #18212b, #0d141b);
+    color: #f5f5f5;
+    box-shadow: 0 16px 42px rgba(0, 0, 0, .55);
+}
+
+.page-tutorial-header {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 14px;
+}
+
+.page-tutorial-header > div {
+    display: flex;
+    flex-direction: column;
+    gap: 3px;
+}
+
+.page-tutorial-kicker {
+    color: #e5cc67;
+    font-size: 9px;
+    font-weight: 900;
+    letter-spacing: 1.3px;
+}
+
+.page-tutorial-count {
+    color: #7f8b96;
+    font-size: 8px;
+    font-weight: 800;
+}
+
+.page-tutorial-exit {
+    width: 29px;
+    height: 29px;
+    border: 1px solid #596674;
+    border-radius: 5px;
+    background: #202b35;
+    color: #b5bec7;
+    cursor: pointer;
+    font-size: 17px;
+    font-weight: 900;
+}
+
+.page-tutorial-panel h2 {
+    margin: 12px 0 7px;
+    color: #f4efe3;
+    font-size: 21px;
+}
+
+.page-tutorial-panel p {
+    margin: 0;
+    color: #c5ced6;
+    font-size: 12px;
+    line-height: 1.55;
+}
+
+.page-tutorial-actions {
+    margin-top: 16px;
+    padding-top: 13px;
+    display: grid;
+    grid-template-columns: 1fr 2fr;
+    gap: 9px;
+    border-top: 1px solid rgba(255, 255, 255, .1);
+}
+
+.page-tutorial-actions button {
+    padding: 10px 12px;
+    border-radius: 6px;
+    cursor: pointer;
+    font-size: 9px;
+    font-weight: 900;
+    letter-spacing: .7px;
+}
+
+.page-tutorial-back {
+    border: 1px solid #67727d;
+    background: #202b35;
+    color: #c3ccd4;
+}
+
+.page-tutorial-next {
+    border: 2px solid #b69d55;
+    background: linear-gradient(145deg, #f4e9c8, #dccc9c);
+    color: #222;
+}
+
+.page-tutorial-actions button:disabled {
+    cursor: default;
+    opacity: .35;
+}
+
+@@media (max-width: 650px) {
+    .page-tutorial-panel {
+        left: 12px;
+        right: 12px;
+        bottom: 12px;
+        width: auto;
+    }
+}
+</style>
+
+@code {
+    [Parameter]
+    public bool Visible { get; set; }
+
+    [Parameter]
+    public string Label { get; set; } = "PAGE TUTORIAL";
+
+    [Parameter]
+    public IReadOnlyList<PageTutorialStep> Steps { get; set; } =
+        Array.Empty<PageTutorialStep>();
+
+    [Parameter]
+    public int CurrentIndex { get; set; }
+
+    [Parameter]
+    public EventCallback<int> CurrentIndexChanged { get; set; }
+
+    [Parameter]
+    public EventCallback OnExit { get; set; }
+
+    [Parameter]
+    public EventCallback OnFinished { get; set; }
+
+    private async Task Back()
+    {
+        if (CurrentIndex <= 0)
+        {
+            return;
+        }
+
+        await CurrentIndexChanged.InvokeAsync(CurrentIndex - 1);
+    }
+
+    private async Task NextAsync()
+    {
+        if (CurrentIndex >= Steps.Count - 1)
+        {
+            await OnFinished.InvokeAsync();
+            return;
+        }
+
+        await CurrentIndexChanged.InvokeAsync(CurrentIndex + 1);
+    }
+
+    private async Task ExitAsync()
+    {
+        await OnExit.InvokeAsync();
+    }
+}

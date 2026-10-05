@@ -1,0 +1,1020 @@
+@page "/card-library"
+@using RedPandaTCD_Web.Game
+
+<PageTitle>Card Library - Red Panda TCD</PageTitle>
+
+<div class="library-page">
+
+    <section class="library-shell">
+
+        <header class="library-header">
+
+            <div>
+                <h1>
+                    Card Library
+                </h1>
+
+                <p>
+                    Browse every available card in Red Panda TCD.
+                </p>
+            </div>
+
+            <button class="back-button"
+                    @onclick="GoHome">
+                Main Menu
+            </button>
+
+        </header>
+
+        <section class="library-controls">
+
+            <input class="search-box"
+                   @bind="searchText"
+                   @bind:event="oninput"
+                  placeholder="Search by card name or ID..." />
+
+            <div class="filter-section">
+
+                <span class="filter-label">
+                    TYPE
+                </span>
+
+                <div class="filter-row">
+
+                    <button class="@GetTypeButtonClass(null)"
+                            @onclick="() => SetTypeFilter(null)">
+                        All
+                    </button>
+
+                    <button class="@GetTypeButtonClass(CardType.Character)"
+                            @onclick="() => SetTypeFilter(CardType.Character)">
+                        Characters
+                    </button>
+
+                    <button class="@GetTypeButtonClass(CardType.Attack)"
+                            @onclick="() => SetTypeFilter(CardType.Attack)">
+                        Attacks
+                    </button>
+
+                    <button class="@GetTypeButtonClass(CardType.Utility)"
+                            @onclick="() => SetTypeFilter(CardType.Utility)">
+                        Utilities
+                    </button>
+
+                </div>
+
+            </div>
+
+            <div class="filter-section">
+
+                <span class="filter-label">
+                    ARCHETYPE
+                </span>
+
+                <div class="filter-row">
+
+                    <button class="@GetArchetypeButtonClass(null)"
+                            @onclick="() => SetArchetypeFilter(null)">
+                        All Archetypes
+                    </button>
+
+                    <button class="@GetArchetypeButtonClass(Archetype.Magic)"
+                            @onclick="() => SetArchetypeFilter(Archetype.Magic)">
+                        Magic
+                    </button>
+
+                    <button class="@GetArchetypeButtonClass(Archetype.Physical)"
+                            @onclick="() => SetArchetypeFilter(Archetype.Physical)">
+                        Physical
+                    </button>
+
+                    <button class="@GetArchetypeButtonClass(Archetype.Neutral)"
+                            @onclick="() => SetArchetypeFilter(Archetype.Neutral)">
+                        Neutral
+                    </button>
+
+                </div>
+
+            </div>
+
+            <div class="sort-row">
+
+                <span>
+                    @FilteredCards.Count card(s)
+                </span>
+
+                <button @onclick="ToggleSort">
+                    @(sortByCost
+                        ? "Cost: Low → High"
+                        : "Default Order")
+                </button>
+
+            </div>
+
+        </section>
+
+        @if (FilteredCards.Count == 0)
+        {
+            <div class="empty-results">
+                No cards match the current filters.
+            </div>
+        }
+        else
+        {
+            <section class="card-library-grid">
+
+                @foreach (Card card in FilteredCards)
+                {
+                    <article class="library-card @GetCardClass(card)">
+
+                        <div class="card-accent">
+                        </div>
+
+                        <header class="card-header">
+
+                            <div class="card-title-area">
+
+                                <h2>
+                                    @card.Name
+                                </h2>
+
+                                <span>
+                                    @card.Archetype · @card.Type
+                                </span>
+
+                            </div>
+
+                            <div class="cost-badge">
+
+                                <small>
+                                    COST
+                                </small>
+
+                                <strong>
+                                    @card.Cost
+                                </strong>
+
+                            </div>
+
+                        </header>
+
+                        @if (card.Type == CardType.Character)
+                        {
+                            <div class="stat-grid">
+
+                                <div class="stat-box">
+
+                                    <span>
+                                        HP
+                                    </span>
+
+                                    <strong class="hp">
+                                        @card.HpValue
+                                    </strong>
+
+                                </div>
+
+                                <div class="stat-box">
+
+                                    <span>
+                                        SHIELD
+                                    </span>
+
+                                    <strong class="shield">
+                                        @card.ShieldValue
+                                    </strong>
+
+                                </div>
+
+                            </div>
+
+                            <div class="card-info-section entry">
+
+                                <strong>
+                                    ENTRY ·
+                                    @CharacterInfo.GetEntryName(card)
+                                </strong>
+
+                                <p>
+                                    @CharacterInfo.GetEntryDescription(card)
+                                </p>
+
+                            </div>
+
+                            <div class="card-info-section passive">
+
+                                <strong>
+                                    PASSIVE ·
+                                    @CharacterInfo.GetPassiveName(card)
+                                </strong>
+
+                                <p>
+                                    @CharacterInfo.GetPassiveDescription(card)
+                                </p>
+
+                            </div>
+
+                            <div class="card-info-section active">
+
+                                <strong>
+                                    ACTIVE ·
+                                    @CharacterInfo.GetActiveName(card)
+                                </strong>
+
+                                <p>
+                                    @CharacterInfo.GetActiveDescription(card)
+                                </p>
+
+                                <small>
+                                    Ability Cost:
+                                    @CharacterInfo.GetActiveCost(card)
+                                    Energy
+                                    ·
+                                    Cooldown:
+                                    @card.AbilityCooldown
+                                </small>
+
+                            </div>
+                        }
+                        else if (card.Type == CardType.Attack)
+                        {
+                            <div class="stat-grid">
+
+                                <div class="stat-box">
+
+                                    <span>
+                                        DAMAGE
+                                    </span>
+
+                                    <strong>
+                                        @card.Damage
+                                    </strong>
+
+                                </div>
+
+                                <div class="stat-box">
+
+                                    <span>
+                                        HITS
+                                    </span>
+
+                                    <strong>
+                                        @card.Hits
+                                    </strong>
+
+                                </div>
+
+                            </div>
+
+                            @if (card.IsPiercing ||
+                                 card.InstantFatigue)
+                            {
+                                <div class="attack-tags">
+
+                                    @if (card.IsPiercing)
+                                    {
+                                        <span class="tag piercing">
+                                            PIERCING
+                                        </span>
+                                    }
+
+                                    @if (card.InstantFatigue)
+                                    {
+                                        <span class="tag fatigue">
+                                            INSTANT FATIGUE
+                                        </span>
+                                    }
+
+                                </div>
+                            }
+
+                            @if (!string.IsNullOrWhiteSpace(
+                                card.Description))
+                            {
+                                <div class="card-info-section generic">
+
+                                    <strong>
+                                        EFFECT
+                                    </strong>
+
+                                    <p>
+                                        @card.Description
+                                    </p>
+
+                                </div>
+                            }
+                            else
+                            {
+                                <div class="card-info-section generic">
+
+                                    <strong>
+                                        ATTACK
+                                    </strong>
+
+                                    <p>
+                                        Deals @card.Damage Damage
+                                        per hit across
+                                        @card.Hits hit(s).
+                                    </p>
+
+                                </div>
+                            }
+                        }
+                        else if (card.Type == CardType.Utility)
+                        {
+                            <div class="card-info-section utility">
+
+                                <strong>
+                                    EFFECT
+                                </strong>
+
+                                <p>
+                                    @UtilityInfo.GetDescription(card)
+                                </p>
+
+                            </div>
+                        }
+
+                        <footer class="card-id">
+                            @card.Id
+                        </footer>
+
+                    </article>
+                }
+
+            </section>
+        }
+
+    </section>
+
+</div>
+
+<style>
+
+.library-page {
+    min-height: calc(100vh - 58px);
+
+    padding: 36px 24px 60px;
+
+    box-sizing: border-box;
+
+    background:
+        linear-gradient(
+            160deg,
+            #18212b 0%,
+            #23364a 55%,
+            #3a2428 100%
+        );
+
+    color: #f5f5f5;
+}
+
+.library-shell {
+    width: min(1250px, 100%);
+
+    margin: 0 auto;
+}
+
+.library-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+
+    gap: 20px;
+
+    margin-bottom: 24px;
+}
+
+.library-header h1 {
+    margin: 0;
+
+    color: #f4efe3;
+
+    font-size: clamp(32px, 4vw, 48px);
+}
+
+.library-header p {
+    margin: 6px 0 0;
+
+    color: #c8d0d8;
+}
+
+.back-button,
+.library-controls button {
+    padding: 10px 15px;
+
+    border: 1px solid #9b9383;
+    border-radius: 6px;
+
+    background: #f4efe3;
+    color: #222222;
+
+    cursor: pointer;
+
+    font-weight: bold;
+
+    transition:
+        background 0.12s ease,
+        border-color 0.12s ease,
+        transform 0.12s ease;
+}
+
+.back-button:hover,
+.library-controls button:hover {
+    background: #e5ddcc;
+
+    border-color: #c2b9a4;
+}
+
+.library-controls {
+    margin-bottom: 26px;
+    padding: 18px;
+
+    display: flex;
+    flex-direction: column;
+
+    gap: 14px;
+
+    border: 1px solid #56616c;
+    border-radius: 10px;
+
+    background: rgba(
+        19,
+        27,
+        35,
+        0.92
+    );
+}
+
+.search-box {
+    width: 100%;
+
+    box-sizing: border-box;
+
+    padding: 11px 13px;
+
+    border: 1px solid #8b949e;
+    border-radius: 6px;
+
+    background: #f4efe3;
+    color: #222222;
+
+    font-size: 14px;
+}
+
+.search-box:focus {
+    outline: 2px solid #e5cc67;
+
+    outline-offset: 1px;
+}
+
+.filter-section {
+    display: flex;
+    flex-direction: column;
+
+    gap: 7px;
+}
+
+.filter-label {
+    color: #9da8b2;
+
+    font-size: 9px;
+    font-weight: bold;
+
+    letter-spacing: 0.8px;
+}
+
+.filter-row {
+    display: flex;
+    flex-wrap: wrap;
+
+    gap: 8px;
+}
+
+.library-controls button.active {
+    border-color: #e5cc67;
+
+    background: #e5cc67;
+    color: #171717;
+}
+
+.sort-row {
+    min-height: 38px;
+
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+
+    gap: 15px;
+
+    padding-top: 4px;
+
+    border-top:
+        1px solid rgba(
+            255,
+            255,
+            255,
+            0.08
+        );
+
+    color: #aeb8c1;
+
+    font-size: 12px;
+}
+
+.card-library-grid {
+    display: grid;
+
+grid-template-columns:
+    repeat(
+        auto-fill,
+        minmax(210px, 1fr)
+    );
+    gap: 10px;
+
+    align-items: stretch;
+}
+
+.library-card {
+    position: relative;
+
+    min-height: 220px;
+
+    padding: 14px;
+
+    box-sizing: border-box;
+
+    display: flex;
+    flex-direction: column;
+
+    gap: 9px;
+
+    overflow: hidden;
+
+    border: 2px solid #655d51;
+    border-radius: 10px;
+
+    background:
+        linear-gradient(
+            145deg,
+            #fff9e9 0%,
+            #eee4cd 100%
+        );
+
+    color: #25221d;
+
+    box-shadow:
+        0 5px 10px rgba(0, 0, 0, 0.24);
+
+    transition:
+        transform 0.14s ease,
+        border-color 0.14s ease,
+        box-shadow 0.14s ease;
+}
+
+.library-card:hover {
+    transform: translateY(-3px);
+
+    border-color: #9b8a70;
+
+    box-shadow:
+        0 10px 20px rgba(
+            0,
+            0,
+            0,
+            0.34
+        );
+}
+
+.card-accent {
+    position: absolute;
+
+    top: 0;
+    left: 0;
+    right: 0;
+
+    height: 6px;
+}
+
+.library-character .card-accent {
+    background: #cf5959;
+}
+
+.library-attack .card-accent {
+    background: #d49a3a;
+}
+
+.library-utility .card-accent {
+    background: #5689d6;
+}
+
+.card-header {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+
+    gap: 8px;
+
+    padding-bottom: 8px;
+
+    border-bottom: 1px solid #c9c0ad;
+}
+
+.card-title-area {
+    min-width: 0;
+}
+
+.card-header h2 {
+    margin: 0;
+
+    font-size: 15px;
+    line-height: 1.15;
+}
+
+.card-header span {
+    display: block;
+
+    margin-top: 5px;
+
+    color: #6d655a;
+
+    font-size: 9px;
+    font-weight: bold;
+
+    text-transform: uppercase;
+
+    letter-spacing: 0.7px;
+}
+
+.cost-badge {
+    min-width: 34px;
+
+    flex-shrink: 0;
+
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+
+    gap: 1px;
+
+    padding: 5px;
+
+    border-radius: 7px;
+
+    background: #ead9e8;
+}
+
+.cost-badge small {
+    color: #6d655a;
+
+    font-size: 6px;
+    font-weight: bold;
+}
+
+.cost-badge strong {
+    color: #ad35cf;
+
+    font-size: 16px;
+}
+
+.stat-grid {
+    display: grid;
+
+    grid-template-columns:
+        1fr
+        1fr;
+
+    gap: 8px;
+}
+
+.stat-box {
+    padding: 6px;
+
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+
+    gap: 4px;
+
+    border-radius: 8px;
+
+    background:
+        rgba(
+            75,
+            65,
+            50,
+            0.08
+        );
+}
+
+.stat-box span {
+    color: #6d655a;
+
+    font-size: 8px;
+    font-weight: bold;
+
+    letter-spacing: 0.4px;
+}
+
+.stat-box strong {
+    font-size: 14px;
+}
+
+.stat-box .hp {
+    color: #d52d38;
+}
+
+.stat-box .shield {
+    color: #188746;
+}
+
+.card-info-section {
+    padding: 7px 8px;
+
+    border:
+        1px solid
+        rgba(70, 65, 55, 0.18);
+
+    border-radius: 6px;
+
+    background:
+        rgba(255, 255, 255, 0.35);
+}
+
+.card-info-section strong {
+    font-size: 8px;
+}
+
+.card-info-section p {
+    margin: 3px 0 0;
+
+    font-size: 9px;
+    line-height: 1.3;
+}
+
+.card-info-section small {
+    display: block;
+
+    margin-top: 5px;
+
+    color: #6d655a;
+
+    font-size: 8px;
+    line-height: 1.25;
+}
+
+.card-info-section.entry strong {
+    color: #9a790c;
+}
+
+.card-info-section.passive strong {
+    color: #8152a4;
+}
+
+.card-info-section.active strong {
+    color: #27814c;
+}
+
+.card-info-section.utility strong {
+    color: #27814c;
+}
+
+.card-info-section.generic strong {
+    color: #7b6130;
+}
+
+.attack-tags {
+    display: flex;
+    flex-wrap: wrap;
+
+    gap: 6px;
+}
+
+.tag {
+    padding: 4px 7px;
+
+    border-radius: 5px;
+
+    color: white;
+
+    font-size: 8px;
+    font-weight: bold;
+
+    letter-spacing: 0.4px;
+}
+
+.tag.piercing {
+    background: #765095;
+}
+
+.tag.fatigue {
+    background: #ad4d4d;
+}
+
+.card-id {
+    margin-top: auto;
+
+    padding-top: 10px;
+
+    border-top:
+        1px solid #c9c0ad;
+
+    color: #877d6d;
+
+    font-size: 8px;
+
+    text-align: right;
+}
+
+.empty-results {
+    padding: 40px;
+
+    border:
+        1px dashed #67727c;
+
+    border-radius: 10px;
+
+    background:
+        rgba(
+            19,
+            27,
+            35,
+            0.6
+        );
+
+    color: #b8c0c7;
+
+    text-align: center;
+}
+
+@@media (max-width: 650px) {
+
+    .library-page {
+        padding:
+            24px
+            14px
+            40px;
+    }
+
+    .library-header {
+        align-items: stretch;
+        flex-direction: column;
+    }
+
+    .back-button {
+        width: 100%;
+    }
+
+    .sort-row {
+        align-items: stretch;
+        flex-direction: column;
+    }
+
+    .sort-row button {
+        width: 100%;
+    }
+
+    .card-library-grid {
+        grid-template-columns: 1fr;
+    }
+
+}
+
+</style>
+
+@code {
+
+    [Inject]
+    private NavigationManager Navigation
+    {
+        get;
+        set;
+    } = default!;
+
+    private List<Card> allCards =
+        new();
+
+    private string searchText =
+        "";
+
+    private CardType? selectedType;
+
+    private Archetype? selectedArchetype;
+
+    private bool sortByCost;
+
+    protected override void OnInitialized()
+    {
+        allCards =
+            CardLibraryManager.GetAllCards();
+    }
+
+    private List<Card> FilteredCards
+    {
+        get
+        {
+            IEnumerable<Card> cards =
+                allCards;
+
+            if (!string.IsNullOrWhiteSpace(
+                    searchText))
+            {
+                cards =
+                    CardLibraryManager
+                        .LinearSearch(
+                            allCards,
+                            searchText);
+            }
+
+            if (selectedType != null)
+            {
+                cards =
+                    cards.Where(card =>
+                        card.Type ==
+                            selectedType.Value);
+            }
+
+            if (selectedArchetype != null)
+            {
+                cards =
+                    cards.Where(card =>
+                        card.Archetype ==
+                            selectedArchetype.Value);
+            }
+
+            List<Card> results =
+                cards.ToList();
+
+            if (sortByCost)
+            {
+                results =
+                    CardLibraryManager
+                        .InsertionSortByCost(
+                            results);
+            }
+
+            return results;
+        }
+    }
+
+    private void SetTypeFilter(
+        CardType? type)
+    {
+        selectedType =
+            type;
+    }
+
+    private void SetArchetypeFilter(
+        Archetype? archetype)
+    {
+        selectedArchetype =
+            archetype;
+    }
+
+    private void ToggleSort()
+    {
+        sortByCost =
+            !sortByCost;
+    }
+
+    private string GetTypeButtonClass(
+        CardType? type)
+    {
+        return selectedType == type
+            ? "active"
+            : "";
+    }
+
+    private string GetArchetypeButtonClass(
+        Archetype? archetype)
+    {
+        return selectedArchetype ==
+               archetype
+            ? "active"
+            : "";
+    }
+
+    private static string GetCardClass(
+        Card card)
+    {
+        return card.Type switch
+        {
+            CardType.Character =>
+                "library-character",
+
+            CardType.Attack =>
+                "library-attack",
+
+            CardType.Utility =>
+                "library-utility",
+
+            _ =>
+                ""
+        };
+    }
+
+    private void GoHome()
+    {
+        Navigation.NavigateTo("/");
+    }
+}

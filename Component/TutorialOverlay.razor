@@ -1,0 +1,527 @@
+@using RedPandaTCD_Web.Game
+
+@inject GameSessionState Session
+@inject NavigationManager Navigation
+
+@if (Visible &&
+     IsTutorialActive &&
+     CurrentStep != null)
+{
+    <aside class="tutorial-overlay-panel @OverlayPositionClass">
+
+        <div class="tutorial-overlay-header">
+            <div class="tutorial-overlay-heading">
+                <span class="tutorial-overlay-kicker">
+                    @TutorialLabel
+                </span>
+
+                <span class="tutorial-step-number">
+                    STEP @(CurrentStep.Number + 1) OF @StepCount
+                </span>
+            </div>
+
+            <button class="tutorial-exit-button"
+                    title="Exit Tutorial"
+                    @onclick="ExitTutorial">
+                ×
+            </button>
+        </div>
+
+        <h2>
+            @CurrentStep.Title
+        </h2>
+
+        <p>
+            @CurrentStep.Message
+        </p>
+
+        <div class="tutorial-overlay-footer">
+
+            @if (CurrentStep.RequiredAction ==
+                 TutorialAction.Acknowledge)
+            {
+                <button class="tutorial-next-button"
+                        @onclick="Acknowledge">
+                    NEXT
+                    <span>→</span>
+                </button>
+            }
+            else if (CurrentStep.RequiredAction ==
+                     TutorialAction.FinishTutorial)
+            {
+                <button class="tutorial-finish-button"
+                        @onclick="FinishTutorial">
+                    FINISH TUTORIAL
+                    <span>✓</span>
+                </button>
+            }
+            else if (CurrentStep.RequiredAction ==
+                     TutorialAction.ReturnToTutorial)
+            {
+                <button class="tutorial-finish-button"
+                        @onclick="FinishTutorial">
+                    RETURN TO TUTORIAL
+                    <span>→</span>
+                </button>
+            }
+            else
+            {
+                <div class="tutorial-action-prompt">
+                    <span class="prompt-indicator">
+                        !
+                    </span>
+
+                    <span>
+                        @GetActionPrompt(
+                            CurrentStep.RequiredAction)
+                    </span>
+                </div>
+            }
+
+        </div>
+
+    </aside>
+}
+
+<style>
+.tutorial-overlay-panel {
+    position: fixed;
+    z-index: 9000;
+    width: min(390px, calc(100vw - 44px));
+    padding: 18px 19px;
+    box-sizing: border-box;
+    border: 1px solid #a8904d;
+    border-left: 4px solid #e5cc67;
+    border-radius: 10px;
+    background:
+        linear-gradient(
+            145deg,
+            rgba(24, 33, 43, .98),
+            rgba(13, 20, 27, .98)
+        );
+    color: #f5f5f5;
+    box-shadow:
+        0 14px 36px rgba(0, 0, 0, .48),
+        0 0 20px rgba(229, 204, 103, .08);
+}
+
+.tutorial-overlay-panel.tutorial-overlay-lower-left {
+    left: 28px;
+    right: auto;
+    top: auto;
+    bottom: 26px;
+}
+
+.tutorial-overlay-panel.tutorial-overlay-upper-left {
+    left: 28px;
+    right: auto;
+    top: 94px;
+    bottom: auto;
+}
+
+.tutorial-overlay-panel.tutorial-overlay-upper-right {
+    left: auto;
+    right: 350px;
+    top: 94px;
+    bottom: auto;
+}
+
+.tutorial-overlay-header {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 15px;
+}
+
+.tutorial-overlay-heading {
+    display: flex;
+    flex-direction: column;
+    gap: 3px;
+}
+
+.tutorial-overlay-kicker {
+    color: #e5cc67;
+    font-size: 8px;
+    font-weight: 900;
+    letter-spacing: 1.4px;
+}
+
+.tutorial-step-number {
+    color: #77838e;
+    font-size: 7px;
+    font-weight: bold;
+    letter-spacing: .8px;
+}
+
+.tutorial-exit-button {
+    width: 28px;
+    height: 28px;
+    flex-shrink: 0;
+    padding: 0;
+    border: 1px solid #596674;
+    border-radius: 5px;
+    background: #202b35;
+    color: #aeb8c1;
+    cursor: pointer;
+    font-size: 17px;
+    font-weight: bold;
+}
+
+.tutorial-exit-button:hover {
+    border-color: #a95c62;
+    background: #43262a;
+    color: #efb0b3;
+}
+
+.tutorial-overlay-panel h2 {
+    margin: 11px 0 7px;
+    color: #f4efe3;
+    font-size: 20px;
+    line-height: 1.15;
+}
+
+.tutorial-overlay-panel p {
+    margin: 0;
+    color: #c0c9d1;
+    font-size: 11px;
+    line-height: 1.55;
+}
+
+.tutorial-overlay-footer {
+    margin-top: 15px;
+    padding-top: 13px;
+    border-top: 1px solid rgba(255, 255, 255, .09);
+}
+
+.tutorial-next-button,
+.tutorial-finish-button {
+    width: 100%;
+    padding: 10px 14px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    border-radius: 6px;
+    cursor: pointer;
+    font-size: 9px;
+    font-weight: 900;
+    letter-spacing: .7px;
+}
+
+.tutorial-next-button {
+    border: 2px solid #b69d55;
+    background:
+        linear-gradient(
+            145deg,
+            #f4e9c8,
+            #dccc9c
+        );
+    color: #222;
+}
+
+.tutorial-finish-button {
+    border: 2px solid #4f9364;
+    background:
+        linear-gradient(
+            145deg,
+            #9bd2a6,
+            #69ad78
+        );
+    color: #102516;
+    box-shadow:
+        0 0 15px rgba(105, 173, 120, .14);
+}
+
+.tutorial-next-button:hover,
+.tutorial-finish-button:hover {
+    filter: brightness(1.07);
+}
+
+.tutorial-next-button span,
+.tutorial-finish-button span {
+    font-size: 14px;
+}
+
+.tutorial-action-prompt {
+    padding: 9px 10px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    border: 1px solid #786f54;
+    border-radius: 6px;
+    background: rgba(229, 204, 103, .06);
+    color: #d8d0b5;
+    font-size: 9px;
+    font-weight: bold;
+    line-height: 1.35;
+}
+
+.prompt-indicator {
+    width: 20px;
+    height: 20px;
+    flex-shrink: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border: 1px solid #e5cc67;
+    border-radius: 50%;
+    color: #e5cc67;
+    font-size: 10px;
+    font-weight: 900;
+}
+
+@@media (max-width: 900px) {
+    .tutorial-overlay-panel.tutorial-overlay-upper-left,
+    .tutorial-overlay-panel.tutorial-overlay-upper-right {
+        left: 14px;
+        right: 14px;
+        top: 78px;
+        bottom: auto;
+        width: auto;
+    }
+
+    .tutorial-overlay-panel.tutorial-overlay-lower-left {
+        left: 14px;
+        right: 14px;
+        top: auto;
+        bottom: 14px;
+        width: auto;
+    }
+}
+
+@@media (max-width: 650px) {
+    .tutorial-overlay-panel {
+        padding: 15px 16px;
+    }
+
+    .tutorial-overlay-panel.tutorial-overlay-upper-left,
+    .tutorial-overlay-panel.tutorial-overlay-upper-right {
+        left: 12px;
+        right: 12px;
+        top: 72px;
+        bottom: auto;
+        width: auto;
+    }
+
+    .tutorial-overlay-panel.tutorial-overlay-lower-left {
+        left: 12px;
+        right: 12px;
+        top: auto;
+        bottom: 12px;
+        width: auto;
+    }
+}
+</style>
+
+@code {
+    [Parameter]
+    public bool Visible { get; set; }
+
+    [Parameter]
+    public EventCallback OnAdvanced { get; set; }
+
+    [Parameter]
+    public EventCallback OnFinish { get; set; }
+
+    private TutorialStep? CurrentStep =>
+        TutorialManager.GetCurrentStep(
+            Session.Tutorial);
+
+    private int StepCount =>
+        TutorialManager.GetStepCount(
+            Session.Tutorial);
+
+    private bool IsTutorialActive =>
+        Session.Tutorial.IsActive &&
+        Session.Tutorial.IsBattleTutorial &&
+        Session.Tutorial.CurrentTutorial !=
+            TutorialType.None &&
+        Session.CurrentMatch != null;
+
+    private string TutorialLabel =>
+        Session.Tutorial.CurrentTutorial switch
+        {
+            TutorialType.LearnToPlay =>
+                "LEARN TO PLAY",
+
+            TutorialType.Queue =>
+                "QUEUE TUTORIAL",
+
+            TutorialType.PriorityQueue =>
+                "PRIORITY QUEUE TUTORIAL",
+
+            TutorialType.Stack =>
+                "STACK TUTORIAL",
+
+            TutorialType.RandomList =>
+                "RANDOM LIST TUTORIAL",
+
+            TutorialType.LinkedList =>
+                "LINKED LIST TUTORIAL",
+
+            _ =>
+                "TUTORIAL"
+        };
+
+    private string OverlayPositionClass
+    {
+        get
+        {
+            TutorialAction requiredAction =
+                TutorialManager.GetRequiredAction(
+                    Session.Tutorial);
+
+            string target =
+                TutorialManager.GetHighlightTarget(
+                    Session.Tutorial);
+
+            if (requiredAction is
+                    TutorialAction.SelectUtility or
+                    TutorialAction.PlayUtility or
+                    TutorialAction.DiscardAndDraw or
+                    TutorialAction.DeployCharacter or
+                    TutorialAction.DeployAttack or
+                    TutorialAction.ReplaceAttack)
+            {
+                return
+                    "tutorial-overlay-upper-left";
+            }
+
+            if (target is
+                    "player-hand" or
+                    "tutorial-utility" or
+                    "sorcerer" or
+                    "fireball" or
+                    "piercing-attack" or
+                    "piercing-slot" or
+                    "multi-hit-attack" or
+                    "wanderer")
+            {
+                return
+                    "tutorial-overlay-upper-left";
+            }
+
+            if (target is
+                    "player-deck" or
+                    "discard-pile")
+            {
+                return
+                    "tutorial-overlay-upper-left";
+            }
+
+            return
+                "tutorial-overlay-lower-left";
+        }
+    }
+
+    private async Task Acknowledge()
+    {
+        bool advanced =
+            TutorialManager.AcknowledgeInstruction(
+                Session.Tutorial);
+
+        if (advanced)
+        {
+            await OnAdvanced.InvokeAsync();
+        }
+    }
+
+    private async Task FinishTutorial()
+    {
+        await OnFinish.InvokeAsync();
+    }
+
+    private void ExitTutorial()
+    {
+        Session.CurrentMatch =
+            null;
+
+        TutorialManager.ExitTutorial(
+            Session.Tutorial);
+
+        Navigation.NavigateTo(
+            "/tutorial");
+    }
+
+    private static string GetActionPrompt(
+        TutorialAction action)
+    {
+        return action switch
+        {
+            TutorialAction.SelectUtility =>
+                "Select the highlighted Utility card.",
+
+            TutorialAction.PlayUtility =>
+                "Play the selected Utility card.",
+
+            TutorialAction.DiscardAndDraw =>
+                "Discard a card and draw its replacement.",
+
+            TutorialAction.PeekDeck =>
+                "Click the deck and use Peek.",
+
+            TutorialAction.ViewDrawPool =>
+                "Click the deck and view the Random List draw pool.",
+
+            TutorialAction.StartReorderNodes =>
+                "Click the deck and choose Reorder Nodes.",
+
+            TutorialAction.MoveReorderNode =>
+                "Move one node to a different position.",
+
+            TutorialAction.FinishReorderNodes =>
+                "Finish the node-reordering action.",
+
+            TutorialAction.DeployCharacter =>
+                "Deploy the highlighted Character.",
+
+            TutorialAction.DeployAttack =>
+                "Deploy the highlighted Attack.",
+
+            TutorialAction.ReplaceAttack =>
+                "Replace the highlighted deployed Attack.",
+
+            TutorialAction.RestAttack =>
+                "Rest the highlighted Fatigued Attack.",
+
+            TutorialAction.ReplaceCharacter =>
+                "Select the Character slot to begin replacement.",
+
+            TutorialAction.ResolveWandererEntry =>
+                "Select one highlighted deployed Attack.",
+
+            TutorialAction.ObserveAutomaticPlacement =>
+                "Watch the Stack automatically place eligible cards.",
+
+            TutorialAction.UseAttack =>
+                "Use the highlighted Attack.",
+
+            TutorialAction.UseCharacterAbility =>
+                "Use the highlighted Character Active ability.",
+
+            TutorialAction.ContinuePhase =>
+                "Use Continue to advance the Battle.",
+
+            TutorialAction.PrepareRecycle =>
+                "Preparing the recycling demonstration.",
+
+            TutorialAction.ObserveRecycle =>
+                "Observe how the discarded cards return to the deck.",
+
+            TutorialAction.Surrender =>
+                "Choose Surrender and confirm the decision.",
+
+            TutorialAction.ObserveBoard =>
+                "Choose Observe Board.",
+
+            TutorialAction.ReturnToTutorial =>
+                "Return to the Tutorial menu.",
+
+            TutorialAction.FinishTutorial =>
+                "Finish the Tutorial.",
+
+            _ =>
+                "Complete the highlighted action."
+        };
+    }
+}

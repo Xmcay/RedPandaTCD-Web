@@ -1,0 +1,112 @@
+<button type="button"
+        class="continue-button @(Highlight ? "continue-ready" : "")"
+        disabled="@Disabled"
+        @onclick="HandleClick">
+
+    @if (IsBusy)
+    {
+        <span>
+            Bot is thinking...
+        </span>
+    }
+    else if (Highlight)
+    {
+        <span>
+            Continue ›
+        </span>
+    }
+    else
+    {
+        <span>
+            Continue
+        </span>
+    }
+
+</button>
+
+<style>
+    .continue-button {
+        width: 100%;
+
+        padding: 11px 8px;
+
+        border: 1px solid #777777;
+        border-radius: 4px;
+
+        background: #e8e8e8;
+        color: #171717;
+
+        font-size: 13px;
+        font-weight: bold;
+
+        white-space: nowrap;
+
+        cursor: pointer;
+
+        transition:
+            border-color 0.18s ease,
+            box-shadow 0.18s ease,
+            background-color 0.18s ease,
+            transform 0.18s ease;
+    }
+
+    .continue-button:hover:not(:disabled) {
+        background: #f4f4f4;
+    }
+
+    .continue-button.continue-ready {
+        border: 2px solid #67df83;
+
+        background: #eef8ef;
+
+        box-shadow:
+            0 0 8px rgba(75, 220, 110, 0.55),
+            0 0 18px rgba(75, 220, 110, 0.24);
+
+        transform: translateY(-1px);
+    }
+
+    .continue-button.continue-ready:hover:not(:disabled) {
+        border-color: #82ef99;
+
+        background: #f4fff5;
+
+        box-shadow:
+            0 0 10px rgba(75, 220, 110, 0.70),
+            0 0 22px rgba(75, 220, 110, 0.35);
+    }
+
+    .continue-button:disabled {
+        cursor: default;
+
+        opacity: 0.65;
+
+        transform: none;
+
+        box-shadow: none;
+    }
+</style>
+
+@code {
+    [Parameter]
+    public bool Disabled { get; set; }
+
+    [Parameter]
+    public bool IsBusy { get; set; }
+
+    [Parameter]
+    public bool Highlight { get; set; }
+
+    [Parameter]
+    public EventCallback OnClick { get; set; }
+
+    private async Task HandleClick()
+    {
+        if (Disabled)
+        {
+            return;
+        }
+
+        await OnClick.InvokeAsync();
+    }
+}

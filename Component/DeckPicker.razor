@@ -1,0 +1,1278 @@
+@using RedPandaTCD_Web.Game
+
+<div class="deck-picker">
+
+    <div class="picker-header">
+
+        <h1>
+            @Title
+        </h1>
+
+        @if (!string.IsNullOrWhiteSpace(Subtitle))
+        {
+            <p class="deck-picker-subtitle">
+                @Subtitle
+            </p>
+        }
+
+    </div>
+
+
+    <div class="deck-list">
+
+        @foreach (Deck deck in DeckManager.Decks)
+        {
+            <div class="deck-option">
+
+                <div class="structure-accent @GetStructureClass(deck.Structure)">
+                </div>
+
+                <div class="deck-main">
+
+                    <strong class="deck-name">
+                        @deck.Name
+                    </strong>
+
+                    <span class="deck-structure">
+                        @GetStructureName(deck.Structure)
+                    </span>
+
+                </div>
+
+                <div class="deck-info">
+
+                    <div class="deck-stat">
+
+                        <span class="stat-label">
+                            CARDS
+                        </span>
+
+                        <strong>
+                            @deck.Cards.Count
+                        </strong>
+
+                    </div>
+
+                    <div class="deck-option-actions">
+
+                        <button class="deck-view"
+                                @onclick="() => ViewDeck(deck)">
+                            VIEW
+                        </button>
+
+                        <button class="deck-select"
+                                @onclick="() => SelectDeck(deck)">
+                            SELECT
+                        </button>
+
+                    </div>
+
+                </div>
+
+            </div>
+        }
+
+    </div>
+
+
+    @if (ShowBackButton)
+    {
+        <button class="back-button"
+                @onclick="OnBack">
+
+            @BackText
+
+        </button>
+    }
+
+</div>
+
+
+@if (viewedDeck != null)
+{
+    <div class="deck-view-overlay"
+         @onclick="CloseDeckView">
+
+        <div class="deck-view-dialog"
+             @onclick:stopPropagation="true">
+
+            <div class="deck-view-header">
+
+                <div>
+
+                    <span class="viewer-label">
+                        @GetStructureName(viewedDeck.Structure)
+                    </span>
+
+                    <h2>
+                        @viewedDeck.Name
+                    </h2>
+
+                    <p>
+                        @viewedDeck.Cards.Count Cards
+                    </p>
+
+                </div>
+
+                <button class="deck-view-close"
+                        @onclick="CloseDeckView">
+                    ×
+                </button>
+
+            </div>
+
+
+            <div class="deck-view-structure">
+
+                <strong>
+                    @GetStructureName(viewedDeck.Structure)
+                </strong>
+
+                <span>
+                    @GetStructureDescription(viewedDeck.Structure)
+                </span>
+
+            </div>
+
+
+            <div class="deck-view-summary">
+
+                <span>
+                    Characters
+                    <strong>
+                        @CountCards(
+                            viewedDeck,
+                            CardType.Character)
+                    </strong>
+                </span>
+
+                <span>
+                    Attacks
+                    <strong>
+                        @CountCards(
+                            viewedDeck,
+                            CardType.Attack)
+                    </strong>
+                </span>
+
+                <span>
+                    Utilities
+                    <strong>
+                        @CountCards(
+                            viewedDeck,
+                            CardType.Utility)
+                    </strong>
+                </span>
+
+            </div>
+
+
+            <div class="deck-view-list">
+
+                @for (int i = 0;
+                      i < viewedDeck.Cards.Count;
+                      i++)
+                {
+                    int cardIndex = i;
+
+                    Card card =
+                        viewedDeck.Cards[cardIndex];
+
+                    <div class="deck-view-card">
+
+                        <span class="deck-view-position">
+                            @(cardIndex + 1)
+                        </span>
+
+                        <div class="deck-view-accent @GetCardTypeClass(card)">
+                        </div>
+
+                        <div class="deck-view-card-info">
+
+                            <div class="deck-view-card-title">
+
+                                <strong>
+                                    @card.Name
+                                </strong>
+
+                                <span>
+                                    @card.Id
+                                </span>
+
+                            </div>
+
+                            <small>
+                                @card.Archetype ·
+                                @card.Type ·
+                                Cost @card.Cost
+                            </small>
+
+                            @if (card.Type == CardType.Character)
+                            {
+                                <span class="card-detail">
+                                    HP @card.HpValue ·
+                                    Shield @card.ShieldValue
+                                </span>
+
+                                <span class="card-effect">
+                                    @CharacterInfo.GetEntryName(card):
+                                    @CharacterInfo.GetEntryDescription(card)
+                                </span>
+                            }
+                            else if (card.Type == CardType.Attack)
+                            {
+                                <span class="card-detail">
+                                    @card.Damage Damage ·
+                                    @card.Hits Hit(s)
+
+                                    @if (card.IsPiercing)
+                                    {
+                                        <text>
+                                            · Piercing
+                                        </text>
+                                    }
+
+                                    @if (card.InstantFatigue)
+                                    {
+                                        <text>
+                                            · Instant Fatigue
+                                        </text>
+                                    }
+                                </span>
+
+                                @if (!string.IsNullOrWhiteSpace(
+                                    card.Description))
+                                {
+                                    <span class="card-effect">
+                                        @card.Description
+                                    </span>
+                                }
+                            }
+                            else if (card.Type == CardType.Utility)
+                            {
+                                <span class="card-effect">
+                                    @UtilityInfo.GetDescription(card)
+                                </span>
+                            }
+
+                        </div>
+
+
+                        @if (viewedDeck.Structure ==
+                             DeckStructure.PriorityQueue)
+                        {
+                            <div class="deck-view-priority">
+
+                                <small>
+                                    PRIORITY
+                                </small>
+
+                                <strong>
+                                    @card.Priority
+                                </strong>
+
+                            </div>
+                        }
+
+                    </div>
+                }
+
+            </div>
+
+
+            <button class="deck-view-done"
+                    @onclick="CloseDeckView">
+                Close
+            </button>
+
+        </div>
+
+    </div>
+}
+
+
+<style>
+
+.deck-picker {
+    width: min(520px, 100%);
+
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+
+    text-align: center;
+
+    color: #f5f5f5;
+}
+
+
+/* HEADER */
+
+.picker-header {
+    margin-bottom: 25px;
+}
+
+.deck-picker h1 {
+    margin: 0;
+
+    color: #f4efe3;
+
+    font-size:
+        clamp(
+            30px,
+            4vw,
+            44px
+        );
+
+    text-shadow:
+        0 3px 10px
+        rgba(0, 0, 0, 0.25);
+}
+
+.deck-picker-subtitle {
+    margin:
+        9px
+        0
+        0;
+
+    color: #c8d0d8;
+
+    font-size: 14px;
+    line-height: 1.4;
+}
+
+
+/* DECK LIST */
+
+.deck-list {
+    width: min(440px, 100%);
+
+    display: flex;
+    flex-direction: column;
+
+    gap: 11px;
+}
+
+
+/* DECK TILE */
+
+.deck-option {
+    position: relative;
+
+    width: 100%;
+    min-height: 78px;
+
+    box-sizing: border-box;
+
+    padding:
+        12px
+        14px
+        12px
+        19px;
+
+    overflow: hidden;
+
+    display: grid;
+
+    grid-template-columns:
+        minmax(0, 1fr)
+        auto;
+
+    align-items: center;
+
+    gap: 14px;
+
+    border:
+        2px solid #655d51;
+
+    border-radius: 10px;
+
+    background:
+        linear-gradient(
+            145deg,
+            #fff9e9 0%,
+            #eee4cd 100%
+        );
+
+    color: #25221d;
+
+    text-align: left;
+
+    box-shadow:
+        0 4px 10px
+        rgba(0, 0, 0, 0.22);
+
+    transition:
+        transform 0.14s ease,
+        border-color 0.14s ease,
+        box-shadow 0.14s ease;
+}
+
+.deck-option:hover {
+    transform:
+        translateY(-3px);
+
+    border-color:
+        #c7b98f;
+
+    box-shadow:
+        0 8px 16px
+        rgba(0, 0, 0, 0.30);
+}
+
+
+/* STRUCTURE ACCENT */
+
+.structure-accent {
+    position: absolute;
+
+    top: 0;
+    left: 0;
+
+    width: 6px;
+    height: 100%;
+
+    background: #777777;
+}
+
+.structure-queue {
+    background: #427cc4;
+}
+
+.structure-stack {
+    background: #cb554f;
+}
+
+.structure-priority {
+    background: #b78b31;
+}
+
+.structure-random {
+    background: #7d55b7;
+}
+
+.structure-linked {
+    background: #36916a;
+}
+
+
+/* NAME + STRUCTURE */
+
+.deck-main {
+    min-width: 0;
+
+    display: flex;
+    flex-direction: column;
+
+    gap: 5px;
+}
+
+.deck-name {
+    overflow: hidden;
+
+    font-size: 15px;
+    line-height: 1.15;
+
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.deck-structure {
+    width: fit-content;
+
+    padding:
+        3px
+        7px;
+
+    border-radius: 8px;
+
+    background:
+        rgba(
+            47,
+            43,
+            37,
+            0.08
+        );
+
+    color: #645c51;
+
+    font-size: 9px;
+    font-weight: bold;
+
+    text-transform: uppercase;
+
+    letter-spacing: 0.6px;
+}
+
+
+/* RIGHT INFO */
+
+.deck-info {
+    display: flex;
+    align-items: center;
+
+    gap: 10px;
+}
+
+.deck-stat {
+    min-width: 46px;
+
+    padding:
+        5px
+        7px;
+
+    display: flex;
+    flex-direction: column;
+
+    align-items: center;
+    justify-content: center;
+
+    border-radius: 7px;
+
+    background:
+        rgba(
+            47,
+            43,
+            37,
+            0.07
+        );
+}
+
+.stat-label {
+    color: #756c60;
+
+    font-size: 7px;
+    font-weight: bold;
+
+    letter-spacing: 0.5px;
+}
+
+.deck-stat strong {
+    margin-top: 1px;
+
+    font-size: 14px;
+}
+
+
+/* VIEW + SELECT */
+
+.deck-option-actions {
+    display: flex;
+    align-items: center;
+
+    gap: 5px;
+}
+
+.deck-option-actions button {
+    padding:
+        7px
+        8px;
+
+    border: 0;
+    border-radius: 6px;
+
+    cursor: pointer;
+
+    font-size: 8px;
+    font-weight: bold;
+
+    letter-spacing: 0.4px;
+
+    transition:
+        background 0.14s ease,
+        transform 0.14s ease;
+}
+
+.deck-option-actions button:hover {
+    transform:
+        translateY(-1px);
+}
+
+.deck-view {
+    background: #d9d1bc;
+    color: #333333;
+}
+
+.deck-view:hover {
+    background: #c9bea5;
+}
+
+.deck-select {
+    background: #334b61;
+    color: #ffffff;
+}
+
+.deck-select:hover {
+    background: #426989;
+}
+
+
+/* BACK */
+
+.back-button {
+    width: min(440px, 100%);
+
+    margin-top: 20px;
+
+    padding:
+        10px
+        16px;
+
+    border:
+        1px solid
+        rgba(
+            244,
+            239,
+            227,
+            0.45
+        );
+
+    border-radius: 8px;
+
+    background:
+        rgba(
+            255,
+            255,
+            255,
+            0.04
+        );
+
+    color: #f4efe3;
+
+    cursor: pointer;
+
+    font-weight: bold;
+
+    transition:
+        background 0.14s ease,
+        border-color 0.14s ease;
+}
+
+.back-button:hover {
+    background:
+        rgba(
+            255,
+            255,
+            255,
+            0.09
+        );
+
+    border-color:
+        rgba(
+            244,
+            239,
+            227,
+            0.75
+        );
+}
+
+
+/* VIEW DECK OVERLAY */
+
+.deck-view-overlay {
+    position: fixed;
+    inset: 0;
+
+    z-index: 10000;
+
+    padding: 20px;
+
+    box-sizing: border-box;
+
+    display: flex;
+    align-items: center;
+    justify-content: center;
+
+    background:
+        rgba(
+            6,
+            10,
+            14,
+            0.90
+        );
+}
+
+.deck-view-dialog {
+    width: min(650px, 100%);
+
+    max-height:
+        min(
+            720px,
+            calc(100vh - 40px)
+        );
+
+    padding: 18px;
+
+    box-sizing: border-box;
+
+    display: flex;
+    flex-direction: column;
+
+    gap: 12px;
+
+    overflow: hidden;
+
+    border:
+        2px solid #777064;
+
+    border-radius: 10px;
+
+    background: #18212b;
+    color: #f5f5f5;
+
+    box-shadow:
+        0 18px 44px
+        rgba(0, 0, 0, 0.5);
+}
+
+
+/* VIEWER HEADER */
+
+.deck-view-header {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+
+    gap: 12px;
+}
+
+.viewer-label {
+    color: #e5cc67;
+
+    font-size: 8px;
+    font-weight: bold;
+
+    letter-spacing: 0.8px;
+
+    text-transform: uppercase;
+}
+
+.deck-view-header h2 {
+    margin:
+        3px
+        0;
+
+    color: #f4efe3;
+
+    font-size: 21px;
+}
+
+.deck-view-header p {
+    margin: 0;
+
+    color: #8f9ba5;
+
+    font-size: 9px;
+}
+
+.deck-view-close {
+    width: 32px;
+    height: 32px;
+
+    flex-shrink: 0;
+
+    border:
+        1px solid #777777;
+
+    border-radius: 5px;
+
+    background: #e8e8e8;
+    color: #222222;
+
+    cursor: pointer;
+
+    font-size: 18px;
+    font-weight: bold;
+}
+
+
+/* STRUCTURE DESCRIPTION */
+
+.deck-view-structure {
+    padding:
+        9px
+        10px;
+
+    display: flex;
+    flex-direction: column;
+
+    gap: 3px;
+
+    border-left:
+        4px solid #e5cc67;
+
+    background: #111820;
+
+    text-align: left;
+}
+
+.deck-view-structure strong {
+    color: #e5cc67;
+
+    font-size: 10px;
+}
+
+.deck-view-structure span {
+    color: #aab4bd;
+
+    font-size: 9px;
+    line-height: 1.35;
+}
+
+
+/* SUMMARY */
+
+.deck-view-summary {
+    display: grid;
+
+    grid-template-columns:
+        repeat(3, 1fr);
+
+    gap: 6px;
+}
+
+.deck-view-summary > span {
+    padding: 7px;
+
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+
+    gap: 5px;
+
+    border:
+        1px solid #46515d;
+
+    border-radius: 5px;
+
+    color: #8f9ba5;
+
+    font-size: 8px;
+}
+
+.deck-view-summary strong {
+    color: #f4efe3;
+
+    font-size: 12px;
+}
+
+
+/* SCROLLABLE CARD LIST */
+
+.deck-view-list {
+    min-height: 0;
+
+    flex: 1;
+
+    display: flex;
+    flex-direction: column;
+
+    gap: 6px;
+
+    overflow-y: auto;
+
+    padding-right: 4px;
+}
+
+.deck-view-card {
+    min-height: 58px;
+
+    display: grid;
+
+    grid-template-columns:
+        30px
+        4px
+        minmax(0, 1fr)
+        auto;
+
+    align-items: stretch;
+
+    overflow: hidden;
+
+    border:
+        1px solid #4d5964;
+
+    border-radius: 6px;
+
+    background: #202c37;
+
+    text-align: left;
+}
+
+.deck-view-position {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+
+    color: #e5cc67;
+
+    font-size: 11px;
+    font-weight: bold;
+}
+
+.deck-view-accent {
+    width: 4px;
+}
+
+.card-character {
+    background: #cf5959;
+}
+
+.card-attack {
+    background: #d49a3a;
+}
+
+.card-utility {
+    background: #5689d6;
+}
+
+.deck-view-card-info {
+    min-width: 0;
+
+    padding:
+        7px
+        9px;
+
+    display: flex;
+    flex-direction: column;
+
+    gap: 2px;
+}
+
+.deck-view-card-title {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+
+    gap: 7px;
+}
+
+.deck-view-card-title strong {
+    min-width: 0;
+
+    overflow: hidden;
+
+    color: #f4efe3;
+
+    font-size: 11px;
+
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.deck-view-card-title span {
+    color: #87939d;
+
+    font-size: 7px;
+
+    white-space: nowrap;
+}
+
+.deck-view-card-info small {
+    color: #87939d;
+
+    font-size: 7px;
+
+    text-transform: uppercase;
+}
+
+.card-detail {
+    color: #b9c2ca;
+
+    font-size: 8px;
+
+    line-height: 1.25;
+}
+
+.card-effect {
+    color: #aeb9c3;
+
+    font-size: 8px;
+
+    line-height: 1.3;
+}
+
+.deck-view-priority {
+    min-width: 55px;
+
+    padding:
+        5px
+        8px;
+
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+
+    border-left:
+        1px solid #4d5964;
+}
+
+.deck-view-priority small {
+    color: #87939d;
+
+    font-size: 6px;
+}
+
+.deck-view-priority strong {
+    color: #e5cc67;
+
+    font-size: 16px;
+}
+
+
+/* VIEWER CLOSE */
+
+.deck-view-done {
+    width: 100%;
+
+    padding: 10px;
+
+    border:
+        1px solid #9b9383;
+
+    border-radius: 6px;
+
+    background: #f4efe3;
+    color: #222222;
+
+    cursor: pointer;
+
+    font-weight: bold;
+}
+
+.deck-view-done:hover {
+    background: #e5ddcc;
+}
+
+
+/* RESPONSIVE */
+
+@@media (max-width: 600px) {
+
+    .deck-option {
+        grid-template-columns: 1fr;
+
+        gap: 8px;
+    }
+
+    .deck-info {
+        justify-content: space-between;
+    }
+
+    .deck-view-overlay {
+        padding: 10px;
+    }
+
+    .deck-view-summary {
+        grid-template-columns: 1fr;
+    }
+
+    .deck-view-card {
+        grid-template-columns:
+            26px
+            4px
+            minmax(0, 1fr);
+    }
+
+    .deck-view-priority {
+        grid-column:
+            1 / -1;
+
+        min-height: 28px;
+
+        flex-direction: row;
+
+        gap: 5px;
+
+        border-left: 0;
+
+        border-top:
+            1px solid #4d5964;
+    }
+
+}
+
+</style>
+
+
+@code {
+
+    [Parameter]
+    public string Title { get; set; } =
+        "Choose Deck";
+
+
+    [Parameter]
+    public string Subtitle { get; set; } =
+        "";
+
+
+    [Parameter]
+    public EventCallback<Deck> OnDeckSelected
+    {
+        get;
+        set;
+    }
+
+
+    [Parameter]
+    public EventCallback OnBack
+    {
+        get;
+        set;
+    }
+
+
+    [Parameter]
+    public bool ShowBackButton
+    {
+        get;
+        set;
+    } = true;
+
+
+    [Parameter]
+    public string BackText
+    {
+        get;
+        set;
+    } = "Back";
+
+
+    private Deck? viewedDeck;
+
+
+    protected override void OnInitialized()
+    {
+        DeckManager.InitializeDefaultDecks();
+    }
+
+
+    private async Task SelectDeck(
+        Deck deck)
+    {
+        Deck selectedDeck =
+            DeckCloner.Clone(deck);
+
+        await OnDeckSelected.InvokeAsync(
+            selectedDeck);
+    }
+
+
+    private void ViewDeck(
+        Deck deck)
+    {
+        viewedDeck =
+            deck;
+    }
+
+
+    private void CloseDeckView()
+    {
+        viewedDeck =
+            null;
+    }
+
+
+    private static int CountCards(
+        Deck deck,
+        CardType type)
+    {
+        return deck.Cards.Count(card =>
+            card.Type == type);
+    }
+
+
+    private static string GetStructureName(
+        DeckStructure structure)
+    {
+        return structure switch
+        {
+            DeckStructure.PriorityQueue =>
+                "Priority Queue",
+
+            DeckStructure.RandomList =>
+                "Random List",
+
+            DeckStructure.LinkedList =>
+                "Linked List",
+
+            _ =>
+                structure.ToString()
+        };
+    }
+
+
+    private static string GetStructureDescription(
+        DeckStructure structure)
+    {
+        return structure switch
+        {
+            DeckStructure.Queue =>
+                "First In, First Out. Deck order determines draw order.",
+
+            DeckStructure.Stack =>
+                "Last In, First Out. Deck order matters and Placement is automatic.",
+
+            DeckStructure.PriorityQueue =>
+                "Cards draw according to priority. Characters use Priority 5 and other cards use Priority 1-4.",
+
+            DeckStructure.RandomList =>
+                "Cards are drawn from a randomized list.",
+
+            DeckStructure.LinkedList =>
+                "Cards use linked nodes and can be reordered through deck actions.",
+
+            _ =>
+                ""
+        };
+    }
+
+
+    private static string GetStructureClass(
+        DeckStructure structure)
+    {
+        return structure switch
+        {
+            DeckStructure.Queue =>
+                "structure-queue",
+
+            DeckStructure.Stack =>
+                "structure-stack",
+
+            DeckStructure.PriorityQueue =>
+                "structure-priority",
+
+            DeckStructure.RandomList =>
+                "structure-random",
+
+            DeckStructure.LinkedList =>
+                "structure-linked",
+
+            _ =>
+                ""
+        };
+    }
+
+
+    private static string GetCardTypeClass(
+        Card card)
+    {
+        return card.Type switch
+        {
+            CardType.Character =>
+                "card-character",
+
+            CardType.Attack =>
+                "card-attack",
+
+            CardType.Utility =>
+                "card-utility",
+
+            _ =>
+                ""
+        };
+    }
+
+}

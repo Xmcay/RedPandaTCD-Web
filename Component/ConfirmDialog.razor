@@ -1,0 +1,306 @@
+@if (IsVisible)
+{
+    <div class="confirm-overlay"
+         @onclick="Cancel">
+
+        <div class="confirm-dialog"
+             @onclick:stopPropagation="true">
+
+            <div class="dialog-accent"></div>
+
+            <div class="dialog-header">
+
+                <h2>
+                    @Title
+                </h2>
+
+                @if (!string.IsNullOrWhiteSpace(Message))
+                {
+                    <p>
+                        @Message
+                    </p>
+                }
+
+            </div>
+
+
+            @if (DialogContent != null)
+            {
+                <div class="confirm-content">
+                    @DialogContent
+                </div>
+            }
+
+
+            <div class="confirm-buttons">
+
+                <button class="confirm-button"
+                        @onclick="Confirm">
+                    @ConfirmText
+                </button>
+
+                <button class="cancel-button"
+                        @onclick="Cancel">
+                    @CancelText
+                </button>
+
+            </div>
+
+        </div>
+
+    </div>
+}
+
+
+<style>
+    /* DARKENED BACKGROUND */
+
+    .confirm-overlay {
+        position: fixed;
+        inset: 0;
+
+        z-index: 2000;
+
+        display: flex;
+        align-items: center;
+        justify-content: center;
+
+        box-sizing: border-box;
+
+        padding: 20px;
+
+        background: rgba(4, 8, 12, 0.76);
+
+        backdrop-filter: blur(2px);
+    }
+
+
+    /* DIALOG */
+
+    .confirm-dialog {
+        position: relative;
+
+        width: min(410px, 100%);
+
+        box-sizing: border-box;
+
+        padding: 28px 26px 24px;
+
+        overflow: hidden;
+
+        border: 2px solid #6d7884;
+        border-radius: 12px;
+
+        background:
+            linear-gradient(
+                145deg,
+                #202c38 0%,
+                #151d25 100%
+            );
+
+        color: #f5f5f5;
+
+        text-align: center;
+
+        box-shadow:
+            0 18px 45px rgba(0, 0, 0, 0.55);
+    }
+
+
+    /* TOP ACCENT */
+
+    .dialog-accent {
+        position: absolute;
+
+        top: 0;
+        left: 0;
+
+        width: 100%;
+        height: 5px;
+
+        background:
+            linear-gradient(
+                90deg,
+                #456f98,
+                #7949a8,
+                #8e4451
+            );
+    }
+
+
+    /* HEADER */
+
+    .dialog-header h2 {
+        margin: 0;
+
+        color: #f4efe3;
+
+        font-size: 23px;
+        line-height: 1.2;
+    }
+
+    .dialog-header p {
+        margin: 10px 0 0;
+
+        color: #bdc7d0;
+
+        font-size: 14px;
+        line-height: 1.45;
+    }
+
+
+    /* CUSTOM CONTENT */
+
+    .confirm-content {
+        margin: 20px 0 4px;
+
+        padding: 14px;
+
+        border: 1px solid rgba(255, 255, 255, 0.10);
+        border-radius: 8px;
+
+        background: rgba(255, 255, 255, 0.05);
+
+        color: #e7e7e7;
+
+        text-align: left;
+        line-height: 1.45;
+    }
+
+
+    /* BUTTON AREA */
+
+    .confirm-buttons {
+        margin-top: 22px;
+
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+
+        gap: 10px;
+    }
+
+    .confirm-buttons button {
+        min-width: 0;
+
+        padding: 11px 14px;
+
+        border-radius: 7px;
+
+        cursor: pointer;
+
+        font-size: 14px;
+        font-weight: bold;
+
+        transition:
+            transform 0.12s ease,
+            background 0.12s ease,
+            border-color 0.12s ease;
+    }
+
+
+    /* CONFIRM */
+
+    .confirm-button {
+        border: 2px solid #a99f8a;
+
+        background:
+            linear-gradient(
+                145deg,
+                #fff9e9,
+                #e9dfc8
+            );
+
+        color: #25221d;
+    }
+
+    .confirm-button:hover {
+        border-color: #d1c6aa;
+
+        background:
+            linear-gradient(
+                145deg,
+                #ffffff,
+                #f1e8d4
+            );
+
+        transform: translateY(-2px);
+    }
+
+
+    /* CANCEL */
+
+    .cancel-button {
+        border: 1px solid #6e7984;
+
+        background: rgba(255, 255, 255, 0.05);
+
+        color: #e7edf2;
+    }
+
+    .cancel-button:hover {
+        border-color: #9da8b2;
+
+        background: rgba(255, 255, 255, 0.10);
+
+        transform: translateY(-2px);
+    }
+
+    .confirm-buttons button:active {
+        transform: translateY(0);
+    }
+
+
+    /* SMALL SCREEN */
+
+    @@media (max-width: 480px) {
+        .confirm-buttons {
+            grid-template-columns: 1fr;
+        }
+
+        .confirm-dialog {
+            padding:
+                26px
+                20px
+                20px;
+        }
+    }
+</style>
+
+
+@code {
+    [Parameter]
+    public bool IsVisible { get; set; }
+
+    [Parameter]
+    public string Title { get; set; } = "Confirm";
+
+    [Parameter]
+    public string Message { get; set; } = "";
+
+    [Parameter]
+    public string ConfirmText { get; set; } = "Confirm";
+
+    [Parameter]
+    public string CancelText { get; set; } = "Cancel";
+
+    [Parameter]
+    public EventCallback OnConfirm { get; set; }
+
+    [Parameter]
+    public EventCallback OnCancel { get; set; }
+
+    [Parameter]
+    public RenderFragment? DialogContent { get; set; }
+
+
+    private async Task Confirm()
+    {
+        await OnConfirm.InvokeAsync();
+    }
+
+
+    private async Task Cancel()
+    {
+        await OnCancel.InvokeAsync();
+    }
+}

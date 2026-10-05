@@ -1,0 +1,686 @@
+@using RedPandaTCD_Web.Game
+@inject GameSessionState Session
+@inject NavigationManager Navigation
+
+<div class="game-nav"
+     @onmouseleave="CloseMenus">
+
+    <!-- BRAND -->
+    <button class="nav-brand"
+            @onclick="GoHome">
+
+        <span class="brand-red">
+            RED PANDA
+        </span>
+
+        <span class="brand-gold">
+            TCD
+        </span>
+
+    </button>
+
+
+    <!-- NAVIGATION -->
+    <nav class="nav-links">
+
+        <!-- PLAY -->
+        <div class="nav-group"
+             @onmouseenter="() => OpenMenu(NavMenu.Play)">
+
+            <button class="nav-category @(activeMenu == NavMenu.Play ? "active" : "")"
+                    @onclick="() => ToggleMenu(NavMenu.Play)">
+                Play
+                <span class="dropdown-arrow">
+                    ▾
+                </span>
+            </button>
+
+            @if (activeMenu == NavMenu.Play)
+            {
+                <div class="dropdown-menu">
+
+                    <button @onclick='() => Navigate("/player-deck")'>
+                        <strong>
+                            Training Bot
+                        </strong>
+
+                        <span>
+                            Battle an automated opponent.
+                        </span>
+                    </button>
+
+                    <button @onclick='() => Navigate("/pass-and-play")'>
+                        <strong>
+                            Pass-and-Play
+                        </strong>
+
+                        <span>
+                            Two players, one device.
+                        </span>
+                    </button>
+
+                    <button @onclick='() => Navigate("/tournament")'>
+                        <strong>
+                            Grand Tournament
+                        </strong>
+
+                        <span>
+                            Challenge the instructors.
+                        </span>
+                    </button>
+
+                </div>
+            }
+
+        </div>
+
+
+        <!-- COLLECTION -->
+        <div class="nav-group"
+             @onmouseenter="() => OpenMenu(NavMenu.Collection)">
+
+            <button class="nav-category @(activeMenu == NavMenu.Collection ? "active" : "")"
+                    @onclick="() => ToggleMenu(NavMenu.Collection)">
+                Collection
+                <span class="dropdown-arrow">
+                    ▾
+                </span>
+            </button>
+
+            @if (activeMenu == NavMenu.Collection)
+            {
+                <div class="dropdown-menu">
+
+                    <button @onclick='() => Navigate("/decks")'>
+                        <strong>
+                            My Decks
+                        </strong>
+
+                        <span>
+                            View and manage saved decks.
+                        </span>
+                    </button>
+
+                    <button @onclick='() => Navigate("/deck-builder")'>
+                        <strong>
+                            Deck Builder
+                        </strong>
+
+                        <span>
+                            Create a custom deck.
+                        </span>
+                    </button>
+
+                    <button @onclick='() => Navigate("/card-library")'>
+                        <strong>
+                            Card Library
+                        </strong>
+
+                        <span>
+                            Browse every available card.
+                        </span>
+                    </button>
+
+                </div>
+            }
+
+        </div>
+
+
+        <!-- LEARN -->
+        <div class="nav-group"
+             @onmouseenter="() => OpenMenu(NavMenu.Learn)">
+
+            <button class="nav-category @(activeMenu == NavMenu.Learn ? "active" : "")"
+                    @onclick="() => ToggleMenu(NavMenu.Learn)">
+                Learn
+                <span class="dropdown-arrow">
+                    ▾
+                </span>
+            </button>
+
+            @if (activeMenu == NavMenu.Learn)
+            {
+                <div class="dropdown-menu">
+
+                    <button @onclick='() => Navigate("/tutorial")'>
+                        <strong>
+                            Tutorial
+                        </strong>
+
+                        <span>
+                            Learn the rules and mechanics.
+                        </span>
+                    </button>
+
+                </div>
+            }
+
+        </div>
+
+
+        <!-- TOOLS -->
+        <div class="nav-group"
+             @onmouseenter="() => OpenMenu(NavMenu.Tools)">
+
+            <button class="nav-category @(activeMenu == NavMenu.Tools ? "active" : "")"
+                    @onclick="() => ToggleMenu(NavMenu.Tools)">
+                Tools
+                <span class="dropdown-arrow">
+                    ▾
+                </span>
+            </button>
+
+            @if (activeMenu == NavMenu.Tools)
+            {
+                <div class="dropdown-menu">
+
+                    <button @onclick='() => Navigate("/simulator")'>
+                        <strong>
+                            Battle Simulator
+                        </strong>
+
+                        <span>
+                            Run automated battle simulations.
+                        </span>
+                    </button>
+
+                </div>
+            }
+
+        </div>
+
+    </nav>
+
+
+<!-- PLAYER -->
+<div class="nav-player">
+
+    @if (Session.HasPlayerName)
+    {
+        <span class="player-label">
+            PLAYER
+        </span>
+
+        <strong>
+            @Session.PlayerName
+        </strong>
+
+        @if (Session.Tournament.HasMasterStrategistTitle)
+        {
+            <span class="player-title">
+                MASTER STRATEGIST
+            </span>
+        }
+    }
+
+</div>
+
+</div>
+
+
+<style>
+.player-title {
+    margin-top: 3px;
+
+    color: #e5cc67;
+
+    font-size: 7px;
+    font-weight: 900;
+
+    letter-spacing: 0.8px;
+
+    text-transform: uppercase;
+
+    text-shadow:
+        0 0 8px rgba(229, 204, 103, 0.38);
+
+    white-space: nowrap;
+}
+.game-nav {
+    position: relative;
+
+    width: 100%;
+    height: 58px;
+
+    box-sizing: border-box;
+
+    padding:
+        0
+        24px;
+
+    display: flex;
+    align-items: center;
+
+    gap: 20px;
+
+    z-index: 5000;
+
+    border-bottom:
+        2px solid #090c10;
+
+    background: #151b22;
+
+    color: #f5f5f5;
+}
+
+
+/* =========================
+   BRAND
+   ========================= */
+
+.nav-brand {
+    flex-shrink: 0;
+
+    padding:
+        7px
+        12px;
+
+    display: flex;
+    align-items: center;
+
+    gap: 7px;
+
+    border: 0;
+    border-radius: 6px;
+
+    background: transparent;
+
+    cursor: pointer;
+
+    font-weight: 900;
+
+    white-space: nowrap;
+
+    transition:
+        background 0.12s ease;
+}
+
+
+.nav-brand:hover {
+    background:
+        rgba(
+            255,
+            255,
+            255,
+            0.06
+        );
+}
+
+
+.brand-red {
+    color: #d94b4b;
+
+    font-size: 17px;
+
+    letter-spacing: -0.3px;
+
+    text-shadow:
+        0 2px 0 #090c10;
+}
+
+
+.brand-gold {
+    color: #e5cc67;
+
+    font-size: 15px;
+
+    letter-spacing: 1px;
+
+    text-shadow:
+        0 2px 0 #090c10;
+}
+
+
+/* =========================
+   NAV LINKS
+   ========================= */
+
+.nav-links {
+    display: flex;
+    align-items: stretch;
+
+    gap: 2px;
+
+    align-self: stretch;
+}
+
+
+.nav-group {
+    position: relative;
+
+    display: flex;
+    align-items: stretch;
+}
+
+
+.nav-category {
+    height: 100%;
+
+    padding:
+        0
+        11px;
+
+    display: flex;
+    align-items: center;
+
+    gap: 5px;
+
+    border: 0;
+
+    background: transparent;
+
+    color: #d5dce2;
+
+    cursor: pointer;
+
+    font-size: 12px;
+    font-weight: bold;
+
+    white-space: nowrap;
+
+    transition:
+        color 0.12s ease,
+        background 0.12s ease;
+}
+
+
+.nav-category:hover,
+.nav-category.active {
+    background:
+        rgba(
+            255,
+            255,
+            255,
+            0.06
+        );
+
+    color: #f4efe3;
+}
+
+
+.nav-category.active {
+    box-shadow:
+        inset
+        0
+        -3px
+        #e5cc67;
+}
+
+
+.dropdown-arrow {
+    color: #e5cc67;
+
+    font-size: 9px;
+}
+
+
+/* =========================
+   DROPDOWNS
+   ========================= */
+
+.dropdown-menu {
+    position: absolute;
+
+    top: 100%;
+    left: 0;
+
+    width: 245px;
+
+    padding: 6px;
+
+    display: flex;
+    flex-direction: column;
+
+    gap: 3px;
+
+    border:
+        1px solid #46515d;
+
+    border-top:
+        3px solid #e5cc67;
+
+    border-radius:
+        0
+        0
+        8px
+        8px;
+
+    background: #18212b;
+
+    box-shadow:
+        0
+        12px
+        25px
+        rgba(
+            0,
+            0,
+            0,
+            0.42
+        );
+}
+
+
+.dropdown-menu button {
+    width: 100%;
+
+    padding:
+        10px
+        11px;
+
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+
+    gap: 3px;
+
+    border: 0;
+    border-radius: 5px;
+
+    background: transparent;
+
+    color: #f5f5f5;
+
+    cursor: pointer;
+
+    text-align: left;
+
+    transition:
+        background 0.12s ease;
+}
+
+
+.dropdown-menu button:hover {
+    background: #24313d;
+}
+
+
+.dropdown-menu button strong {
+    color: #f4efe3;
+
+    font-size: 11px;
+}
+
+
+.dropdown-menu button span {
+    color: #98a4ae;
+
+    font-size: 8px;
+    line-height: 1.3;
+}
+
+
+/* =========================
+   PLAYER
+   ========================= */
+
+.nav-player {
+    margin-left: auto;
+
+    min-width: 100px;
+
+    display: flex;
+    flex-direction: column;
+    align-items: flex-end;
+    justify-content: center;
+
+    flex-shrink: 0;
+
+    line-height: 1.1;
+
+    white-space: nowrap;
+}
+
+
+.player-label {
+    color: #77838e;
+
+    font-size: 7px;
+    font-weight: bold;
+
+    letter-spacing: 1px;
+}
+
+
+.nav-player strong {
+    margin-top: 3px;
+
+    color: #e5cc67;
+
+    font-size: 12px;
+}
+
+
+/* =========================
+   RESPONSIVE
+   ========================= */
+
+@@media (max-width: 800px) {
+
+    .game-nav {
+        padding:
+            0
+            12px;
+
+        gap: 8px;
+    }
+
+
+    .nav-player {
+        display: none;
+    }
+
+
+    .nav-category {
+        padding:
+            0
+            8px;
+
+        font-size: 11px;
+    }
+
+
+    .brand-red {
+        font-size: 14px;
+    }
+
+
+    .brand-gold {
+        font-size: 12px;
+    }
+
+}
+
+
+@@media (max-width: 600px) {
+
+    .game-nav {
+        overflow-x: auto;
+
+        overflow-y: visible;
+    }
+
+
+    .nav-brand {
+        padding-left: 4px;
+    }
+
+
+    .nav-links {
+        flex-shrink: 0;
+    }
+
+
+    .dropdown-menu {
+        position: fixed;
+
+        top: 58px;
+        left: 10px;
+        right: 10px;
+
+        width: auto;
+    }
+
+}
+
+</style>
+
+
+@code {
+
+    private NavMenu activeMenu =
+        NavMenu.None;
+
+
+    private enum NavMenu
+    {
+        None,
+        Play,
+        Collection,
+        Learn,
+        Tools
+    }
+
+
+    private void ToggleMenu(
+        NavMenu menu)
+    {
+        activeMenu =
+            activeMenu == menu
+                ? NavMenu.None
+                : menu;
+    }
+
+
+    private void OpenMenu(
+        NavMenu menu)
+    {
+        activeMenu =
+            menu;
+    }
+
+
+    private void CloseMenus()
+    {
+        activeMenu =
+            NavMenu.None;
+    }
+
+
+    private void GoHome()
+    {
+        Navigate("/");
+    }
+
+
+    private void Navigate(
+        string destination)
+    {
+        activeMenu =
+            NavMenu.None;
+
+        Navigation.NavigateTo(
+            destination);
+    }
+
+}

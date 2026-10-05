@@ -1,0 +1,58 @@
+@page "/player-deck"
+@using RedPandaTCD_Web.Game
+@inject GameSessionState Session
+
+<div class="training-page">
+
+    <DeckPicker
+        Title="Choose Your Deck"
+        Subtitle="Select a deck to use against the Training Bot."
+        OnDeckSelected="SelectPlayerDeck"
+        OnBack="GoHome"
+        BackText="Back to Main Menu" />
+
+</div>
+
+<style>
+    .training-page {
+        min-height: calc(100vh - 58px);
+
+        display: flex;
+        align-items: center;
+        justify-content: center;
+
+        padding: 40px 20px;
+        box-sizing: border-box;
+
+        background:
+            linear-gradient(
+                160deg,
+                #18212b 0%,
+                #23364a 55%,
+                #3a2428 100%
+            );
+    }
+</style>
+
+@code {
+    [Inject]
+    private NavigationManager Navigation { get; set; } = default!;
+
+    protected override void OnInitialized()
+    {
+        DeckManager.InitializeDefaultDecks();
+        Session.ResetTraining();
+    }
+
+    private void SelectPlayerDeck(Deck deck)
+    {
+        Session.TrainingPlayerDeck = deck;
+
+        Navigation.NavigateTo("/enemy-deck");
+    }
+
+    private void GoHome()
+    {
+        Navigation.NavigateTo("/");
+    }
+}

@@ -1,0 +1,915 @@
+﻿@page "/"
+@using RedPandaTCD_Web.Game
+@inject GameSessionState Session
+@inject NavigationManager Navigation
+
+<PageTitle>Red Panda TCD</PageTitle>
+
+<div class="home-page">
+
+    <main class="home-shell">
+
+        <section class="hero">
+
+            <div class="title-block">
+
+    <h1>
+        RED PANDA
+    </h1>
+
+    <div class="tcd-mark">
+        TCD
+    </div>
+
+    <p class="subtitle">
+        Tactical Card Duels
+    </p>
+
+    <p class="hero-description">
+        Build a deck around a data structure,
+        master its mechanics, and outplay your opponent.
+    </p>
+
+</div>
+
+
+            <div class="primary-actions">
+
+                <button class="primary-button"
+                        @onclick="GoToTraining">
+
+                    <span class="button-title">
+                        Training Bot
+                    </span>
+
+                    <span class="button-description">
+                        Battle an automated opponent.
+                    </span>
+
+                </button>
+
+
+                <button class="primary-button"
+                        @onclick="GoToPassAndPlay">
+
+                    <span class="button-title">
+                        Pass-and-Play
+                    </span>
+
+                    <span class="button-description">
+                        Two players, one device.
+                    </span>
+
+                </button>
+
+
+                <button class="primary-button tournament-button"
+                        @onclick="GoToTournament">
+
+                    <span class="button-title">
+                        Grand Tournament
+                    </span>
+
+                    <span class="button-description">
+                        Face the instructors and prove your strategy.
+                    </span>
+
+                </button>
+
+            </div>
+
+        </section>
+
+
+        <section class="menu-section">
+
+            <div class="menu-section-header">
+
+                <span>
+                    COLLECTION
+                </span>
+
+                <h2>
+                    Build Your Strategy
+                </h2>
+
+                <p>
+                    Browse cards, build custom decks,
+                    and manage the decks you have saved.
+                </p>
+
+            </div>
+
+
+            <div class="menu-grid collection-grid">
+
+                <button class="menu-card"
+                        @onclick="GoToDecks">
+
+                    <span class="menu-card-icon">
+                        ☰
+                    </span>
+
+                    <strong>
+                        My Decks
+                    </strong>
+
+                    <small>
+                        View and manage saved decks.
+                    </small>
+
+                </button>
+
+
+                <button class="menu-card"
+                        @onclick="GoToDeckBuilder">
+
+                    <span class="menu-card-icon">
+                        +
+                    </span>
+
+                    <strong>
+                        Deck Builder
+                    </strong>
+
+                    <small>
+                        Create a custom deck.
+                    </small>
+
+                </button>
+
+
+                <button class="menu-card"
+                        @onclick="GoToCardLibrary">
+
+                    <span class="menu-card-icon">
+                        ◫
+                    </span>
+
+                    <strong>
+                        Card Library
+                    </strong>
+
+                    <small>
+                        Browse every available card.
+                    </small>
+
+                </button>
+
+            </div>
+
+        </section>
+
+
+        <section class="menu-section secondary-section">
+
+            <div class="secondary-card">
+
+                <div class="secondary-card-heading">
+
+                    <span class="section-tag">
+                        LEARN
+                    </span>
+
+                    <h2>
+                        Learn the Game
+                    </h2>
+
+                    <p>
+                        Learn the rules, deck structures,
+                        card mechanics, and battle systems.
+                    </p>
+
+                </div>
+
+                <button @onclick="GoToTutorial">
+                    Tutorial
+                </button>
+
+            </div>
+
+
+            <div class="secondary-card">
+
+                <div class="secondary-card-heading">
+
+                    <span class="section-tag">
+                        TOOLS
+                    </span>
+
+                    <h2>
+                        Experiment
+                    </h2>
+
+                    <p>
+                        Run automated battles and inspect
+                        how strategies perform.
+                    </p>
+
+                </div>
+
+                <button @onclick="GoToSimulator">
+                    Battle Simulator
+                </button>
+
+            </div>
+
+        </section>
+
+
+        <footer class="home-footer">
+
+            <span>
+                RED PANDA TCD
+            </span>
+
+            <span class="footer-divider">
+                ·
+            </span>
+
+            <span>
+                Tactical Card Duels
+            </span>
+
+        </footer>
+
+    </main>
+
+</div>
+
+
+<style>
+
+.home-page {
+    min-height: calc(100vh - 58px);
+
+    padding:
+        60px
+        28px
+        40px;
+
+    box-sizing: border-box;
+
+    background:
+        radial-gradient(
+            circle at 18% 18%,
+            rgba(83, 111, 139, 0.20),
+            transparent 34%
+        ),
+        radial-gradient(
+            circle at 82% 80%,
+            rgba(110, 54, 61, 0.20),
+            transparent 34%
+        ),
+        linear-gradient(
+            160deg,
+            #18212b 0%,
+            #23364a 55%,
+            #3a2428 100%
+        );
+
+    color: #f5f5f5;
+}
+
+
+.home-shell {
+    width: min(1100px, 100%);
+
+    margin: 0 auto;
+}
+
+
+/* =========================
+   HERO
+   ========================= */
+
+.hero {
+    min-height: 425px;
+
+    display: grid;
+
+    grid-template-columns:
+        minmax(0, 1fr)
+        minmax(300px, 390px);
+
+    align-items: center;
+
+    gap: 65px;
+
+    padding-bottom: 60px;
+}
+
+
+.title-block {
+    max-width: 570px;
+}
+
+
+
+.title-block h1 {
+    margin: 0;
+
+    color: #d14848;
+
+    font-size:
+        clamp(
+            62px,
+            9vw,
+            112px
+        );
+
+    line-height: 0.9;
+
+    letter-spacing: -4px;
+
+    text-shadow:
+        0 4px 0 #090c10,
+        0 10px 24px rgba(0, 0, 0, 0.35);
+}
+.tcd-mark {
+    width: fit-content;
+
+    margin-top: 10px;
+
+    color: #e5cc67;
+
+    font-size:
+        clamp(
+            27px,
+            3.5vw,
+            42px
+        );
+
+    font-weight: 900;
+
+    line-height: 1;
+
+    letter-spacing: 6px;
+
+    text-shadow:
+        0 2px 0 #090c10;
+}
+
+.subtitle {
+    margin:
+        13px
+        0
+        0;
+
+    color: #e1e6eb;
+
+    font-size: 20px;
+    font-weight: bold;
+
+    letter-spacing: 1.5px;
+}
+
+
+.hero-description {
+    max-width: 500px;
+
+    margin:
+        15px
+        0
+        0;
+
+    color: #aeb9c3;
+
+    font-size: 14px;
+    line-height: 1.55;
+}
+
+
+.primary-actions {
+    display: flex;
+    flex-direction: column;
+
+    gap: 11px;
+}
+
+
+.primary-button {
+    width: 100%;
+
+    padding:
+        16px
+        18px;
+
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+
+    gap: 4px;
+
+    border:
+        2px solid #817967;
+
+    border-radius: 9px;
+
+    background:
+        linear-gradient(
+            145deg,
+            #f5efdf,
+            #dfd5c0
+        );
+
+    color: #222222;
+
+    cursor: pointer;
+
+    text-align: left;
+
+    box-shadow:
+        0 5px 11px rgba(0, 0, 0, 0.24);
+
+    transition:
+        transform 0.12s ease,
+        border-color 0.12s ease,
+        box-shadow 0.12s ease;
+}
+
+
+.primary-button:hover {
+    transform:
+        translateY(-3px);
+
+    border-color:
+        #d5c486;
+
+    box-shadow:
+        0 8px 17px rgba(0, 0, 0, 0.30);
+}
+
+
+.primary-button:active {
+    transform:
+        translateY(0);
+}
+
+
+.button-title {
+    font-size: 16px;
+    font-weight: bold;
+}
+
+
+.button-description {
+    color: #665f54;
+
+    font-size: 10px;
+    line-height: 1.3;
+}
+
+
+.tournament-button {
+    border-color:
+        #a38c4b;
+
+    background:
+        linear-gradient(
+            145deg,
+            #f4e9c8,
+            #dccc9c
+        );
+}
+
+
+/* =========================
+   SHARED SECTIONS
+   ========================= */
+
+.menu-section {
+    padding:
+        42px
+        0;
+
+    border-top:
+        1px solid
+        rgba(
+            255,
+            255,
+            255,
+            0.10
+        );
+}
+
+
+.menu-section-header {
+    margin-bottom: 22px;
+}
+
+
+.menu-section-header > span,
+.section-tag {
+    color: #e5cc67;
+
+    font-size: 9px;
+    font-weight: bold;
+
+    letter-spacing: 1.5px;
+}
+
+
+.menu-section-header h2,
+.secondary-card h2 {
+    margin:
+        5px
+        0
+        6px;
+
+    color: #f4efe3;
+
+    font-size: 23px;
+}
+
+
+.menu-section-header p,
+.secondary-card p {
+    margin: 0;
+
+    color: #aeb9c3;
+
+    font-size: 12px;
+    line-height: 1.45;
+}
+
+
+/* =========================
+   COLLECTION
+   ========================= */
+
+.menu-grid {
+    display: grid;
+
+    gap: 12px;
+}
+
+
+.collection-grid {
+    grid-template-columns:
+        repeat(3, 1fr);
+}
+
+
+.menu-card {
+    min-height: 145px;
+
+    padding:
+        20px
+        18px;
+
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    justify-content: flex-end;
+
+    gap: 5px;
+
+    border:
+        1px solid #596674;
+
+    border-radius: 9px;
+
+    background:
+        linear-gradient(
+            145deg,
+            rgba(27, 39, 51, 0.95),
+            rgba(20, 29, 38, 0.95)
+        );
+
+    color: #f5f5f5;
+
+    cursor: pointer;
+
+    text-align: left;
+
+    transition:
+        transform 0.12s ease,
+        border-color 0.12s ease,
+        background 0.12s ease;
+}
+
+
+.menu-card:hover {
+    transform:
+        translateY(-3px);
+
+    border-color:
+        #c6b77c;
+
+    background:
+        linear-gradient(
+            145deg,
+            #253746,
+            #1a2732
+        );
+}
+
+
+.menu-card-icon {
+    margin-bottom: auto;
+
+    color: #e5cc67;
+
+    font-size: 25px;
+    font-weight: bold;
+}
+
+
+.menu-card strong {
+    color: #f4efe3;
+
+    font-size: 15px;
+}
+
+
+.menu-card small {
+    color: #9fabb5;
+
+    font-size: 10px;
+    line-height: 1.35;
+}
+
+
+/* =========================
+   LEARN + TOOLS
+   ========================= */
+
+.secondary-section {
+    display: grid;
+
+    grid-template-columns:
+        1fr
+        1fr;
+
+    gap: 12px;
+}
+
+
+.secondary-card {
+    min-height: 160px;
+
+    padding: 21px;
+
+    box-sizing: border-box;
+
+    display: flex;
+    flex-direction: column;
+
+    gap: 18px;
+
+    border:
+        1px solid #596674;
+
+    border-radius: 9px;
+
+    background:
+        rgba(
+            17,
+            26,
+            35,
+            0.78
+        );
+}
+
+
+.secondary-card-heading {
+    flex: 1;
+}
+
+
+.secondary-card button {
+    width: 100%;
+
+    padding:
+        10px
+        14px;
+
+    border:
+        1px solid #8d8678;
+
+    border-radius: 6px;
+
+    background: #e7e0d0;
+
+    color: #222222;
+
+    cursor: pointer;
+
+    font-size: 12px;
+    font-weight: bold;
+
+    transition:
+        background 0.12s ease,
+        transform 0.12s ease;
+}
+
+
+.secondary-card button:hover {
+    background: #f4efe3;
+
+    transform:
+        translateY(-2px);
+}
+
+
+/* =========================
+   FOOTER
+   ========================= */
+
+.home-footer {
+    padding-top: 28px;
+
+    display: flex;
+    justify-content: center;
+
+    gap: 8px;
+
+    color: #737e88;
+
+    font-size: 8px;
+    font-weight: bold;
+
+    letter-spacing: 1px;
+}
+
+
+.footer-divider {
+    color: #e5cc67;
+}
+
+
+/* =========================
+   RESPONSIVE
+   ========================= */
+
+@@media (max-width: 800px) {
+
+    .hero {
+        min-height: 0;
+
+        grid-template-columns: 1fr;
+
+        gap: 40px;
+
+        padding-bottom: 45px;
+    }
+
+
+    .title-block {
+        text-align: center;
+
+        margin: 0 auto;
+    }
+
+
+    .hero-description {
+        margin:
+            15px
+            auto
+            0;
+    }
+
+.title-block h1 {
+    font-size:
+        clamp(
+            54px,
+            17vw,
+            90px
+        );
+
+    letter-spacing: -3px;
+}
+
+.tcd-mark {
+    margin-left: auto;
+    margin-right: auto;
+}
+
+    .primary-actions {
+        width:
+            min(
+                420px,
+                100%
+            );
+
+        margin: 0 auto;
+    }
+
+
+    .collection-grid {
+        grid-template-columns: 1fr;
+    }
+
+
+    .menu-card {
+        min-height: 115px;
+    }
+
+
+    .secondary-section {
+        grid-template-columns: 1fr;
+    }
+
+}
+
+
+@@media (max-width: 500px) {
+
+    .home-page {
+        padding:
+            40px
+            14px
+            30px;
+    }
+
+
+    .eyebrow {
+        font-size: 11px;
+
+        letter-spacing: 4px;
+    }
+
+
+    .subtitle {
+        font-size: 18px;
+    }
+
+
+    .home-footer {
+        flex-wrap: wrap;
+    }
+
+}
+
+</style>
+
+
+@code {
+
+    protected override void OnInitialized()
+    {
+        if (!Session.HasPlayerName)
+        {
+            Navigation.NavigateTo(
+                "/player-setup");
+        }
+    }
+
+
+    private void GoToTraining()
+    {
+        Navigation.NavigateTo(
+            "/player-deck");
+    }
+
+
+    private void GoToPassAndPlay()
+    {
+        Navigation.NavigateTo(
+            "/pass-and-play");
+    }
+
+
+    private void GoToTournament()
+    {
+        Navigation.NavigateTo(
+            "/tournament");
+    }
+
+
+    private void GoToDecks()
+    {
+        Navigation.NavigateTo(
+            "/decks");
+    }
+
+
+    private void GoToDeckBuilder()
+    {
+        Navigation.NavigateTo(
+            "/deck-builder");
+    }
+
+
+    private void GoToCardLibrary()
+    {
+        Navigation.NavigateTo(
+            "/card-library");
+    }
+
+
+    private void GoToTutorial()
+    {
+        Navigation.NavigateTo(
+            "/tutorial");
+    }
+
+
+    private void GoToSimulator()
+    {
+        Navigation.NavigateTo(
+            "/simulator");
+    }
+
+}

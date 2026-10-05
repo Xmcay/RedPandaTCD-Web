@@ -1,0 +1,534 @@
+@page "/pass-and-play"
+@using RedPandaTCD_Web.Game
+@inject GameSessionState Session
+
+<PageTitle>Pass-and-Play - Red Panda TCD</PageTitle>
+
+<div class="pass-play-page">
+
+    @if (setupStep == 1)
+    {
+        <section class="setup-panel">
+
+            <h1>Pass-and-Play</h1>
+
+            <p class="subtitle">
+                Player 1 Setup
+            </p>
+
+            <h2>Enter Player 1 Name</h2>
+
+            <form @onsubmit="SubmitPlayer1Name"
+                  @onsubmit:preventDefault>
+
+                <input @bind="player1Name"
+                       @bind:event="oninput"
+                       placeholder="Player 1 name"
+                       autofocus />
+
+                @if (!string.IsNullOrEmpty(errorMessage))
+                {
+                    <p class="error-message">
+                        @errorMessage
+                    </p>
+                }
+
+                <button type="submit">
+                    Choose Player 1 Deck
+                </button>
+
+                <button type="button"
+                        class="secondary-button"
+                        @onclick="GoHome">
+                    Back to Main Menu
+                </button>
+
+            </form>
+
+        </section>
+    }
+    else if (setupStep == 2)
+    {
+        <DeckPicker
+            Title="Player 1 Deck"
+            Subtitle="@($"{player1Name}, choose your deck.")"
+            OnDeckSelected="SelectPlayer1Deck"
+            OnBack="BackToPlayer1Name"
+            BackText="Back" />
+    }
+    else if (setupStep == 3)
+    {
+        <section class="setup-panel">
+
+            <h1>Pass-and-Play</h1>
+
+            <p class="subtitle">
+                Player 2 Setup
+            </p>
+
+            <h2>Enter Player 2 Name</h2>
+
+            <form @onsubmit="SubmitPlayer2Name"
+                  @onsubmit:preventDefault>
+
+                <input @bind="player2Name"
+                       @bind:event="oninput"
+                       placeholder="Player 2 name"
+                       autofocus />
+
+                @if (!string.IsNullOrEmpty(errorMessage))
+                {
+                    <p class="error-message">
+                        @errorMessage
+                    </p>
+                }
+
+                <button type="submit">
+                    Choose Player 2 Deck
+                </button>
+
+                <button type="button"
+                        class="secondary-button"
+                        @onclick="BackToPlayer1Deck">
+                    Back
+                </button>
+
+            </form>
+
+        </section>
+    }
+    else if (setupStep == 4)
+    {
+        <DeckPicker
+            Title="Player 2 Deck"
+            Subtitle="@($"{player2Name}, choose your deck.")"
+            OnDeckSelected="SelectPlayer2Deck"
+            OnBack="BackToPlayer2Name"
+            BackText="Back" />
+    }
+    else if (setupStep == 5)
+    {
+        <section class="setup-panel">
+
+            <h1>Ready to Battle</h1>
+
+            <p class="subtitle">
+                Pass-and-Play
+            </p>
+
+            <div class="player-summary">
+
+                <div class="player-box">
+                    <span>PLAYER 1</span>
+
+                    <strong>
+                        @player1Name
+                    </strong>
+
+                    <p>
+                        @GetDeckDescription(player1Deck)
+                    </p>
+                </div>
+
+                <div class="versus">
+                    VS
+                </div>
+
+                <div class="player-box">
+                    <span>PLAYER 2</span>
+
+                    <strong>
+                        @player2Name
+                    </strong>
+
+                    <p>
+                        @GetDeckDescription(player2Deck)
+                    </p>
+                </div>
+
+            </div>
+
+            <div class="final-buttons">
+
+                <button @onclick="StartMatch">
+                    Start Match
+                </button>
+
+                <button class="secondary-button"
+                        @onclick="BackToPlayer2Deck">
+                    Back
+                </button>
+
+            </div>
+
+        </section>
+    }
+
+</div>
+
+<style>
+
+.pass-play-page {
+    min-height: calc(100vh - 58px);
+
+    display: flex;
+    align-items: center;
+    justify-content: center;
+
+    padding: 40px 20px;
+    box-sizing: border-box;
+
+    background:
+        linear-gradient(
+            160deg,
+            #18212b 0%,
+            #23364a 55%,
+            #3a2428 100%
+        );
+
+    color: #f5f5f5;
+}
+
+.setup-panel {
+    width: min(560px, 100%);
+
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+
+    text-align: center;
+}
+
+.setup-panel h1 {
+    margin: 0;
+
+    font-size: clamp(36px, 5vw, 52px);
+
+    color: #f4efe3;
+}
+
+.subtitle {
+    margin: 10px 0 30px;
+
+    color: #c8d0d8;
+
+    font-size: 17px;
+    letter-spacing: 1px;
+}
+
+.setup-panel h2 {
+    margin: 0 0 18px;
+
+    color: #f4efe3;
+
+    font-size: 22px;
+}
+
+.setup-panel form {
+    width: min(320px, 100%);
+
+    display: flex;
+    flex-direction: column;
+
+    gap: 12px;
+}
+
+.setup-panel input {
+    width: 100%;
+    box-sizing: border-box;
+
+    padding: 13px 15px;
+
+    border: 2px solid #777;
+    border-radius: 7px;
+
+    background: #f4efe3;
+    color: #222222;
+
+    font-size: 16px;
+}
+
+.setup-panel button,
+.final-buttons button {
+    padding: 13px 18px;
+
+    border: 2px solid #9b9383;
+    border-radius: 7px;
+
+    background: #f4efe3;
+    color: #222222;
+
+    cursor: pointer;
+
+    font-weight: bold;
+}
+
+.setup-panel button:hover,
+.final-buttons button:hover {
+    background: #e5ddcc;
+}
+
+.secondary-button {
+    opacity: 0.85;
+}
+
+.error-message {
+    margin: 0;
+
+    color: #ffb3b3;
+
+    font-weight: bold;
+}
+
+.player-summary {
+    width: 100%;
+
+    display: grid;
+
+    grid-template-columns:
+        minmax(0, 1fr)
+        auto
+        minmax(0, 1fr);
+
+    align-items: center;
+
+    gap: 14px;
+
+    margin-bottom: 24px;
+}
+
+.player-box {
+    min-height: 120px;
+
+    padding: 18px;
+
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+
+    border: 1px solid #56616c;
+    border-radius: 9px;
+
+    background: #18212b;
+}
+
+.player-box span {
+    color: #aab5bf;
+
+    font-size: 10px;
+    font-weight: bold;
+
+    letter-spacing: 1px;
+}
+
+.player-box strong {
+    margin-top: 6px;
+
+    color: #f4efe3;
+
+    font-size: 22px;
+}
+
+.player-box p {
+    margin: 8px 0 0;
+
+    color: #c8d0d8;
+
+    font-size: 13px;
+}
+
+.versus {
+    color: #e5cc67;
+
+    font-size: 17px;
+    font-weight: bold;
+}
+
+.final-buttons {
+    width: min(320px, 100%);
+
+    display: flex;
+    flex-direction: column;
+
+    gap: 10px;
+}
+
+@@media (max-width: 620px) {
+
+    .player-summary {
+        grid-template-columns: 1fr;
+    }
+
+    .versus {
+        padding: 2px 0;
+    }
+}
+
+</style>
+
+@code {
+
+    [Inject]
+    private NavigationManager Navigation
+    {
+        get;
+        set;
+    } = default!;
+
+    private int setupStep = 1;
+
+    private string player1Name = "";
+    private string player2Name = "";
+
+    private string errorMessage = "";
+
+    private Deck? player1Deck;
+    private Deck? player2Deck;
+
+    protected override void OnInitialized()
+    {
+        DeckManager.InitializeDefaultDecks();
+    }
+
+    private void SubmitPlayer1Name()
+    {
+        string name =
+            player1Name.Trim();
+
+        if (string.IsNullOrWhiteSpace(name))
+        {
+            errorMessage =
+                "Please enter a name for Player 1.";
+
+            return;
+        }
+
+        player1Name = name;
+
+        errorMessage = "";
+
+        setupStep = 2;
+    }
+
+    private void SelectPlayer1Deck(
+        Deck deck)
+    {
+        player1Deck = deck;
+
+        setupStep = 3;
+
+        errorMessage = "";
+    }
+
+    private void SubmitPlayer2Name()
+    {
+        string name =
+            player2Name.Trim();
+
+        if (string.IsNullOrWhiteSpace(name))
+        {
+            errorMessage =
+                "Please enter a name for Player 2.";
+
+            return;
+        }
+
+        player2Name = name;
+
+        errorMessage = "";
+
+        setupStep = 4;
+    }
+
+    private void SelectPlayer2Deck(
+        Deck deck)
+    {
+        player2Deck = deck;
+
+        setupStep = 5;
+
+        errorMessage = "";
+    }
+
+    private void StartMatch()
+    {
+        if (player1Deck == null ||
+            player2Deck == null ||
+            string.IsNullOrWhiteSpace(player1Name) ||
+            string.IsNullOrWhiteSpace(player2Name))
+        {
+            return;
+        }
+
+        Session.CurrentMatch =
+            GameSetupManager.StartPassAndPlay(
+                player1Name,
+                player1Deck,
+                player2Name,
+                player2Deck);
+
+        Navigation.NavigateTo(
+            "/battle");
+    }
+
+    private void BackToPlayer1Name()
+    {
+        setupStep = 1;
+        errorMessage = "";
+    }
+
+    private void BackToPlayer1Deck()
+    {
+        setupStep = 2;
+        errorMessage = "";
+    }
+
+    private void BackToPlayer2Name()
+    {
+        setupStep = 3;
+        errorMessage = "";
+    }
+
+    private void BackToPlayer2Deck()
+    {
+        setupStep = 4;
+        errorMessage = "";
+    }
+
+    private void GoHome()
+    {
+        Navigation.NavigateTo("/");
+    }
+
+    private static string GetDeckDescription(
+        Deck? deck)
+    {
+        if (deck == null)
+        {
+            return "No deck selected";
+        }
+
+        return
+            $"{deck.Name} " +
+            $"({GetStructureName(deck.Structure)})";
+    }
+
+    private static string GetStructureName(
+        DeckStructure structure)
+    {
+        return structure switch
+        {
+            DeckStructure.PriorityQueue =>
+                "Priority Queue",
+
+            DeckStructure.RandomList =>
+                "Random List",
+
+            DeckStructure.LinkedList =>
+                "Linked List",
+
+            _ =>
+                structure.ToString()
+        };
+    }
+}

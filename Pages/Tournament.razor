@@ -1,0 +1,2180 @@
+@page "/tournament"
+
+@using RedPandaTCD_Web.Game
+@using RedPandaTCD_Web.Component
+@using Microsoft.AspNetCore.Components
+@inject GameSessionState Session
+@inject NavigationManager Navigation
+
+
+<PageTitle>Grand Tournament - Red Panda TCD</PageTitle>
+
+<div class="tournament-page @GetPageTutorialClass("tournament-page")">
+
+    @if (showDeckPicker)
+    {
+        <section class="deck-picker-page">
+
+            <DeckPicker
+                Title="Choose Your Tournament Deck"
+                Subtitle="Choose carefully. This deck will be locked for the entire Tournament run."
+                OnDeckSelected="SelectTournamentDeck"
+                OnBack="CancelDeckSelection"
+                BackText="Back to Tournament" />
+
+        </section>
+    }
+    else
+    {
+        <main class="tournament-shell">
+
+            <header class="tournament-header">
+
+                <div>
+                    <span class="tournament-label">
+                        GRAND TOURNAMENT
+                    </span>
+
+                    <h1>
+                        Grand Tournament
+                    </h1>
+
+                    <p>
+                        Face three opponents in succession
+                        and prove your mastery of the battlefield.
+                    </p>
+                </div>
+
+                <button class="home-button"
+                        @onclick="GoHome">
+                    Main Menu
+                </button>
+
+            </header>
+
+
+            @if (!Session.Tournament.IsActive &&
+                 !Session.Tournament.IsCompleted)
+            {
+                <section class="intro-panel">
+
+                    <div class="tournament-mark">
+                        III
+                    </div>
+
+                    <h2>
+                        Three Opponents. One Deck.
+                    </h2>
+
+                    <p class="intro-description">
+                        Select one deck before entering the Tournament.
+                        That deck remains locked for the entire run.
+                        Every Tournament round begins with a fresh copy.
+                    </p>
+
+
+                    <div class="opponent-path @GetPageTutorialClass("opponent-path")">
+
+                        <article class="opponent-card">
+
+                            <div class="stage-number">
+                                1
+                            </div>
+
+                            <div class="opponent-info">
+                                <span>
+                                    OPENING ROUND
+                                </span>
+
+                                <strong>
+                                    Professor Sage
+                                </strong>
+
+                                <small>
+                                    Queue
+                                </small>
+
+                                <p>
+                                    Planning and predictable
+                                    First-In, First-Out order.
+                                </p>
+                            </div>
+
+                        </article>
+
+
+                        <div class="path-connector">
+                            ↓
+                        </div>
+
+
+                        <article class="opponent-card">
+
+                            <div class="stage-number">
+                                2
+                            </div>
+
+                            <div class="opponent-info">
+                                <span>
+                                    SEMIFINAL
+                                </span>
+
+                                <strong>
+                                    Captain Guardian
+                                </strong>
+
+                                <small>
+                                    Stack
+                                </small>
+
+                                <p>
+                                    Last-In, First-Out pressure
+                                    and automatic deployment.
+                                </p>
+                            </div>
+
+                        </article>
+
+
+                        <div class="path-connector">
+                            ↓
+                        </div>
+
+
+                        <article class="opponent-card final-opponent">
+
+                            <div class="stage-number">
+                                3
+                            </div>
+
+                            <div class="opponent-info">
+                                <span>
+                                    FINAL ROUND
+                                </span>
+
+                                <strong>
+                                    Rogue Nomad
+                                </strong>
+
+                                <small>
+                                    Random List
+                                </small>
+
+                                <p>
+                                    Unpredictable draws and
+                                    constant adaptation.
+                                </p>
+                            </div>
+
+                        </article>
+
+                    </div>
+
+
+                    <section class="rules-panel @GetPageTutorialClass("tournament-rules")">
+
+                        <span class="section-label">
+                            TOURNAMENT RULES
+                        </span>
+
+                        <div class="rules-grid">
+
+                            <div class="rule">
+                                <strong>
+                                    LOCKED DECK
+                                </strong>
+
+                                <span>
+                                    Your selected deck cannot
+                                    change during the run.
+                                </span>
+                            </div>
+
+                            <div class="rule">
+                                <strong>
+                                    FRESH ROUNDS
+                                </strong>
+
+                                <span>
+                                    Each opponent begins with
+                                    fresh match state.
+                                </span>
+                            </div>
+
+                            <div class="rule">
+                                <strong>
+                                    THREE VICTORIES
+                                </strong>
+
+                                <span>
+                                    Defeat every opponent
+                                    in order.
+                                </span>
+                            </div>
+
+                            <div class="rule danger-rule">
+                                <strong>
+                                    ONE DEFEAT
+                                </strong>
+
+                                <span>
+                                    Any loss ends the
+                                    Tournament run.
+                                </span>
+                            </div>
+
+                        </div>
+
+                    </section>
+
+
+                    <section class="reward-panel @GetPageTutorialClass("tournament-reward")">
+
+                        <span>
+                            CHAMPION REWARD
+                        </span>
+
+                        <strong>
+                            MASTER STRATEGIST
+                        </strong>
+
+                        <p>
+                            Defeat all three Tournament opponents
+                            to earn this title for the current session.
+                        </p>
+
+                    </section>
+
+
+                    <button class="primary-button begin-button @GetPageTutorialClass("begin-tournament")"
+        @onclick="BeginTournament">
+                        BEGIN TOURNAMENT
+                    </button>
+
+                </section>
+            }
+            else if (Session.Tournament.IsActive)
+            {
+                <section class="active-run-panel @GetPageTutorialClass("active-run")">
+
+                    <div class="run-progress">
+
+                        @for (int round = 1;
+                              round <= TournamentManager.TOTAL_ROUNDS;
+                              round++)
+                        {
+                            <div class="progress-item">
+
+                                <div class="progress-circle @GetRoundClass(round)">
+                                    @round
+                                </div>
+
+                                <span>
+                                    @GetRoundProgressText(round)
+                                </span>
+
+                            </div>
+
+                            @if (round <
+                                 TournamentManager.TOTAL_ROUNDS)
+                            {
+                                <div class="progress-line @GetLineClass(round)">
+                                </div>
+                            }
+                        }
+
+                    </div>
+
+
+                    <div class="stage-card">
+
+                        <div class="stage-heading">
+
+                            <div>
+
+                                <span class="section-label">
+                                    @TournamentManager.GetRoundTitle(
+                                        Session.Tournament.CurrentRound)
+                                </span>
+
+                                <h2>
+                                    Stage
+                                    @Session.Tournament.CurrentRound
+                                    /
+                                    @TournamentManager.TOTAL_ROUNDS
+                                </h2>
+
+                            </div>
+
+                            <div class="stage-badge">
+                                @Session.Tournament.CurrentRound
+                            </div>
+
+                        </div>
+
+
+                        <div class="opponent-focus">
+
+                            <span>
+                                CURRENT OPPONENT
+                            </span>
+
+                            <h3>
+                                @Session.Tournament.CurrentOpponentName
+                            </h3>
+
+                            <p>
+                                @TournamentManager.GetOpponentDescription(
+                                    Session.Tournament.CurrentRound)
+                            </p>
+
+                            <div class="opponent-deck">
+
+                                <span>
+                                    OPPONENT DECK
+                                </span>
+
+                                <strong>
+                                    @GetCurrentOpponentDeckName()
+                                </strong>
+
+                                <small>
+                                    @GetCurrentOpponentStructureName()
+                                </small>
+
+                            </div>
+
+                        </div>
+
+
+                        @if (Session.Tournament.LockedPlayerDeck != null)
+                        {
+                            <section class="locked-deck">
+
+                                <div class="locked-heading">
+
+                                    <div>
+                                        <span class="section-label">
+                                            LOCKED TOURNAMENT DECK
+                                        </span>
+
+                                        <h3>
+                                            @Session.Tournament.LockedPlayerDeck.Name
+                                        </h3>
+                                    </div>
+
+                                    <span class="lock-badge">
+                                        LOCKED
+                                    </span>
+
+                                </div>
+
+
+                                <div class="deck-details">
+
+                                    <div>
+                                        <span>
+                                            STRUCTURE
+                                        </span>
+
+                                        <strong>
+                                            @GetStructureName(
+                                                Session.Tournament
+                                                    .LockedPlayerDeck
+                                                    .Structure)
+                                        </strong>
+                                    </div>
+
+                                    <div>
+                                        <span>
+                                            CARDS
+                                        </span>
+
+                                        <strong>
+                                            @Session.Tournament
+                                                .LockedPlayerDeck
+                                                .Cards.Count
+                                        </strong>
+                                    </div>
+
+                                    <div>
+                                        <span>
+                                            COMPLETED
+                                        </span>
+
+                                        <strong>
+                                            @Session.Tournament.CompletedRounds
+                                            /
+                                            @TournamentManager.TOTAL_ROUNDS
+                                        </strong>
+                                    </div>
+
+                                </div>
+
+                            </section>
+                        }
+
+
+                        @if (!string.IsNullOrWhiteSpace(errorMessage))
+                        {
+                            <div class="error-message">
+                                @errorMessage
+                            </div>
+                        }
+
+
+                        <div class="stage-actions">
+
+                            <button class="primary-button"
+                                    disabled="@isStartingMatch"
+                                    @onclick="StartCurrentRound">
+                                @(isStartingMatch
+                                    ? "Starting Match..."
+                                    : $"Face {Session.Tournament.CurrentOpponentName}")
+                            </button>
+
+                            <button class="danger-button"
+                                    disabled="@isStartingMatch"
+                                    @onclick="AskAbandonTournament">
+                                Abandon Tournament
+                            </button>
+
+                        </div>
+
+                    </div>
+
+                </section>
+            }
+            else if (Session.Tournament.IsCompleted)
+            {
+                <section class="result-panel">
+
+                    @if (Session.Tournament.PlayerWonTournament)
+                    {
+                        <span class="champion-label">
+                            GRAND TOURNAMENT CHAMPION
+                        </span>
+
+                        <h2>
+                            Tournament Complete
+                        </h2>
+
+                        <div class="master-strategist">
+                            MASTER STRATEGIST
+                        </div>
+
+                        <p>
+                            You defeated Professor Sage,
+                            Captain Guardian, and Rogue Nomad.
+                        </p>
+
+                        @if (Session.Tournament.LockedPlayerDeck != null)
+                        {
+                            <blockquote>
+                                @TournamentManager.GetVictoryQuote(
+                                    Session.Tournament
+                                        .LockedPlayerDeck
+                                        .Structure)
+                            </blockquote>
+                        }
+                    }
+                    else
+                    {
+                        <span class="defeat-label">
+                            TOURNAMENT DEFEAT
+                        </span>
+
+                        <h2>
+                            The Run Has Ended
+                        </h2>
+
+                        <p>
+                            Your Grand Tournament run ended at
+                            Stage @Session.Tournament.CurrentRound.
+                        </p>
+
+                        @if (!string.IsNullOrWhiteSpace(
+                            Session.Tournament.CurrentOpponentName))
+                        {
+                            <strong class="defeating-opponent">
+                                @Session.Tournament.CurrentOpponentName
+                            </strong>
+
+                            <blockquote>
+                                @TournamentManager.GetLossQuote(
+                                    Session.Tournament
+                                        .CurrentOpponentName)
+                            </blockquote>
+                        }
+                    }
+
+
+                    <div class="result-actions">
+
+                        <button class="primary-button"
+                                @onclick="StartNewTournament">
+                            START NEW TOURNAMENT
+                        </button>
+
+                        <button class="secondary-button"
+                                @onclick="GoHome">
+                            MAIN MENU
+                        </button>
+
+                    </div>
+
+                </section>
+            }
+
+        </main>
+    }
+
+</div>
+
+
+<ConfirmDialog
+    IsVisible="showAbandonDialog"
+    Title="Abandon Tournament?"
+    Message="Your current Tournament progress will be lost. Your earned session title, if any, will remain."
+    ConfirmText="Abandon Run"
+    CancelText="Keep Playing"
+    OnConfirm="ConfirmAbandonTournament"
+    OnCancel="CancelAbandonTournament" />
+
+<PageTutorialOverlay
+Visible="@showPageTutorial"
+Label="GRAND TOURNAMENT TUTORIAL"
+Steps="@TournamentPageTutorialSteps"
+CurrentIndex="@pageTutorialStep"
+CurrentIndexChanged="SetPageTutorialStep"
+OnExit="ExitPageTutorial"
+OnFinished="FinishPageTutorial" />
+
+
+<style>
+
+    .tournament-page {
+        min-height: calc(100vh - 58px);
+
+        box-sizing: border-box;
+
+        background:
+            radial-gradient(
+                circle at 20% 15%,
+                rgba(229, 204, 103, 0.10),
+                transparent 30%
+            ),
+            radial-gradient(
+                circle at 85% 80%,
+                rgba(110, 54, 61, 0.18),
+                transparent 32%
+            ),
+            linear-gradient(
+                160deg,
+                #18212b 0%,
+                #23364a 55%,
+                #3a2428 100%
+            );
+
+        color: #f5f5f5;
+    }
+
+
+    .tournament-shell {
+        width: min(1000px, 100%);
+
+        margin: 0 auto;
+
+        box-sizing: border-box;
+
+        padding:
+            38px
+            24px
+            60px;
+    }
+
+
+    /* =========================
+       HEADER
+       ========================= */
+
+    .tournament-header {
+        margin-bottom: 30px;
+
+        display: flex;
+        align-items: flex-start;
+        justify-content: space-between;
+
+        gap: 20px;
+    }
+
+    .tournament-label,
+    .section-label {
+        color: #e5cc67;
+
+        font-size: 9px;
+        font-weight: bold;
+
+        letter-spacing: 1.4px;
+    }
+
+    .tournament-header h1 {
+        margin:
+            5px
+            0
+            6px;
+
+        color: #f4efe3;
+
+        font-size:
+            clamp(
+                34px,
+                5vw,
+                52px
+            );
+    }
+
+    .tournament-header p {
+        max-width: 590px;
+
+        margin: 0;
+
+        color: #b7c1ca;
+
+        font-size: 13px;
+        line-height: 1.5;
+    }
+
+
+    /* =========================
+       BUTTONS
+       ========================= */
+
+    .home-button,
+    .primary-button,
+    .secondary-button,
+    .danger-button {
+        padding:
+            11px
+            17px;
+
+        border-radius: 7px;
+
+        cursor: pointer;
+
+        font-weight: bold;
+
+        transition:
+            transform 0.12s ease,
+            background 0.12s ease,
+            border-color 0.12s ease;
+    }
+
+    .home-button,
+    .secondary-button {
+        border:
+            1px solid #9b9383;
+
+        background: #f4efe3;
+        color: #222222;
+    }
+
+    .primary-button {
+        border:
+            2px solid #b69d55;
+
+        background:
+            linear-gradient(
+                145deg,
+                #f4e9c8,
+                #dccc9c
+            );
+
+        color: #222222;
+    }
+
+    .danger-button {
+        border:
+            1px solid #a95c62;
+
+        background: #43262a;
+        color: #efb0b3;
+    }
+
+    .home-button:hover,
+    .primary-button:hover,
+    .secondary-button:hover,
+    .danger-button:hover:not(:disabled) {
+        transform:
+            translateY(-2px);
+    }
+
+    .primary-button:disabled,
+    .danger-button:disabled {
+        cursor: default;
+
+        opacity: 0.55;
+
+        transform: none;
+    }
+
+
+    /* =========================
+       INTRO
+       ========================= */
+
+    .intro-panel {
+        padding:
+            30px;
+
+        box-sizing: border-box;
+
+        border:
+            1px solid #596674;
+
+        border-radius: 12px;
+
+        background:
+            rgba(
+                19,
+                27,
+                35,
+                0.91
+            );
+
+        text-align: center;
+
+        box-shadow:
+            0 12px 30px
+            rgba(
+                0,
+                0,
+                0,
+                0.24
+            );
+    }
+
+    .tournament-mark {
+        width: 68px;
+        height: 68px;
+
+        margin:
+            0
+            auto
+            14px;
+
+        display: flex;
+        align-items: center;
+        justify-content: center;
+
+        border:
+            3px solid #e5cc67;
+
+        border-radius: 50%;
+
+        color: #e5cc67;
+
+        font-size: 18px;
+        font-weight: 900;
+
+        letter-spacing: 3px;
+
+        box-shadow:
+            0 0 22px
+            rgba(
+                229,
+                204,
+                103,
+                0.16
+            );
+    }
+
+    .intro-panel h2 {
+        margin:
+            0
+            0
+            8px;
+
+        color: #f4efe3;
+
+        font-size: 27px;
+    }
+
+    .intro-description {
+        max-width: 640px;
+
+        margin:
+            0
+            auto;
+
+        color: #b6c0ca;
+
+        font-size: 12px;
+        line-height: 1.6;
+    }
+
+
+    /* =========================
+       OPPONENT PATH
+       ========================= */
+
+    .opponent-path {
+        width: min(600px, 100%);
+
+        margin:
+            28px
+            auto;
+    }
+
+    .opponent-card {
+        padding:
+            15px
+            18px;
+
+        display: flex;
+        align-items: center;
+
+        gap: 15px;
+
+        border:
+            1px solid #4f5c67;
+
+        border-radius: 9px;
+
+        background: #17212b;
+
+        text-align: left;
+    }
+
+    .opponent-card.final-opponent {
+        border-color: #8e7943;
+    }
+
+    .stage-number {
+        width: 42px;
+        height: 42px;
+
+        flex-shrink: 0;
+
+        display: flex;
+        align-items: center;
+        justify-content: center;
+
+        border:
+            2px solid #e5cc67;
+
+        border-radius: 50%;
+
+        color: #e5cc67;
+
+        font-size: 16px;
+        font-weight: bold;
+    }
+
+    .opponent-info {
+        min-width: 0;
+
+        display: flex;
+        flex-direction: column;
+
+        gap: 2px;
+    }
+
+    .opponent-info > span {
+        color: #8e9aa5;
+
+        font-size: 7px;
+        font-weight: bold;
+
+        letter-spacing: 1px;
+    }
+
+    .opponent-info strong {
+        color: #f4efe3;
+
+        font-size: 16px;
+    }
+
+    .opponent-info small {
+        color: #e5cc67;
+
+        font-size: 9px;
+        font-weight: bold;
+    }
+
+    .opponent-info p {
+        margin:
+            4px
+            0
+            0;
+
+        color: #aeb8c1;
+
+        font-size: 10px;
+        line-height: 1.35;
+    }
+
+    .path-connector {
+        padding:
+            4px
+            0;
+
+        color: #737e88;
+
+        font-size: 18px;
+        font-weight: bold;
+    }
+
+
+    /* =========================
+       RULES
+       ========================= */
+
+    .rules-panel {
+        width: min(720px, 100%);
+
+        margin:
+            28px
+            auto
+            0;
+
+        padding:
+            18px;
+
+        box-sizing: border-box;
+
+        border:
+            1px solid #505b66;
+
+        border-radius: 9px;
+
+        background:
+                   #111820;
+
+        text-align: left;
+    }
+
+    .rules-grid {
+        margin-top: 12px;
+
+        display: grid;
+
+        grid-template-columns:
+            1fr
+            1fr;
+
+        gap: 8px;
+    }
+
+    .rule {
+        padding:
+            11px
+            12px;
+
+        display: flex;
+        flex-direction: column;
+
+        gap: 4px;
+
+        border:
+            1px solid #46515d;
+
+        border-radius: 6px;
+
+        background: #19232d;
+    }
+
+    .rule strong {
+        color: #f4efe3;
+
+        font-size: 9px;
+    }
+
+    .rule span {
+        color: #9faab4;
+
+        font-size: 9px;
+        line-height: 1.35;
+    }
+
+    .danger-rule strong {
+        color: #e58b8f;
+    }
+
+
+    /* =========================
+       REWARD
+       ========================= */
+
+    .reward-panel {
+        width: min(480px, 100%);
+
+        margin:
+            20px
+            auto
+            0;
+
+        padding:
+            14px;
+
+        box-sizing: border-box;
+
+        display: flex;
+        flex-direction: column;
+
+        gap: 4px;
+
+        border:
+            1px solid #8e7943;
+
+        border-radius: 8px;
+
+        background:
+            rgba(
+                229,
+                204,
+                103,
+                0.07
+            );
+    }
+
+    .reward-panel span {
+        color: #9fabb4;
+
+        font-size: 7px;
+        font-weight: bold;
+
+        letter-spacing: 1px;
+    }
+
+    .reward-panel strong {
+        color: #e5cc67;
+
+        font-size: 18px;
+
+        letter-spacing: 1px;
+    }
+
+    .reward-panel p {
+        margin: 0;
+
+        color: #aeb8c1;
+
+        font-size: 9px;
+    }
+
+    .begin-button {
+        min-width: 250px;
+
+        margin-top: 25px;
+
+        padding:
+            13px
+            20px;
+    }
+
+
+    /* =========================
+       DECK PICKER PAGE
+       ========================= */
+
+    .deck-picker-page {
+        min-height: calc(100vh - 58px);
+
+        display: flex;
+        align-items: center;
+        justify-content: center;
+
+        box-sizing: border-box;
+
+        padding:
+            40px
+            20px;
+    }
+
+
+    /* =========================
+       ACTIVE RUN
+       ========================= */
+
+    .active-run-panel {
+        display: flex;
+        flex-direction: column;
+
+        gap: 22px;
+    }
+
+    .run-progress {
+        display: flex;
+        align-items: flex-start;
+        justify-content: center;
+    }
+
+    .progress-item {
+        width: 96px;
+
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+
+        gap: 6px;
+    }
+
+    .progress-circle {
+        width: 38px;
+        height: 38px;
+
+        display: flex;
+        align-items: center;
+        justify-content: center;
+
+        border:
+            2px solid #56616c;
+
+        border-radius: 50%;
+
+        background: #18212b;
+
+        color: #8f9ba5;
+
+        font-size: 13px;
+        font-weight: bold;
+    }
+
+    .progress-circle.current {
+        border-color: #e5cc67;
+
+        color: #e5cc67;
+
+        box-shadow:
+            0 0 12px
+            rgba(
+                229,
+                204,
+                103,
+                0.28
+            );
+    }
+
+    .progress-circle.completed {
+        border-color: #58b875;
+
+        background: #2e7043;
+        color: #ffffff;
+    }
+
+    .progress-item span {
+        color: #8f9ba5;
+
+        font-size: 7px;
+        font-weight: bold;
+
+        text-align: center;
+        text-transform: uppercase;
+    }
+
+    .progress-line {
+        width: 75px;
+        height: 2px;
+
+        margin-top: 19px;
+
+        background: #46515d;
+    }
+
+    .progress-line.completed {
+        background: #58b875;
+    }
+
+
+    /* =========================
+       STAGE CARD
+       ========================= */
+
+    .stage-card {
+        width: min(760px, 100%);
+
+        margin:
+            0
+            auto;
+
+        padding:
+            24px;
+
+        box-sizing: border-box;
+
+        border:
+            1px solid #596674;
+
+        border-radius: 11px;
+
+        background:
+            rgba(
+                19,
+                27,
+                35,
+                0.94
+            );
+
+        box-shadow:
+            0 10px 24px
+            rgba(
+                0,
+                0,
+                0,
+                0.24
+            );
+    }
+
+    .stage-heading {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+
+        gap: 15px;
+
+        padding-bottom: 16px;
+
+        border-bottom:
+            1px solid #46515d;
+    }
+
+    .stage-heading h2 {
+        margin:
+            4px
+            0
+            0;
+
+        color: #f4efe3;
+
+        font-size: 24px;
+    }
+
+    .stage-badge {
+        width: 46px;
+        height: 46px;
+
+        display: flex;
+        align-items: center;
+        justify-content: center;
+
+        border:
+            2px solid #e5cc67;
+
+        border-radius: 50%;
+
+        color: #e5cc67;
+
+        font-size: 18px;
+        font-weight: bold;
+    }
+
+
+    /* =========================
+       CURRENT OPPONENT
+       ========================= */
+
+    .opponent-focus {
+        margin-top: 18px;
+
+        padding:
+            18px;
+
+        border-left:
+            4px solid #c95757;
+
+        background: #1d252e;
+    }
+
+    .opponent-focus > span {
+        color: #9ba6b0;
+
+        font-size: 7px;
+        font-weight: bold;
+
+        letter-spacing: 1px;
+    }
+
+    .opponent-focus h3 {
+        margin:
+            4px
+            0
+            7px;
+
+        color: #f4efe3;
+
+        font-size: 22px;
+    }
+
+    .opponent-focus > p {
+        margin:
+            0
+            0
+            13px;
+
+        color: #aeb8c1;
+
+        font-size: 11px;
+        line-height: 1.4;
+    }
+
+    .opponent-deck {
+        padding:
+            9px
+            11px;
+
+        display: flex;
+        align-items: center;
+
+        gap: 8px;
+
+        border:
+            1px solid #46515d;
+
+        border-radius: 6px;
+
+        background: #111820;
+    }
+
+    .opponent-deck span {
+        color: #89959f;
+
+        font-size: 7px;
+        font-weight: bold;
+    }
+
+    .opponent-deck strong {
+        margin-left: auto;
+
+        color: #f4efe3;
+
+        font-size: 10px;
+    }
+
+    .opponent-deck small {
+        padding:
+            3px
+            6px;
+
+        border-radius: 4px;
+
+        background: #322d20;
+        color: #e5cc67;
+
+        font-size: 7px;
+        font-weight: bold;
+    }
+
+
+    /* =========================
+       LOCKED DECK
+       ========================= */
+
+    .locked-deck {
+        margin-top: 14px;
+
+        padding:
+            16px;
+
+        border:
+            1px solid #716a59;
+
+        border-radius: 8px;
+
+        background:
+            rgba(
+                229,
+                204,
+                103,
+                0.045
+            );
+    }
+
+    .locked-heading {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+
+        gap: 15px;
+    }
+
+    .locked-heading h3 {
+        margin:
+            3px
+            0
+            0;
+
+        color: #f4efe3;
+
+        font-size: 17px;
+    }
+
+    .lock-badge {
+        padding:
+            4px
+            8px;
+
+        border:
+            1px solid #9c884e;
+
+        border-radius: 5px;
+
+        background: #3e351c;
+        color: #e5cc67;
+
+        font-size: 7px;
+        font-weight: bold;
+    }
+
+    .deck-details {
+        margin-top: 13px;
+
+        display: grid;
+
+        grid-template-columns:
+            repeat(3, 1fr);
+
+        gap: 7px;
+    }
+
+    .deck-details > div {
+        padding:
+            8px;
+
+        display: flex;
+        flex-direction: column;
+
+        gap: 3px;
+
+        border:
+            1px solid #46515d;
+
+        border-radius: 5px;
+
+        background: #151e27;
+    }
+
+    .deck-details span {
+        color: #848f99;
+
+        font-size: 6px;
+        font-weight: bold;
+    }
+
+    .deck-details strong {
+        color: #f4efe3;
+
+        font-size: 10px;
+    }
+
+
+    /* =========================
+       ACTIVE ACTIONS
+       ========================= */
+
+    .stage-actions,
+    .result-actions {
+        margin-top: 20px;
+
+        display: grid;
+
+        grid-template-columns:
+            1fr
+            1fr;
+
+        gap: 8px;
+    }
+
+    .error-message {
+        margin-top: 14px;
+
+        padding:
+            10px;
+
+        border:
+            1px solid #a1565c;
+
+        border-radius: 6px;
+
+        background:
+            rgba(
+                168,
+                65,
+                71,
+                0.12
+            );
+
+        color: #ffb3b3;
+
+        font-size: 10px;
+
+        text-align: center;
+    }
+
+
+    /* =========================
+       RESULT
+       ========================= */
+
+    .result-panel {
+        width: min(650px, 100%);
+
+        margin:
+            20px
+            auto
+            0;
+
+        padding:
+            34px;
+
+        box-sizing: border-box;
+
+        border:
+            1px solid #596674;
+
+        border-radius: 12px;
+
+        background: #131b23;
+
+        text-align: center;
+    }
+
+    .champion-label {
+        color: #e5cc67;
+
+        font-size: 9px;
+        font-weight: bold;
+
+        letter-spacing: 1.4px;
+    }
+
+    .defeat-label {
+        color: #e58b8f;
+
+        font-size: 9px;
+        font-weight: bold;
+
+        letter-spacing: 1.4px;
+    }
+
+    .result-panel h2 {
+        margin:
+            7px
+            0
+            12px;
+
+        color: #f4efe3;
+
+        font-size: 28px;
+    }
+
+    .result-panel p {
+        color: #aeb8c1;
+
+        line-height: 1.5;
+    }
+
+    .master-strategist {
+        margin:
+            20px
+            0;
+
+        color: #e5cc67;
+
+        font-size: 24px;
+        font-weight: 900;
+
+        letter-spacing: 1.5px;
+
+        text-shadow:
+            0 0 16px
+            rgba(
+                229,
+                204,
+                103,
+                0.28
+            );
+    }
+
+    .defeating-opponent {
+        display: block;
+
+        margin:
+            15px
+            0;
+
+        color: #f4efe3;
+
+        font-size: 18px;
+    }
+
+    blockquote {
+        margin:
+            18px
+            auto;
+
+        color: #c7ced5;
+
+        font-size: 13px;
+        font-style: italic;
+
+        line-height: 1.5;
+    }
+
+
+    /* =========================
+       RESPONSIVE
+       ========================= */
+
+    @@media (max-width: 650px) {
+
+        .tournament-shell {
+            padding:
+                25px
+                12px
+                40px;
+        }
+
+        .tournament-header {
+            flex-direction: column;
+        }
+
+        .home-button {
+            width: 100%;
+        }
+
+        .intro-panel {
+            padding:
+                22px
+                14px;
+        }
+
+        .rules-grid,
+        .deck-details,
+        .stage-actions,
+        .result-actions {
+            grid-template-columns: 1fr;
+        }
+
+        .progress-line {
+            width: 28px;
+        }
+
+        .progress-item {
+            width: 75px;
+        }
+
+        .stage-card {
+            padding: 17px;
+        }
+
+        .opponent-deck {
+            align-items: flex-start;
+            flex-direction: column;
+        }
+
+        .opponent-deck strong {
+            margin-left: 0;
+        }
+    }
+    .page-tutorial-target {
+    position: relative;
+    z-index: 8995;
+    outline: 4px solid #ffe078;
+    outline-offset: 5px;
+    border-radius: 8px;
+    box-shadow:
+        0 0 0 3px rgba(0, 0, 0, .5),
+        0 0 20px rgba(255, 224, 120, .72),
+        0 0 42px rgba(229, 204, 103, .4);
+    animation:
+        pageTutorialTargetPulse
+        1s
+        ease-in-out
+        infinite alternate;
+}
+
+@@keyframes pageTutorialTargetPulse {
+    from {
+        outline-color:
+            rgba(255, 224, 120, .65);
+
+        box-shadow:
+            0 0 0 3px rgba(0, 0, 0, .45),
+            0 0 10px rgba(255, 224, 120, .4);
+    }
+
+    to {
+        outline-color:
+            #ffe078;
+
+        box-shadow:
+            0 0 0 3px rgba(0, 0, 0, .55),
+            0 0 24px rgba(255, 224, 120, .85),
+            0 0 48px rgba(229, 204, 103, .45);
+    }
+}
+
+@@keyframes pageTutorialTargetPulse {
+    from {
+        outline-color:
+            rgba(255, 224, 120, .65);
+
+        box-shadow:
+            0 0 0 3px rgba(0, 0, 0, .45),
+            0 0 10px rgba(255, 224, 120, .4);
+    }
+
+    to {
+        outline-color:
+            #ffe078;
+
+        box-shadow:
+            0 0 0 3px rgba(0, 0, 0, .55),
+            0 0 24px rgba(255, 224, 120, .85),
+            0 0 48px rgba(229, 204, 103, .45);
+    }
+}
+</style>
+
+
+@code {
+
+    private bool showDeckPicker;
+
+    private bool showAbandonDialog;
+
+    private bool isStartingMatch;
+
+    private string errorMessage = "";
+
+        [SupplyParameterFromQuery(
+        Name = "tutorial")]
+    public bool PageTutorialRequested
+    {
+        get;
+        set;
+    }
+
+    private bool showPageTutorial;
+
+    private int pageTutorialStep;
+
+    private static readonly IReadOnlyList<PageTutorialStep>
+        TournamentPageTutorialSteps =
+        new List<PageTutorialStep>
+        {
+            new()
+            {
+                Title =
+                    "Grand Tournament",
+
+                Message =
+                    "The Grand Tournament is a three-round challenge. " +
+                    "Defeat every opponent in one run to become champion.",
+
+                Target =
+                    "tournament-page"
+            },
+
+            new()
+            {
+                Title =
+                    "Opponent Path",
+
+                Message =
+                    "The Tournament path shows the three opponents in order. " +
+                    "Each victory advances the run to the next stage.",
+
+                Target =
+                    "opponent-path"
+            },
+
+            new()
+            {
+                Title =
+                    "Tournament Rules",
+
+                Message =
+                    "Every round begins with a fresh match, but one defeat " +
+                    "ends the current Tournament run.",
+
+                Target =
+                    "tournament-rules"
+            },
+
+            new()
+            {
+                Title =
+                    "Locked Deck",
+
+                Message =
+                    "Choose carefully. The deck selected at the beginning " +
+                    "is locked for the entire run and cannot be replaced " +
+                    "between opponents.",
+
+                Target =
+                    "tournament-rules"
+            },
+
+            new()
+            {
+                Title =
+                    "Champion Reward",
+
+                Message =
+                    "Defeating all three Tournament opponents awards the " +
+                    "Master Strategist title for the current session.",
+
+                Target =
+                    "tournament-reward"
+            },
+
+            new()
+            {
+                Title =
+                    "Begin Tournament",
+
+                Message =
+                    "Begin Tournament opens the deck picker. You do not need " +
+                    "to start a real run during this walkthrough.",
+
+                Target =
+                    "begin-tournament"
+            },
+
+            new()
+            {
+                Title =
+                    "Active Tournament Run",
+
+                Message =
+                    "Once a run begins, this page displays round progress, " +
+                    "the current opponent, and the locked player deck.",
+
+                Target =
+    "tournament-page"
+            },
+
+            new()
+            {
+                Title =
+                    "Grand Tournament Tutorial Complete",
+
+                Message =
+                    "You now understand the three-opponent path, locked-deck " +
+                    "rule, elimination condition, progression, and reward.",
+
+                Target =
+                    "tournament-page"
+            }
+        };
+protected override void OnInitialized()
+{
+    DeckManager.InitializeDefaultDecks();
+
+    showPageTutorial =
+        PageTutorialRequested;
+
+    pageTutorialStep =
+        0;
+
+    /*
+        Keep the tutorial on the Tournament overview.
+
+        If a deck picker was left open in component state,
+        close it so the overview targets are visible.
+    */
+    if (showPageTutorial)
+    {
+        showDeckPicker =
+            false;
+
+        showAbandonDialog =
+            false;
+    }
+}
+private string GetPageTutorialClass(
+    string target)
+{
+    if (!showPageTutorial ||
+        pageTutorialStep < 0 ||
+        pageTutorialStep >=
+            TournamentPageTutorialSteps.Count)
+    {
+        return "";
+    }
+
+    PageTutorialStep step =
+        TournamentPageTutorialSteps[
+            pageTutorialStep];
+
+    return string.Equals(
+        step.Target,
+        target,
+        StringComparison.OrdinalIgnoreCase)
+            ? "page-tutorial-target"
+            : "";
+}
+
+private Task SetPageTutorialStep(
+    int step)
+{
+    pageTutorialStep =
+        step;
+
+    return Task.CompletedTask;
+}
+
+private void ExitPageTutorial()
+{
+    showPageTutorial =
+        false;
+
+    Navigation.NavigateTo(
+        "/tutorial");
+}
+private void BeginTournament()
+{
+    if (showPageTutorial)
+    {
+        return;
+    }
+
+    errorMessage =
+        "";
+
+    showDeckPicker =
+        true;
+}
+
+    private void CancelDeckSelection()
+    {
+        showDeckPicker = false;
+    }
+
+
+    private void SelectTournamentDeck(
+        Deck deck)
+    {
+        TournamentManager.StartTournament(
+            Session.Tournament,
+            deck);
+
+        showDeckPicker = false;
+
+        errorMessage = "";
+    }
+
+
+    private void StartCurrentRound()
+    {
+        if (isStartingMatch)
+        {
+            return;
+        }
+
+        if (!Session.Tournament.IsActive ||
+            Session.Tournament.LockedPlayerDeck == null)
+        {
+            errorMessage =
+                "No active Tournament run is ready.";
+
+            return;
+        }
+
+        if (!Session.HasPlayerName)
+        {
+            errorMessage =
+                "A player name is required before starting the Tournament.";
+
+            return;
+        }
+
+        isStartingMatch = true;
+
+        errorMessage = "";
+
+        try
+        {
+            Session.CurrentMatch =
+                GameSetupManager.StartTournamentMatch(
+                    Session.PlayerName,
+                    Session.Tournament);
+
+            Navigation.NavigateTo(
+                "/battle");
+        }
+        catch (Exception exception)
+        {
+            Session.CurrentMatch =
+                null;
+
+            errorMessage =
+                exception.Message;
+
+            Console.Error.WriteLine(
+                "TOURNAMENT MATCH FAILED:");
+
+            Console.Error.WriteLine(
+                exception.ToString());
+        }
+        finally
+        {
+            isStartingMatch = false;
+        }
+    }
+
+
+    private void AskAbandonTournament()
+    {
+        showAbandonDialog = true;
+    }
+
+
+    private void CancelAbandonTournament()
+    {
+        showAbandonDialog = false;
+    }
+
+
+    private void ConfirmAbandonTournament()
+    {
+        showAbandonDialog = false;
+
+        Session.CurrentMatch = null;
+
+        TournamentManager.ResetTournament(
+            Session.Tournament);
+
+        errorMessage = "";
+    }
+
+
+    private void StartNewTournament()
+    {
+        Session.CurrentMatch = null;
+
+        TournamentManager.ResetTournament(
+            Session.Tournament);
+
+        errorMessage = "";
+
+        showDeckPicker = true;
+    }
+
+
+    private string GetRoundClass(
+        int round)
+    {
+        if (round <=
+            Session.Tournament.CompletedRounds)
+        {
+            return "completed";
+        }
+
+        if (round ==
+            Session.Tournament.CurrentRound &&
+            Session.Tournament.IsActive)
+        {
+            return "current";
+        }
+
+        return "";
+    }
+
+
+    private string GetLineClass(
+        int round)
+    {
+        return round <=
+               Session.Tournament.CompletedRounds
+            ? "completed"
+            : "";
+    }
+
+
+    private string GetRoundProgressText(
+        int round)
+    {
+        if (round <=
+            Session.Tournament.CompletedRounds)
+        {
+            return "Complete";
+        }
+
+        if (round ==
+            Session.Tournament.CurrentRound &&
+            Session.Tournament.IsActive)
+        {
+            return "Current";
+        }
+
+        return "Locked";
+    }
+
+
+    private string GetCurrentOpponentDeckName()
+    {
+        Deck? deck =
+            TournamentManager.GetOpponentDeck(
+                Session.Tournament.CurrentRound);
+
+        return deck?.Name ??
+               "Unknown Deck";
+    }
+
+
+    private string GetCurrentOpponentStructureName()
+    {
+        Deck? deck =
+            TournamentManager.GetOpponentDeck(
+                Session.Tournament.CurrentRound);
+
+        if (deck == null)
+        {
+            return "";
+        }
+
+        return GetStructureName(
+            deck.Structure);
+    }
+
+
+    private static string GetStructureName(
+        DeckStructure structure)
+    {
+        return structure switch
+        {
+            DeckStructure.PriorityQueue =>
+                "Priority Queue",
+
+            DeckStructure.RandomList =>
+                "Random List",
+
+            DeckStructure.LinkedList =>
+                "Linked List",
+
+            _ =>
+                structure.ToString()
+        };
+    }
+
+
+    private void GoHome()
+    {
+        Navigation.NavigateTo(
+            "/");
+    }
+    private void FinishPageTutorial()
+{
+    Session.Tutorial.TournamentCompleted =
+        true;
+
+    showPageTutorial =
+        false;
+
+    Navigation.NavigateTo(
+        "/tutorial");
+}
+}

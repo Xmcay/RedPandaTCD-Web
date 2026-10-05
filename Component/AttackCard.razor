@@ -1,0 +1,881 @@
+@using RedPandaTCD_Web.Game
+
+<div class="field-card-wrap">
+
+    <div class="badges">
+
+        @if (Attack != null)
+        {
+            @if (Owner.TemporaryAttackBonus > 0)
+            {
+                <span class="badge attack-badge">
+                    +@Owner.TemporaryAttackBonus ATK
+                </span>
+            }
+
+            @if (Attack.IsPiercing)
+            {
+                <span class="badge piercing-badge">
+                    PIERCING
+                </span>
+            }
+        }
+
+    </div>
+
+    @if (Attack == null)
+    {
+      <div class="attack-shell placeholder @(IsClickable ? "clickable" : "") @PlacementHighlightClass"
+     @onclick="HandleClick">
+
+            <div class="empty-card-body">
+
+                <span class="placeholder-title">
+                    Attack @Slot
+                </span>
+
+                <span class="placeholder-subtitle">
+                    Empty Slot
+                </span>
+
+            </div>
+
+            <div class="empty-status-rail"></div>
+
+        </div>
+    }
+    else
+    {
+        <div class="attack-shell occupied @StateClass @(IsClickable ? "clickable" : "") @(HighlightAttackAction ? "attack-action-ready" : "") @PlacementHighlightClass"
+     @onclick="HandleClick">
+
+            <div class="field-card">
+
+                <div class="card-header">
+
+                    <strong class="card-title">
+                        @Attack.Name
+                    </strong>
+
+                    <span class="card-type">
+                        ATTACK
+                    </span>
+
+                </div>
+
+                <div class="card-divider"></div>
+
+                <div class="stat-row">
+
+                    <div class="stat-box">
+
+                        <span class="stat-label">
+                            DAMAGE
+                        </span>
+
+                        <strong class="stat-value">
+                            @Attack.Damage
+                        </strong>
+
+                    </div>
+
+                    <div class="stat-box">
+
+                        <span class="stat-label">
+                            HITS
+                        </span>
+
+                        <strong class="stat-value">
+                            @Attack.Hits
+                        </strong>
+
+                    </div>
+
+                </div>
+
+                <div class="runtime-row">
+
+                    <div class="runtime-item">
+
+                        <span class="runtime-label">
+                            NEXT USE
+                        </span>
+
+                        <strong>
+                            @TotalUses Energy
+                        </strong>
+
+                    </div>
+
+                    <div class="runtime-item">
+
+                        <span class="runtime-label">
+                            USES
+                        </span>
+
+                        <strong>
+                            @UsesRemaining / 2
+                        </strong>
+
+                    </div>
+
+                </div>
+
+            </div>
+
+            <div class="status-rail">
+
+                <div class="rail-section archetype-rail @ArchetypeClass">
+                    <span>
+                        @Attack.Archetype
+                    </span>
+                </div>
+
+                <div class="rail-section state-rail @StateRailClass">
+                    <span>
+                        @StateText
+                    </span>
+                </div>
+
+            </div>
+
+        </div>
+    }
+
+</div>
+
+<style>
+
+    .field-card-wrap {
+        width: clamp(145px, 9.5vw, 170px);
+        min-height: clamp(180px, 12vw, 205px);
+
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+
+        flex-shrink: 0;
+    }
+
+
+    /* COMPLETE ATTACK CARD */
+
+    .attack-shell {
+        width: clamp(135px, 9vw, 160px);
+        height: clamp(158px, 10.5vw, 180px);
+
+        position: relative;
+
+        display: grid;
+        grid-template-columns: minmax(0, 1fr) 3px;
+
+        border: 2px solid #8a8170;
+        border-radius: 9px;
+
+        overflow: visible;
+
+        background: #f4efe3;
+        color: #222222;
+
+        box-shadow:
+            0 3px 8px rgba(0, 0, 0, 0.20);
+
+        flex-shrink: 0;
+    }
+
+
+    /* MAIN CARD BODY */
+
+    .field-card {
+        min-width: 0;
+        min-height: 0;
+
+        padding: 9px;
+
+        display: flex;
+        flex-direction: column;
+
+        overflow: hidden;
+
+        border-radius: 7px 0 0 7px;
+
+        background: #f4efe3;
+        color: #222222;
+
+        text-align: center;
+        font-size: 10px;
+    }
+
+
+    .card-header {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+    }
+
+
+    .card-title {
+        font-size: 12px;
+        line-height: 1.15;
+    }
+
+
+    .card-type {
+        margin-top: 3px;
+
+        color: #8b674b;
+
+        font-size: 8px;
+        font-weight: bold;
+        letter-spacing: 1px;
+    }
+
+
+    .card-divider {
+        height: 1px;
+
+        margin: 7px 2px;
+
+        background: #d0c7b5;
+    }
+
+
+    /* DAMAGE + HITS */
+
+    .stat-row {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+
+        gap: 5px;
+    }
+
+
+    .stat-box {
+        padding: 5px 3px;
+
+        display: flex;
+        flex-direction: column;
+
+        border-radius: 6px;
+
+        background: #e9e2d2;
+    }
+
+
+    .stat-label {
+        color: #69645c;
+
+        font-size: 7px;
+        font-weight: bold;
+        letter-spacing: 0.7px;
+    }
+
+
+    .stat-value {
+        margin-top: 2px;
+
+        font-size: 14px;
+    }
+
+
+    /* NEXT USE + USES */
+
+    .runtime-row {
+        margin-top: 6px;
+
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+
+        gap: 5px;
+    }
+
+
+    .runtime-item {
+        min-width: 0;
+
+        display: flex;
+        flex-direction: column;
+
+        line-height: 1.25;
+    }
+
+
+    .runtime-item strong {
+        font-size: 9px;
+
+        white-space: nowrap;
+    }
+
+
+    .runtime-label {
+        margin-bottom: 2px;
+
+        color: #777066;
+
+        font-size: 7px;
+        font-weight: bold;
+        letter-spacing: 0.5px;
+
+        white-space: nowrap;
+    }
+
+
+    /* 3PX STATUS ACCENT */
+
+    .status-rail {
+        position: relative;
+
+        min-width: 0;
+
+        display: grid;
+        grid-template-rows: 1fr 1fr;
+
+        overflow: visible;
+    }
+
+
+    .rail-section {
+        position: relative;
+
+        min-height: 0;
+
+        overflow: visible;
+    }
+
+
+    .rail-section + .rail-section {
+        border-top: 0.5px solid rgba(255, 255, 255, 0.70);
+    }
+
+
+    .archetype-rail {
+        margin-top: 2px;
+        border-radius: 0 4px 0 0;
+    }
+
+
+    .state-rail {
+        margin-bottom: 2px;
+        border-radius: 0 0 4px 0;
+    }
+
+
+    /*
+        Hidden while the card is resting.
+
+        On hover the labels expand to the RIGHT,
+        outside the card, without covering its stats.
+    */
+
+    .rail-section span {
+        position: absolute;
+
+        left: 100%;
+        top: 50%;
+
+        width: 0;
+        height: 100%;
+
+        padding: 0;
+
+        display: flex;
+        align-items: center;
+        justify-content: center;
+
+        overflow: hidden;
+
+        border: 0 solid rgba(255, 255, 255, 0.45);
+
+        color: transparent;
+
+        font-size: 8px;
+        font-weight: bold;
+        letter-spacing: 0.3px;
+
+        white-space: nowrap;
+
+        writing-mode: vertical-rl;
+        text-orientation: mixed;
+
+        transform: translateY(-50%);
+
+        opacity: 0;
+
+        transition:
+            width 0.14s ease,
+            padding 0.14s ease,
+            opacity 0.10s ease,
+            color 0.10s ease,
+            border-width 0.14s ease;
+    }
+
+
+    .attack-shell:hover .rail-section span {
+        width: 22px;
+
+        padding: 3px 0;
+
+        border-width: 1px;
+        border-left-width: 0;
+
+        color: white;
+
+        opacity: 1;
+
+        background: inherit;
+
+        box-shadow:
+            3px 2px 6px rgba(0, 0, 0, 0.25);
+
+        z-index: 20;
+    }
+
+
+    /* One attached vertical hover panel */
+
+    .archetype-rail span {
+        border-radius: 0 7px 0 0;
+    }
+
+
+    .state-rail span {
+        border-radius: 0 0 7px 0;
+    }
+
+
+    /* ARCHETYPE COLORS */
+
+    .archetype-magic {
+        background: #356fc4;
+    }
+
+
+    .archetype-physical {
+        background: #b84747;
+    }
+
+
+    .archetype-neutral {
+        background: #666d75;
+    }
+
+
+    .archetype-magic span {
+        border-color: #6fa2ed;
+    }
+
+
+    .archetype-physical span {
+        border-color: #e17b7b;
+    }
+
+
+    .archetype-neutral span {
+        border-color: #9299a1;
+    }
+
+
+    /* ATTACK STATE COLORS */
+
+    .state-ready {
+        background: #2e7d32;
+    }
+
+
+    .state-used {
+        background: #666d75;
+    }
+
+
+    .state-fatigued {
+        background: #b83232;
+    }
+
+
+    .state-resting {
+        background: #2468a2;
+    }
+
+
+    .state-ready span {
+        border-color: #72ce78;
+    }
+
+
+    .state-fatigued span {
+        border-color: #e06c6c;
+    }
+
+
+    .state-resting span {
+        border-color: #70a8d8;
+    }
+
+
+    /* FATIGUED / RESTING CARD BORDER */
+
+    .attack-shell.fatigued {
+        border-color: #c62828;
+    }
+
+
+    .attack-shell.resting {
+        border-color: #1565c0;
+    }
+
+
+    /* EMPTY ATTACK SLOT */
+
+    .attack-shell.placeholder {
+        border-style: dashed;
+        border-color: rgba(255, 255, 255, 0.35);
+
+        background: rgba(255, 255, 255, 0.04);
+        color: rgba(255, 255, 255, 0.45);
+
+        box-shadow: none;
+    }
+
+
+    .empty-card-body {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+    }
+
+
+    .empty-status-rail {
+        background: rgba(255, 255, 255, 0.025);
+    }
+
+
+    .placeholder-title {
+        font-size: 11px;
+        font-weight: bold;
+    }
+
+
+    .placeholder-subtitle {
+        margin-top: 5px;
+
+        font-size: 8px;
+        text-transform: uppercase;
+        letter-spacing: 0.6px;
+    }
+
+
+    /*
+        EMPTY + CLICKABLE
+
+        Bright green means:
+        "You can deploy an Attack here right now."
+    */
+
+/*
+    PLACEMENT STATE COLORS
+
+    GREEN = empty slot can receive an Attack
+    GOLD  = deployed Attack can be replaced
+    RED   = Fatigued Attack must be resolved
+*/
+
+/* EMPTY + DEPLOYABLE */
+
+.attack-shell.placement-deploy {
+    cursor: pointer;
+
+    border: 3px solid #35d05b;
+
+    box-shadow:
+        0 0 8px rgba(53, 208, 91, 0.55),
+        0 0 16px rgba(53, 208, 91, 0.20);
+
+    transition:
+        transform 0.14s ease,
+        border-color 0.14s ease,
+        box-shadow 0.14s ease;
+}
+
+.attack-shell.placement-deploy:hover {
+    transform: translateY(-5px);
+
+    border-color: #61f27f;
+
+    box-shadow:
+        0 0 12px rgba(53, 208, 91, 0.80),
+        0 0 22px rgba(53, 208, 91, 0.28),
+        0 8px 16px rgba(0, 0, 0, 0.30);
+}
+
+
+/* OCCUPIED + REPLACEABLE */
+
+.placement-replace {
+    position: relative;
+    z-index: 15;
+    outline: 4px solid #ffe078;
+    outline-offset: 5px;
+    box-shadow:
+        0 0 0 3px rgba(0, 0, 0, .5),
+        0 0 18px rgba(255, 224, 120, .8),
+        0 0 38px rgba(229, 204, 103, .48);
+    animation:
+        replacementTargetPulse
+        .85s
+        ease-in-out
+        infinite alternate;
+}
+
+@@keyframes replacementTargetPulse {
+    from {
+        transform: scale(1);
+    }
+
+    to {
+        transform: scale(1.045);
+    }
+}
+
+.attack-shell.placement-replace:hover {
+    transform: translateY(-5px);
+
+    border-color: #f5df7f;
+
+    box-shadow:
+        0 0 12px rgba(229, 204, 103, 0.82),
+        0 0 22px rgba(229, 204, 103, 0.28),
+        0 8px 16px rgba(0, 0, 0, 0.30);
+}
+
+
+/* FATIGUED + MUST RESOLVE */
+
+.attack-shell.placement-fatigued {
+    cursor: pointer;
+
+    border: 3px solid #ef5350;
+
+    box-shadow:
+        0 0 9px rgba(239, 83, 80, 0.72),
+        0 0 20px rgba(239, 83, 80, 0.30);
+
+    transition:
+        transform 0.14s ease,
+        border-color 0.14s ease,
+        box-shadow 0.14s ease;
+}
+
+.attack-shell.placement-fatigued:hover {
+    transform: translateY(-5px);
+
+    border-color: #ff7774;
+
+    box-shadow:
+        0 0 13px rgba(239, 83, 80, 0.95),
+        0 0 24px rgba(239, 83, 80, 0.35),
+        0 8px 16px rgba(0, 0, 0, 0.30);
+}
+
+
+    /*
+        OCCUPIED + CLICKABLE
+
+        Interactive for replacement, rest, attack, etc.
+    */
+
+    .attack-shell.occupied.clickable {
+        cursor: pointer;
+
+        transition:
+            transform 0.14s ease,
+            border-color 0.14s ease,
+            box-shadow 0.14s ease;
+    }
+
+
+    .attack-shell.occupied.clickable:hover {
+        transform: translateY(-4px);
+
+        box-shadow:
+            0 7px 14px rgba(0, 0, 0, 0.30);
+    }
+
+
+    /*
+        ATTACK PHASE ACTION
+
+        Orange means:
+        "This Attack can be used right now."
+    */
+
+    .attack-shell.occupied.attack-action-ready {
+        border: 3px solid #f0a13a;
+
+        box-shadow:
+            0 0 8px rgba(240, 161, 58, 0.55),
+            0 0 16px rgba(240, 161, 58, 0.20);
+    }
+
+
+    .attack-shell.occupied.attack-action-ready:hover {
+        transform: translateY(-5px);
+
+        border-color: #ffb955;
+
+        box-shadow:
+            0 0 12px rgba(240, 161, 58, 0.80),
+            0 0 22px rgba(240, 161, 58, 0.30),
+            0 8px 16px rgba(0, 0, 0, 0.30);
+    }
+
+
+    /* BUFF / EFFECT BADGES */
+
+    .badges {
+        min-height: 25px;
+
+        display: flex;
+        justify-content: center;
+        align-items: center;
+
+        gap: 4px;
+
+        margin-bottom: 4px;
+    }
+
+
+    .badge {
+        padding: 3px 7px;
+
+        border-radius: 10px;
+
+        color: white;
+
+        font-size: 8px;
+        font-weight: bold;
+
+        white-space: nowrap;
+    }
+
+
+    .attack-badge {
+        background: #3367d6;
+    }
+
+
+    .piercing-badge {
+        background: #7c4d9e;
+    }
+
+</style>
+
+@code {
+
+    [Parameter]
+    public Player Owner { get; set; } = default!;
+
+
+    [Parameter]
+    public int Slot { get; set; }
+
+
+    [Parameter]
+    public bool IsClickable { get; set; }
+
+
+    [Parameter]
+    public bool HighlightAttackAction { get; set; }
+
+
+    [Parameter]
+    public EventCallback<int> OnCardClicked { get; set; }
+
+    [Parameter]
+public string PlacementHighlightClass { get; set; } = "";
+
+
+    private Card? Attack =>
+        Slot == 1
+            ? Owner.AttackSlot1
+            : Owner.AttackSlot2;
+
+
+    private bool IsFatigued =>
+        Slot == 1
+            ? Owner.IsFatiguedSlot1
+            : Owner.IsFatiguedSlot2;
+
+
+    private bool IsResting =>
+        Slot == 1
+            ? Owner.IsRestingSlot1
+            : Owner.IsRestingSlot2;
+
+
+    private bool UsedThisPhase =>
+        Slot == 1
+            ? Owner.AttackSlot1UsedThisPhase
+            : Owner.AttackSlot2UsedThisPhase;
+
+
+    private int UsesRemaining =>
+        Slot == 1
+            ? Owner.AttackSlot1UsesRemaining
+            : Owner.AttackSlot2UsesRemaining;
+
+
+    private int TotalUses =>
+        Slot == 1
+            ? Owner.AttackSlot1TotalUses
+            : Owner.AttackSlot2TotalUses;
+
+
+    private string StateClass =>
+        IsFatigued
+            ? "fatigued"
+            : IsResting
+                ? "resting"
+                : "";
+
+
+    private string ArchetypeClass =>
+        Attack?.Archetype switch
+        {
+            Archetype.Magic => "archetype-magic",
+            Archetype.Physical => "archetype-physical",
+            _ => "archetype-neutral"
+        };
+
+
+    private string StateRailClass =>
+        IsFatigued
+            ? "state-fatigued"
+            : IsResting
+                ? "state-resting"
+                : UsedThisPhase
+                    ? "state-used"
+                    : "state-ready";
+
+
+    private string StateText =>
+        IsFatigued
+            ? "Fatigued"
+            : IsResting
+                ? "Resting"
+                : UsedThisPhase
+                    ? "Used"
+                    : "Ready";
+
+
+    private async Task HandleClick()
+    {
+        if (!IsClickable)
+        {
+            return;
+        }
+
+        await OnCardClicked.InvokeAsync(Slot);
+    }
+}

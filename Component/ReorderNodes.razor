@@ -1,0 +1,219 @@
+@using RedPandaTCD_Web.Game
+
+<div class="reorder-overlay">
+
+    <div class="reorder-panel">
+
+        <h3>Reorder Nodes</h3>
+
+        <p class="reorder-help">
+            Select a node to move, then select its destination.
+        </p>
+
+        <div class="reorder-cards">
+
+            @for (int i = 0; i < Cards.Count; i++)
+            {
+                int position = i + 1;
+
+               <div class="reorder-node @(selectedPosition == position ? "selected" : "")"
+     @onclick="() => SelectPosition(position)">
+
+
+                    <strong class="position-label">
+                        Position @position
+                    </strong>
+
+                    <HandCard
+                        Slot="@CreateDisplaySlot(Cards[i], position)"
+                        IsClickable="false"
+                        IsDisplayOnly="true" />
+
+                </div>
+            }
+
+        </div>
+
+        <button @onclick="Close">
+            Finish
+        </button>
+
+    </div>
+
+</div>
+
+<style>
+.reorder-node {
+    padding: 8px;
+
+    border: 2px solid transparent;
+    border-radius: 10px;
+
+    cursor: pointer;
+
+    transition:
+        transform 0.14s ease,
+        border-color 0.14s ease,
+        background 0.14s ease;
+}
+
+.reorder-node:hover {
+    transform: translateY(-4px);
+    border-color: #8d99a6;
+}
+
+.reorder-node.selected {
+    border-color: #e5cc67;
+    background: rgba(229, 204, 103, 0.12);
+}
+    .reorder-overlay {
+        position: fixed;
+        inset: 0;
+        z-index: 1000;
+
+        display: flex;
+        align-items: center;
+        justify-content: center;
+
+        background: rgba(0, 0, 0, 0.55);
+    }
+
+    .reorder-panel {
+        width: min(980px, calc(100vw - 40px));
+        padding: 24px;
+
+        display: flex;
+        flex-direction: column;
+        gap: 16px;
+
+        border: 2px solid #9b9383;
+        border-radius: 10px;
+
+        background: #18212b;
+        color: #f5f5f5;
+
+        text-align: center;
+    }
+
+    .reorder-panel h3 {
+        margin: 0;
+
+        color: #f4efe3;
+    }
+
+    .reorder-help {
+        margin: 0;
+
+        color: #c8d0d8;
+        font-size: 13px;
+    }
+
+    .reorder-cards {
+        display: flex;
+        flex-wrap: wrap;
+        justify-content: center;
+        gap: 16px;
+
+        max-height: 520px;
+        overflow-y: auto;
+
+        padding: 4px;
+    }
+
+    .reorder-node {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        padding: 8px;
+border: 2px solid transparent;
+border-radius: 10px;
+cursor: pointer;
+transition:
+transform 0.14s ease,
+border-color 0.14s ease,
+background 0.14s ease;
+
+        gap: 6px;
+    }
+    .reorder-node:hover {
+    transform: translateY(-4px);
+    border-color: #8d99a6;
+}
+
+.reorder-node.selected {
+    border-color: #e5cc67;
+    background: rgba(229, 204, 103, 0.12);
+}
+
+    .position-label {
+        color: #d7dee5;
+
+        font-size: 11px;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+    }
+
+    .reorder-panel button {
+        padding: 10px 14px;
+
+        border: 1px solid #9b9383;
+        border-radius: 6px;
+
+        background: #f4efe3;
+        color: #222;
+
+        cursor: pointer;
+        font-weight: bold;
+    }
+</style>
+
+@code {
+    private int? selectedPosition;
+
+    [Parameter]
+public EventCallback<(int From, int To)> OnMove { get; set; }
+
+    [Parameter]
+    public List<Card> Cards { get; set; } = new();
+
+    [Parameter]
+    public EventCallback OnFinish { get; set; }
+
+
+    private HandSlot CreateDisplaySlot(
+        Card card,
+        int position)
+    {
+        HandSlot slot = new HandSlot(position);
+
+        slot.CardInSlot = card;
+
+        return slot;
+    }
+    private async Task SelectPosition(int position)
+{
+    if (selectedPosition == null)
+    {
+        selectedPosition = position;
+        return;
+    }
+
+    int from = selectedPosition.Value;
+    int to = position;
+
+    selectedPosition = null;
+
+    if (from == to)
+    {
+        return;
+    }
+
+    await OnMove.InvokeAsync((from, to));
+}
+
+
+    private async Task Close()
+    {
+        await OnFinish.InvokeAsync();
+    }
+}

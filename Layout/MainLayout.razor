@@ -1,0 +1,25 @@
+﻿@inherits LayoutComponentBase
+
+<div class="main-layout">
+
+    <GameNav />
+
+    <main class="main-content">
+        @Body
+    </main>
+
+</div>
+
+<style>
+    .main-layout {
+        width: 100%;
+        min-height: 100vh;
+        margin: 0;
+        padding: 0;
+    }
+
+    .main-content {
+        width: 100%;
+        min-height: 100vh;
+    }
+</style>

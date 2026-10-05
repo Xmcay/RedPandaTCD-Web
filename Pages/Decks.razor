@@ -1,0 +1,1823 @@
+@page "/decks"
+@using RedPandaTCD_Web.Game
+@inject NavigationManager Navigation
+
+<PageTitle>My Decks - Red Panda TCD</PageTitle>
+
+<div class="decks-page">
+
+    <main class="decks-shell">
+
+        <header class="decks-header">
+
+            <div>
+                <h1>
+                    My Decks
+                </h1>
+
+                <p>
+                    View and manage your available decks.
+                </p>
+            </div>
+
+            <div class="header-actions">
+
+                <button @onclick="GoToDeckBuilder">
+                    Deck Builder
+                </button>
+
+                <button @onclick="GoHome">
+                    Main Menu
+                </button>
+
+            </div>
+
+        </header>
+
+
+        <section class="deck-stats">
+
+            <div>
+                <span>
+                    TOTAL DECKS
+                </span>
+
+                <strong>
+                    @DeckManager.Decks.Count
+                </strong>
+            </div>
+
+            <div>
+                <span>
+                    STARTER DECKS
+                </span>
+
+                <strong>
+                    @Math.Min(
+                        StarterDeckCount,
+                        DeckManager.Decks.Count)
+                </strong>
+            </div>
+
+            <div>
+                <span>
+                    CUSTOM DECKS
+                </span>
+
+                <strong>
+                    @CustomDeckCount
+                </strong>
+            </div>
+
+        </section>
+
+
+        @if (DeckManager.Decks.Count == 0)
+        {
+            <section class="empty-state">
+
+                <h2>
+                    No Decks Available
+                </h2>
+
+                <p>
+                    Build a deck to get started.
+                </p>
+
+                <button @onclick="GoToDeckBuilder">
+                    Open Deck Builder
+                </button>
+
+            </section>
+        }
+        else
+        {
+            <section class="deck-grid">
+
+                @for (int i = 0;
+                      i < DeckManager.Decks.Count;
+                      i++)
+                {
+                    int deckIndex = i;
+
+                    Deck deck =
+                        DeckManager.Decks[deckIndex];
+
+                    bool isStarter =
+                        IsStarterDeck(deckIndex);
+
+                    <article class="deck-card">
+
+                        <div class="deck-card-accent @GetStructureClass(deck.Structure)">
+                        </div>
+
+                        <div class="deck-card-heading">
+
+                            <div class="deck-title">
+
+                                <div class="deck-title-row">
+
+                                    <h2>
+                                        @deck.Name
+                                    </h2>
+
+                                    @if (isStarter)
+                                    {
+                                        <span class="starter-badge">
+                                            STARTER
+                                        </span>
+                                    }
+                                    else
+                                    {
+                                        <span class="custom-badge">
+                                            CUSTOM
+                                        </span>
+                                    }
+
+                                </div>
+
+                                <span class="structure-name">
+                                    @GetStructureName(deck.Structure)
+                                </span>
+
+                            </div>
+
+                            <div class="card-count">
+
+                                <strong>
+                                    @deck.Cards.Count
+                                </strong>
+
+                                <span>
+                                    CARDS
+                                </span>
+
+                            </div>
+
+                        </div>
+
+
+                        <div class="deck-counts">
+
+                            <div>
+
+                                <span>
+                                    CHARACTERS
+                                </span>
+
+                                <strong>
+                                    @CountCards(
+                                        deck,
+                                        CardType.Character)
+                                </strong>
+
+                            </div>
+
+                            <div>
+
+                                <span>
+                                    ATTACKS
+                                </span>
+
+                                <strong>
+                                    @CountCards(
+                                        deck,
+                                        CardType.Attack)
+                                </strong>
+
+                            </div>
+
+                            <div>
+
+                                <span>
+                                    UTILITIES
+                                </span>
+
+                                <strong>
+                                    @CountCards(
+                                        deck,
+                                        CardType.Utility)
+                                </strong>
+
+                            </div>
+
+                        </div>
+
+
+                        <p class="structure-description">
+                            @GetStructureDescription(deck.Structure)
+                        </p>
+
+
+                        <div class="deck-actions">
+
+                            <button class="view-button"
+                                    @onclick="() => ViewDeck(deckIndex)">
+                                View Deck
+                            </button>
+
+                            @if (!isStarter)
+                            {
+                                <button class="delete-button"
+                                        @onclick="() => AskDeleteDeck(deckIndex)">
+                                    Delete
+                                </button>
+                            }
+
+                        </div>
+
+                    </article>
+                }
+
+            </section>
+        }
+
+    </main>
+
+</div>
+
+
+@if (viewedDeckIndex != null)
+{
+    int index =
+        viewedDeckIndex.Value;
+
+    if (index >= 0 &&
+        index < DeckManager.Decks.Count)
+    {
+        Deck viewedDeck =
+            DeckManager.Decks[index];
+
+        <div class="deck-overlay"
+             @onclick="CloseDeckViewer">
+
+            <section class="deck-viewer"
+                     @onclick:stopPropagation="true">
+
+                <header class="viewer-header">
+
+                    <div>
+
+                        <span class="viewer-label">
+                            @GetStructureName(viewedDeck.Structure)
+                        </span>
+
+                        <h2>
+                            @viewedDeck.Name
+                        </h2>
+
+                        <p>
+                            @viewedDeck.Cards.Count cards
+                        </p>
+
+                    </div>
+
+                    <button class="close-button"
+                            @onclick="CloseDeckViewer">
+                        ×
+                    </button>
+
+                </header>
+
+
+                <div class="viewer-structure-info">
+
+                    <strong>
+                        @GetStructureName(viewedDeck.Structure)
+                    </strong>
+
+                    <span>
+                        @GetStructureDescription(viewedDeck.Structure)
+                    </span>
+
+                </div>
+
+
+                <div class="viewer-summary">
+
+                    <span>
+                        Characters
+                        <strong>
+                            @CountCards(
+                                viewedDeck,
+                                CardType.Character)
+                        </strong>
+                    </span>
+
+                    <span>
+                        Attacks
+                        <strong>
+                            @CountCards(
+                                viewedDeck,
+                                CardType.Attack)
+                        </strong>
+                    </span>
+
+                    <span>
+                        Utilities
+                        <strong>
+                            @CountCards(
+                                viewedDeck,
+                                CardType.Utility)
+                        </strong>
+                    </span>
+
+                </div>
+
+
+                <div class="viewer-list">
+
+                    @for (int i = 0;
+                          i < viewedDeck.Cards.Count;
+                          i++)
+                    {
+                        int cardIndex = i;
+
+                        Card card =
+                            viewedDeck.Cards[cardIndex];
+
+                        <div class="viewer-card">
+
+                            <div class="viewer-position">
+                                @(cardIndex + 1)
+                            </div>
+
+                            <div class="viewer-card-accent @GetCardTypeClass(card)">
+                            </div>
+
+                            <div class="viewer-card-info">
+
+                                <div class="viewer-card-title">
+
+                                    <strong>
+                                        @card.Name
+                                    </strong>
+
+                                    <span>
+                                        @card.Id
+                                    </span>
+
+                                </div>
+
+                                <small>
+                                    @card.Archetype ·
+                                    @card.Type ·
+                                    Cost @card.Cost
+                                </small>
+
+                                @if (card.Type ==
+                                     CardType.Character)
+                                {
+                                    <span class="viewer-extra">
+                                        HP @card.HpValue ·
+                                        Shield @card.ShieldValue
+                                    </span>
+                                }
+                                else if (card.Type ==
+                                          CardType.Attack)
+                                {
+                                    <span class="viewer-extra">
+                                        @card.Damage Damage ·
+                                        @card.Hits Hit(s)
+
+                                        @if (card.IsPiercing)
+                                        {
+                                            <text>
+                                                · Piercing
+                                            </text>
+                                        }
+
+                                        @if (card.InstantFatigue)
+                                        {
+                                            <text>
+                                                · Instant Fatigue
+                                            </text>
+                                        }
+                                    </span>
+                                }
+                                else if (card.Type ==
+                                          CardType.Utility)
+                                {
+                                    <span class="viewer-extra">
+                                        @UtilityInfo.GetDescription(card)
+                                    </span>
+                                }
+
+                            </div>
+
+
+                            @if (viewedDeck.Structure ==
+                                 DeckStructure.PriorityQueue)
+                            {
+                                <div class="viewer-priority">
+
+                                    <span>
+                                        PRIORITY
+                                    </span>
+
+                                    <strong>
+                                        @card.Priority
+                                    </strong>
+
+                                </div>
+                            }
+
+                        </div>
+                    }
+
+                </div>
+
+
+                <footer class="viewer-footer">
+
+                    <button @onclick="CloseDeckViewer">
+                        Close
+                    </button>
+
+                    <button class="builder-button"
+                            @onclick="GoToDeckBuilder">
+                        Deck Builder
+                    </button>
+
+                </footer>
+
+            </section>
+
+        </div>
+    }
+}
+
+
+@if (deleteDeckIndex != null)
+{
+    int index =
+        deleteDeckIndex.Value;
+
+    if (index >= 0 &&
+        index < DeckManager.Decks.Count)
+    {
+        Deck deckToDelete =
+            DeckManager.Decks[index];
+
+        <div class="deck-overlay"
+             @onclick="CancelDelete">
+
+            <section class="delete-dialog"
+                     @onclick:stopPropagation="true">
+
+                <h2>
+                    Delete Deck?
+                </h2>
+
+                <p>
+                    Permanently delete
+                    <strong>
+                        @deckToDelete.Name
+                    </strong>?
+                </p>
+
+                <p class="delete-warning">
+                    This cannot be undone.
+                </p>
+
+                <div class="delete-actions">
+
+                    <button class="confirm-delete"
+                            @onclick="ConfirmDelete">
+                        Delete
+                    </button>
+
+                    <button @onclick="CancelDelete">
+                        Cancel
+                    </button>
+
+                </div>
+
+            </section>
+
+        </div>
+    }
+}
+
+
+<style>
+
+.decks-page {
+    min-height: calc(100vh - 58px);
+
+    padding:
+        34px
+        24px
+        60px;
+
+    box-sizing: border-box;
+
+    background:
+        linear-gradient(
+            160deg,
+            #18212b 0%,
+            #23364a 55%,
+            #3a2428 100%
+        );
+
+    color: #f5f5f5;
+}
+
+
+.decks-shell {
+    width: min(1180px, 100%);
+
+    margin: 0 auto;
+}
+
+
+.decks-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+
+    gap: 20px;
+
+    margin-bottom: 22px;
+}
+
+
+.decks-header h1 {
+    margin: 0;
+
+    color: #f4efe3;
+
+    font-size:
+        clamp(
+            32px,
+            4vw,
+            48px
+        );
+}
+
+
+.decks-header p {
+    margin:
+        6px
+        0
+        0;
+
+    color: #c8d0d8;
+
+    font-size: 13px;
+}
+
+
+.header-actions {
+    display: flex;
+
+    gap: 8px;
+}
+
+
+.header-actions button,
+.empty-state button {
+    padding:
+        10px
+        15px;
+
+    border:
+        1px solid #9b9383;
+
+    border-radius: 6px;
+
+    background: #f4efe3;
+    color: #222222;
+
+    cursor: pointer;
+
+    font-weight: bold;
+}
+
+
+.header-actions button:hover,
+.empty-state button:hover {
+    background: #e5ddcc;
+}
+
+
+/* =========================
+   COUNTERS
+   ========================= */
+
+.deck-stats {
+    margin-bottom: 22px;
+
+    display: grid;
+
+    grid-template-columns:
+        repeat(3, 1fr);
+
+    gap: 8px;
+}
+
+
+.deck-stats > div {
+    padding:
+        11px
+        14px;
+
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+
+    border:
+        1px solid #56616c;
+
+    border-radius: 7px;
+
+    background:
+        rgba(
+            19,
+            27,
+            35,
+            0.9
+        );
+}
+
+
+.deck-stats span {
+    color: #8f9ba5;
+
+    font-size: 8px;
+    font-weight: bold;
+
+    letter-spacing: 0.7px;
+}
+
+
+.deck-stats strong {
+    color: #e5cc67;
+
+    font-size: 18px;
+}
+
+
+/* =========================
+   DECK GRID
+   ========================= */
+
+.deck-grid {
+    display: grid;
+
+    grid-template-columns:
+        repeat(
+            auto-fill,
+            minmax(300px, 1fr)
+        );
+
+    gap: 14px;
+}
+
+
+.deck-card {
+    position: relative;
+
+    min-width: 0;
+
+    padding: 18px;
+
+    overflow: hidden;
+
+    border:
+        1px solid #596674;
+
+    border-radius: 10px;
+
+    background:
+        rgba(
+            19,
+            27,
+            35,
+            0.94
+        );
+
+    box-shadow:
+        0
+        7px
+        15px
+        rgba(
+            0,
+            0,
+            0,
+            0.24
+        );
+
+    transition:
+        transform 0.12s ease,
+        border-color 0.12s ease;
+}
+
+
+.deck-card:hover {
+    transform:
+        translateY(-3px);
+
+    border-color:
+        #998c69;
+}
+
+
+.deck-card-accent {
+    position: absolute;
+
+    top: 0;
+    left: 0;
+    right: 0;
+
+    height: 5px;
+}
+
+
+.structure-queue {
+    background: #5689d6;
+}
+
+
+.structure-stack {
+    background: #cf5959;
+}
+
+
+.structure-priority {
+    background: #d49a3a;
+}
+
+
+.structure-random {
+    background: #8b66b4;
+}
+
+
+.structure-linked {
+    background: #5da36e;
+}
+
+
+.deck-card-heading {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+
+    gap: 12px;
+
+    padding-top: 5px;
+}
+
+
+.deck-title {
+    min-width: 0;
+}
+
+
+.deck-title-row {
+    display: flex;
+    align-items: center;
+    flex-wrap: wrap;
+
+    gap: 7px;
+}
+
+
+.deck-title h2 {
+    min-width: 0;
+
+    margin: 0;
+
+    overflow: hidden;
+
+    color: #f4efe3;
+
+    font-size: 17px;
+
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+
+.starter-badge,
+.custom-badge {
+    padding:
+        3px
+        6px;
+
+    border-radius: 4px;
+
+    font-size: 7px;
+    font-weight: bold;
+
+    letter-spacing: 0.5px;
+}
+
+
+.starter-badge {
+    background: #3c4d5c;
+    color: #bfcbd5;
+}
+
+
+.custom-badge {
+    background: #4c3d17;
+    color: #e5cc67;
+}
+
+
+.structure-name {
+    display: block;
+
+    margin-top: 5px;
+
+    color: #9da8b2;
+
+    font-size: 9px;
+    font-weight: bold;
+
+    text-transform: uppercase;
+
+    letter-spacing: 0.6px;
+}
+
+
+.card-count {
+    min-width: 50px;
+
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+
+    padding:
+        6px
+        8px;
+
+    border-radius: 7px;
+
+    background: #111820;
+}
+
+
+.card-count strong {
+    color: #e5cc67;
+
+    font-size: 18px;
+}
+
+
+.card-count span {
+    color: #87939d;
+
+    font-size: 6px;
+    font-weight: bold;
+
+    letter-spacing: 0.5px;
+}
+
+
+.deck-counts {
+    margin-top: 15px;
+
+    display: grid;
+
+    grid-template-columns:
+        repeat(3, 1fr);
+
+    gap: 6px;
+}
+
+
+.deck-counts > div {
+    padding: 7px;
+
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+
+    gap: 3px;
+
+    border:
+        1px solid #46515d;
+
+    border-radius: 5px;
+
+    background: #1a242e;
+}
+
+
+.deck-counts span {
+    color: #7f8b95;
+
+    font-size: 6px;
+    font-weight: bold;
+}
+
+
+.deck-counts strong {
+    color: #f4efe3;
+
+    font-size: 13px;
+}
+
+
+.structure-description {
+    min-height: 31px;
+
+    margin:
+        13px
+        0;
+
+    color: #aeb9c3;
+
+    font-size: 10px;
+    line-height: 1.45;
+}
+
+
+.deck-actions {
+    display: flex;
+
+    gap: 7px;
+}
+
+
+.deck-actions button {
+    min-height: 35px;
+
+    padding:
+        8px
+        12px;
+
+    border:
+        1px solid #8a8376;
+
+    border-radius: 5px;
+
+    cursor: pointer;
+
+    font-size: 10px;
+    font-weight: bold;
+}
+
+
+.view-button {
+    flex: 1;
+
+    background: #f4efe3;
+    color: #222222;
+}
+
+
+.view-button:hover {
+    background: #e5ddcc;
+}
+
+
+.delete-button {
+    background: #43262a;
+    color: #efaaaa;
+}
+
+
+.delete-button:hover {
+    background: #593137;
+}
+
+
+/* =========================
+   EMPTY
+   ========================= */
+
+.empty-state {
+    padding: 60px 20px;
+
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+
+    gap: 12px;
+
+    border:
+        1px dashed #64707b;
+
+    border-radius: 10px;
+
+    background:
+        rgba(
+            19,
+            27,
+            35,
+            0.7
+        );
+
+    text-align: center;
+}
+
+
+.empty-state h2,
+.empty-state p {
+    margin: 0;
+}
+
+
+.empty-state p {
+    color: #9da8b2;
+}
+
+
+/* =========================
+   OVERLAY
+   ========================= */
+
+.deck-overlay {
+    position: fixed;
+    inset: 0;
+
+    z-index: 10000;
+
+    padding: 24px;
+
+    box-sizing: border-box;
+
+    display: flex;
+    align-items: center;
+    justify-content: center;
+
+    background:
+        rgba(
+            6,
+            10,
+            14,
+            0.90
+        );
+}
+
+
+/* =========================
+   VIEWER
+   ========================= */
+
+.deck-viewer {
+    width: min(760px, 100%);
+    max-height: calc(100vh - 48px);
+
+    padding: 20px;
+
+    box-sizing: border-box;
+
+    display: flex;
+    flex-direction: column;
+
+    gap: 13px;
+
+    overflow: hidden;
+
+    border:
+        2px solid #6e685d;
+
+    border-radius: 11px;
+
+    background: #17212b;
+    color: #f5f5f5;
+
+    box-shadow:
+        0
+        18px
+        45px
+        rgba(
+            0,
+            0,
+            0,
+            0.50
+        );
+}
+
+
+.viewer-header {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+
+    gap: 15px;
+}
+
+
+.viewer-label {
+    color: #e5cc67;
+
+    font-size: 8px;
+    font-weight: bold;
+
+    letter-spacing: 0.8px;
+
+    text-transform: uppercase;
+}
+
+
+.viewer-header h2 {
+    margin:
+        3px
+        0;
+
+    color: #f4efe3;
+
+    font-size: 24px;
+}
+
+
+.viewer-header p {
+    margin: 0;
+
+    color: #909ca6;
+
+    font-size: 9px;
+}
+
+
+.close-button {
+    width: 34px;
+    height: 34px;
+
+    border:
+        1px solid #77818a;
+
+    border-radius: 5px;
+
+    background: #e8e8e8;
+    color: #222222;
+
+    cursor: pointer;
+
+    font-size: 19px;
+    font-weight: bold;
+}
+
+
+.viewer-structure-info {
+    padding:
+        9px
+        11px;
+
+    display: flex;
+    flex-direction: column;
+
+    gap: 3px;
+
+    border-left:
+        4px solid #e5cc67;
+
+    background: #111820;
+}
+
+
+.viewer-structure-info strong {
+    color: #e5cc67;
+
+    font-size: 10px;
+}
+
+
+.viewer-structure-info span {
+    color: #aab4bd;
+
+    font-size: 9px;
+    line-height: 1.35;
+}
+
+
+.viewer-summary {
+    display: grid;
+
+    grid-template-columns:
+        repeat(3, 1fr);
+
+    gap: 6px;
+}
+
+
+.viewer-summary span {
+    padding: 7px;
+
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+
+    border:
+        1px solid #46515d;
+
+    border-radius: 5px;
+
+    color: #8f9ba5;
+
+    font-size: 8px;
+}
+
+
+.viewer-summary strong {
+    color: #f4efe3;
+
+    font-size: 12px;
+}
+
+
+.viewer-list {
+    flex: 1;
+
+    min-height: 0;
+
+    display: flex;
+    flex-direction: column;
+
+    gap: 5px;
+
+    overflow-y: auto;
+
+    padding-right: 4px;
+}
+
+
+.viewer-card {
+    min-height: 57px;
+
+    display: grid;
+
+    grid-template-columns:
+        31px
+        4px
+        minmax(0, 1fr)
+        auto;
+
+    align-items: stretch;
+
+    overflow: hidden;
+
+    border:
+        1px solid #56616c;
+
+    border-radius: 6px;
+
+    background: #1e2a35;
+}
+
+
+.viewer-position {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+
+    color: #e5cc67;
+
+    font-size: 10px;
+    font-weight: bold;
+}
+
+
+.viewer-card-accent {
+    width: 4px;
+}
+
+
+.card-character {
+    background: #cf5959;
+}
+
+
+.card-attack {
+    background: #d49a3a;
+}
+
+
+.card-utility {
+    background: #5689d6;
+}
+
+
+.viewer-card-info {
+    min-width: 0;
+
+    padding:
+        7px
+        9px;
+
+    display: flex;
+    flex-direction: column;
+
+    gap: 2px;
+}
+
+
+.viewer-card-title {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+
+    gap: 8px;
+}
+
+
+.viewer-card-title strong {
+    min-width: 0;
+
+    overflow: hidden;
+
+    color: #f4efe3;
+
+    font-size: 11px;
+
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+
+.viewer-card-title span {
+    color: #8f9ba5;
+
+    font-size: 7px;
+}
+
+
+.viewer-card-info small {
+    color: #828e98;
+
+    font-size: 7px;
+
+    text-transform: uppercase;
+}
+
+
+.viewer-extra {
+    color: #aeb9c3;
+
+    font-size: 8px;
+    line-height: 1.25;
+}
+
+
+.viewer-priority {
+    min-width: 59px;
+
+    padding:
+        5px
+        8px;
+
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+
+    border-left:
+        1px solid #56616c;
+}
+
+
+.viewer-priority span {
+    color: #817e73;
+
+    font-size: 6px;
+    font-weight: bold;
+}
+
+
+.viewer-priority strong {
+    color: #e5cc67;
+
+    font-size: 16px;
+}
+
+
+.viewer-footer {
+    padding-top: 11px;
+
+    display: flex;
+    justify-content: flex-end;
+
+    gap: 7px;
+
+    border-top:
+        1px solid #46515d;
+}
+
+
+.viewer-footer button {
+    padding:
+        9px
+        14px;
+
+    border:
+        1px solid #8a8376;
+
+    border-radius: 5px;
+
+    background: #e5dfd1;
+    color: #222222;
+
+    cursor: pointer;
+
+    font-weight: bold;
+}
+
+
+.viewer-footer .builder-button {
+    background: #e5cc67;
+}
+
+
+/* =========================
+   DELETE
+   ========================= */
+
+.delete-dialog {
+    width: min(360px, 100%);
+
+    padding: 22px;
+
+    box-sizing: border-box;
+
+    display: flex;
+    flex-direction: column;
+
+    gap: 13px;
+
+    border:
+        2px solid #79585b;
+
+    border-radius: 10px;
+
+    background: #18212b;
+    color: #f5f5f5;
+
+    text-align: center;
+}
+
+
+.delete-dialog h2,
+.delete-dialog p {
+    margin: 0;
+}
+
+
+.delete-warning {
+    color: #d79696;
+
+    font-size: 10px;
+}
+
+
+.delete-actions {
+    display: grid;
+
+    grid-template-columns:
+        1fr
+        1fr;
+
+    gap: 7px;
+}
+
+
+.delete-actions button {
+    padding: 10px;
+
+    border:
+        1px solid #8a8376;
+
+    border-radius: 5px;
+
+    background: #e5dfd1;
+    color: #222222;
+
+    cursor: pointer;
+
+    font-weight: bold;
+}
+
+
+.delete-actions .confirm-delete {
+    background: #a84147;
+    color: white;
+
+    border-color: #c75d63;
+}
+
+
+/* =========================
+   RESPONSIVE
+   ========================= */
+
+@@media (max-width: 700px) {
+
+    .decks-page {
+        padding:
+            24px
+            13px
+            40px;
+    }
+
+
+    .decks-header {
+        align-items: stretch;
+
+        flex-direction: column;
+    }
+
+
+    .header-actions {
+        width: 100%;
+    }
+
+
+    .header-actions button {
+        flex: 1;
+    }
+
+
+    .deck-stats {
+        grid-template-columns: 1fr;
+    }
+
+
+    .deck-grid {
+        grid-template-columns: 1fr;
+    }
+
+
+    .deck-overlay {
+        padding: 10px;
+    }
+
+
+    .viewer-summary {
+        grid-template-columns: 1fr;
+    }
+
+
+    .viewer-card {
+        grid-template-columns:
+            28px
+            4px
+            minmax(0, 1fr);
+    }
+
+
+    .viewer-priority {
+        grid-column:
+            1 / -1;
+
+        min-height: 30px;
+
+        flex-direction: row;
+
+        gap: 6px;
+
+        border-left: 0;
+
+        border-top:
+            1px solid #56616c;
+    }
+
+
+    .viewer-footer {
+        flex-direction: column;
+    }
+
+
+    .viewer-footer button {
+        width: 100%;
+    }
+
+}
+
+</style>
+
+
+@code {
+
+    private const int StarterDeckCount =
+        5;
+
+    private int? viewedDeckIndex;
+
+    private int? deleteDeckIndex;
+
+
+    protected override void OnInitialized()
+    {
+        DeckManager.InitializeDefaultDecks();
+    }
+
+
+    private int CustomDeckCount =>
+        Math.Max(
+            0,
+            DeckManager.Decks.Count -
+            StarterDeckCount);
+
+
+    private static int CountCards(
+        Deck deck,
+        CardType type)
+    {
+        return deck.Cards.Count(card =>
+            card.Type == type);
+    }
+
+
+    private static string GetStructureName(
+        DeckStructure structure)
+    {
+        return structure switch
+        {
+            DeckStructure.Queue =>
+                "Queue",
+
+            DeckStructure.Stack =>
+                "Stack",
+
+            DeckStructure.PriorityQueue =>
+                "Priority Queue",
+
+            DeckStructure.RandomList =>
+                "Random List",
+
+            DeckStructure.LinkedList =>
+                "Linked List",
+
+            _ =>
+                structure.ToString()
+        };
+    }
+
+
+    private static string GetStructureDescription(
+        DeckStructure structure)
+    {
+        return structure switch
+        {
+            DeckStructure.Queue =>
+                "First In, First Out. Deck order determines draw order.",
+
+            DeckStructure.Stack =>
+                "Last In, First Out. Deck order matters and Placement is automatic.",
+
+            DeckStructure.PriorityQueue =>
+                "Higher-priority cards are selected first. Characters occupy Priority 5.",
+
+            DeckStructure.RandomList =>
+                "Cards are drawn from a randomized list.",
+
+            DeckStructure.LinkedList =>
+                "Cards use linked nodes that can be reordered through deck actions.",
+
+            _ =>
+                ""
+        };
+    }
+
+
+    private static string GetStructureClass(
+        DeckStructure structure)
+    {
+        return structure switch
+        {
+            DeckStructure.Queue =>
+                "structure-queue",
+
+            DeckStructure.Stack =>
+                "structure-stack",
+
+            DeckStructure.PriorityQueue =>
+                "structure-priority",
+
+            DeckStructure.RandomList =>
+                "structure-random",
+
+            DeckStructure.LinkedList =>
+                "structure-linked",
+
+            _ =>
+                ""
+        };
+    }
+
+
+    private static string GetCardTypeClass(
+        Card card)
+    {
+        return card.Type switch
+        {
+            CardType.Character =>
+                "card-character",
+
+            CardType.Attack =>
+                "card-attack",
+
+            CardType.Utility =>
+                "card-utility",
+
+            _ =>
+                ""
+        };
+    }
+
+
+    private bool IsStarterDeck(
+        int index)
+    {
+        return index >= 0 &&
+               index < StarterDeckCount;
+    }
+
+
+    private void ViewDeck(
+        int index)
+    {
+        if (index < 0 ||
+            index >= DeckManager.Decks.Count)
+        {
+            return;
+        }
+
+        deleteDeckIndex = null;
+
+        viewedDeckIndex =
+            index;
+    }
+
+
+    private void CloseDeckViewer()
+    {
+        viewedDeckIndex =
+            null;
+    }
+
+
+    private void AskDeleteDeck(
+        int index)
+    {
+        if (IsStarterDeck(index))
+        {
+            return;
+        }
+
+        if (index < 0 ||
+            index >= DeckManager.Decks.Count)
+        {
+            return;
+        }
+
+        viewedDeckIndex = null;
+
+        deleteDeckIndex =
+            index;
+    }
+
+
+    private void CancelDelete()
+    {
+        deleteDeckIndex =
+            null;
+    }
+
+
+    private void ConfirmDelete()
+    {
+        if (deleteDeckIndex == null)
+        {
+            return;
+        }
+
+        int index =
+            deleteDeckIndex.Value;
+
+        if (IsStarterDeck(index))
+        {
+            deleteDeckIndex = null;
+            return;
+        }
+
+        DeckManager.DeleteDeck(
+            index);
+
+        deleteDeckIndex =
+            null;
+
+        viewedDeckIndex =
+            null;
+    }
+
+
+    private void GoToDeckBuilder()
+    {
+        Navigation.NavigateTo(
+            "/deck-builder");
+    }
+
+
+    private void GoHome()
+    {
+        Navigation.NavigateTo(
+            "/");
+    }
+
+}

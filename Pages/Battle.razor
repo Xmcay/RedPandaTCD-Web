@@ -1,0 +1,4696 @@
+@page "/battle"
+@using RedPandaTCD_Web.Game
+@using Microsoft.AspNetCore.Components.Routing
+@using Microsoft.JSInterop
+@inject GameSessionState Session
+@inject NavigationManager Navigation
+@inject IJSRuntime JS
+@layout BattleLayout
+
+<PageTitle>Battle - Red Panda TCD</PageTitle>
+
+<NavigationLock
+    OnBeforeInternalNavigation="HandleNavigationAway"
+    ConfirmExternalNavigation="@ShouldConfirmExternalNavigation" />
+
+@if (Session.CurrentMatch == null)
+{
+    <div class="p-3">
+        <h1>Battle</h1>
+        <p>No active match.</p>
+    </div>
+}
+else
+{
+    var match = Session.CurrentMatch;
+    var player = GetPresentedPlayer();
+    var enemy = GetPresentedOpponent();
+
+<div class="battle @(logCollapsed ? "log-collapsed" : "") @GetTutorialFocusClass("battle-board")">
+
+        <section class="side enemy-side @GetTutorialFocusClass("enemy-field", "enemy-character")">
+
+            <PlayerInfo
+                Player="enemy"
+                Title="Enemy"
+                ShowHandCount="true" />
+
+            <div class="field">
+                <AttackCard Owner="enemy" Slot="1" />
+                <CharacterCard Owner="enemy" />
+                <AttackCard Owner="enemy" Slot="2" />
+            </div>
+        </section>
+
+<section class="phase-bar @GetTutorialFocusClass("phase-bar", "phase-utility", "phase-placement", "phase-attack", "phase-end", "initiative")">
+            <div class="turn-details">
+                <strong>Turn @match.TurnNumber</strong>
+
+                <span class="initiative-owner">
+                    Initiative → @match.GetFirstPlayer().Name
+                </span>
+            </div>
+
+            <div class="phases">
+                @PhaseBox("Utility", MatchPhase.Utility, "utility")
+                @PhaseBox("Placement", MatchPhase.Placement, "placement")
+                @PhaseBox("Attack", MatchPhase.Attack, "attack")
+                @PhaseBox("End", MatchPhase.End, "end")
+            </div>
+
+            <div class="turn-owner @GetTurnOwnerClass(player)">
+                <span>@GetTurnOwnerText(player)</span>
+            </div>
+        </section>
+
+       <section class="side player-side @GetTutorialFocusClass("player-field", "player-energy", "player-character", "wanderer-entry")">
+
+            <div class="player-row">
+
+                <PlayerInfo
+                    Player="player"
+                    Title="Player"
+                    ShowUtilityActions="true" />
+
+                <div class="field player-field">
+                    <AttackCard
+                        Owner="player"
+                        Slot="1"
+                        IsClickable="@CanInteractWithAttack(player, 1)"
+                        HighlightAttackAction="@ShouldHighlightAttack(player, 1)"
+                        PlacementHighlightClass="@GetAttackPlacementHighlight(player, 1)"
+                        OnCardClicked="HandleAttackCardClick" />
+
+                    <CharacterCard
+                        Owner="player"
+                        IsClickable="@CanInteractWithCharacter(player)"
+                        HighlightAttackAction="@ShouldHighlightCharacterAbility(player)"
+                        PlacementHighlightClass="@GetCharacterPlacementHighlight(player)"
+                        OnCardClicked="HandleCharacterCardClick" />
+
+                    <AttackCard
+                        Owner="player"
+                        Slot="2"
+                        IsClickable="@CanInteractWithAttack(player, 2)"
+                        HighlightAttackAction="@ShouldHighlightAttack(player, 2)"
+                        PlacementHighlightClass="@GetAttackPlacementHighlight(player, 2)"
+                        OnCardClicked="HandleAttackCardClick" />
+                </div>
+
+<div class="piles">
+
+    <div class="@GetDeckClass(player)"
+         @onclick="() => SelectDeckAction(player)">
+
+        <strong>DECK</strong>
+
+        <span class="pile-number">
+            @(player.Deck.RuntimeStorage?.Count ?? 0)
+        </span>
+
+        <small class="deck-structure">
+            @GetDeckStructureName(
+                player.Deck.Structure)
+        </small>
+    </div>
+
+    <div class="discard @GetTutorialFocusClass("discard-pile")">
+        <strong>DISCARD</strong>
+
+        <span class="pile-number">
+            @player.DiscardPile.Count
+        </span>
+    </div>
+
+</div>
+
+            </div>
+        </section>
+            <aside class="log-panel @GetTutorialFocusClass("battle-log")">
+            <div class="log-header">
+                @if (!logCollapsed)
+                {
+                    <h2>Battle Log</h2>
+
+                    <button class="copy-log-button"
+                            @onclick="CopyBattleLog">
+                        @(logCopied ? "Copied!" : "Copy Log")
+                    </button>
+                }
+
+                <button class="log-toggle"
+                        @onclick="ToggleLog">
+                    @(logCollapsed ? "◀" : "▶")
+                </button>
+            </div>
+
+            @if (!logCollapsed)
+            {
+                <div class="log" @ref="battleLogElement">
+                    @if (BattleLog.GetPhaseActions().Count == 0)
+                    {
+                        <span class="muted">No actions yet.</span>
+                    }
+                    else
+                    {
+                        @foreach (BattleLogEntry entry in BattleLog.GetPhaseActions())
+                        {
+                            <div class="log-entry @GetLogPhaseClass(entry)">
+                                <span class="log-phase">@entry.Label</span>
+                                <span class="log-action">@entry.Message</span>
+                            </div>
+                        }
+                    }
+                </div>
+            }
+
+            <div class="match-controls">
+                @if (!IsBattleFinished)
+                {
+                    <ContinueButton
+                        Disabled="@IsContinueDisabled(player)"
+                        IsBusy="@botIsActing"
+                        Highlight="@ShouldHighlightContinue(player)"
+                        OnClick="ContinuePhase" />
+
+                    <button disabled="@IsSurrenderDisabled"
+                            @onclick="RequestSurrender">
+                        Surrender
+                    </button>
+                }
+                else if (observingFinishedMatch)
+                {
+                    <div class="finished-observation-label">
+                        Match Finished · Observing Board
+                    </div>
+                }
+            </div>
+        </aside>
+
+        <section class="hand-area @GetTutorialHandFocusClass()">
+            <strong class="hand-label">Your Hand</strong>
+
+            <div class="hand">
+              @foreach (HandSlot slot in player.HandSlots)
+{
+    <div class="@GetTutorialHandCardClass(slot)">
+        <HandCard
+            Slot="slot"
+            IsClickable="@CanSelectHandCard(player, slot)"
+            OnCardClicked="SelectHandCard" />
+    </div>
+}
+            </div>
+        </section>
+
+        @if (selectedHandSlot?.CardInSlot != null)
+        {
+            Card selectedCard = selectedHandSlot.CardInSlot;
+
+            <div class="card-action-overlay"
+     @onclick="RequestCloseHandCard">
+                <div class="card-action-panel"
+                     @onclick:stopPropagation="true">
+
+                    <h3>@selectedCard.Name</h3>
+
+                    <div class="selected-card-meta">
+                        <span>
+                            @selectedCard.Archetype · @selectedCard.Type
+                        </span>
+
+                        <strong>COST @selectedCard.Cost</strong>
+                    </div>
+
+                    @if (selectedCard.Type == CardType.Utility)
+                    {
+                        <div class="utility-description">
+                            <strong>EFFECT</strong>
+
+                            <span>
+                                @UtilityInfo.GetDescription(selectedCard)
+                            </span>
+                        </div>
+
+                        <button disabled="@(!CanPlaySelectedUtility)"
+                                @onclick="PlaySelectedUtility">
+                            Play Utility
+                        </button>
+                    }
+
+                    <button disabled="@(!CanDiscardSelectedCard)"
+                            @onclick="DiscardSelectedCard">
+                        Discard & Draw
+                    </button>
+
+                    <button disabled="@(!CanCloseSelectedHandCard)"
+        @onclick="RequestCloseHandCard">
+    Cancel
+</button>
+                </div>
+            </div>
+        }
+
+        @if (showDeckAction && Session.CurrentMatch != null)
+        {
+            <div class="card-action-overlay"
+                 @onclick="CloseDeckAction">
+                <div class="card-action-panel"
+                     @onclick:stopPropagation="true">
+
+                    <h3>Deck Action</h3>
+                    <p>@GetDeckActionMessage(player)</p>
+
+                    @if (player.Deck.Structure == DeckStructure.Queue ||
+                         player.Deck.Structure == DeckStructure.Stack)
+                    {
+                        <button disabled="@(!CanPerformDeckTutorialAction(TutorialAction.PeekDeck))"
+                                @onclick="PeekSelectedDeck">
+                            Peek
+                        </button>
+
+                        <button @onclick="CloseDeckAction">
+                            Cancel
+                        </button>
+                    }
+                    else if (player.Deck.Structure == DeckStructure.RandomList)
+                    {
+                        <button disabled="@(!CanPerformDeckTutorialAction(TutorialAction.ViewDrawPool))"
+                                @onclick="ViewSelectedDrawPool">
+                            View Draw Pool
+                        </button>
+
+                        <button @onclick="CloseDeckAction">
+                            Cancel
+                        </button>
+                    }
+                    else if (player.Deck.Structure == DeckStructure.LinkedList)
+                    {
+                        <button disabled="@(!CanPerformDeckTutorialAction(TutorialAction.StartReorderNodes))"
+                                @onclick="StartReorderNodes">
+                            Reorder Nodes
+                        </button>
+
+                        <button @onclick="CloseDeckAction">
+                            Cancel
+                        </button>
+                    }
+                </div>
+            </div>
+        }
+
+        @if (peekedCards != null)
+        {
+            <CardViewer
+                Title="Deck Peek"
+                Cards="peekedCards"
+                OnClose="ClosePeek" />
+        }
+
+        @if (drawPoolCards != null)
+        {
+            <CardViewer
+                Title="Draw Pool"
+                Cards="drawPoolCards"
+                OnClose="CloseDrawPool" />
+        }
+
+        @if (reorderCards != null)
+        {
+            <ReorderNodes
+                Cards="reorderCards"
+                OnMove="MoveReorderNode"
+                OnFinish="CloseReorderPreview" />
+        }
+
+        @if (showPassDeviceDialog && Session.CurrentMatch != null)
+        {
+            var passMatch = Session.CurrentMatch;
+            var nextPlayer = passMatch.GetActingPlayer();
+
+            <div class="pass-device-overlay">
+                <div class="pass-device-dialog">
+                    <div class="pass-device-icon">↔</div>
+                    <h2>Pass the Device</h2>
+                    <p>Hand the device to</p>
+
+                    <strong class="pass-player-name">
+                        @nextPlayer.Name
+                    </strong>
+
+                    <p class="pass-warning">
+                        The next player's hand will remain hidden
+                        until they are ready.
+                    </p>
+
+                    <button @onclick="AcknowledgePassDevice">
+                        I'm Ready
+                    </button>
+                </div>
+            </div>
+        }
+
+        @if (showCoinFlipDialog && Session.CurrentMatch != null)
+        {
+            var coinFlipMatch = Session.CurrentMatch;
+            bool playerWonFlip =
+                coinFlipMatch.GetActingPlayer() == coinFlipMatch.Player1;
+
+            <div class="card-action-overlay">
+                <div class="card-action-panel"
+                     @onclick:stopPropagation="true">
+
+                    <h3>Coin Flip</h3>
+
+                    @if (IsPassAndPlay())
+                    {
+                        <p>
+                            <strong>
+                                @coinFlipMatch.GetActingPlayer().Name
+                            </strong>
+                            won the coin flip!<br />
+                            @coinFlipMatch.GetActingPlayer().Name will act first.
+                        </p>
+                    }
+                    else if (playerWonFlip)
+                    {
+                        <p>
+                            You won the coin flip!<br />
+                            You will act first.
+                        </p>
+                    }
+                    else
+                    {
+                        <p>
+                            Bot won the coin flip!<br />
+                            Bot will act first.
+                        </p>
+                    }
+
+                    <button @onclick="AcknowledgeCoinFlip">
+                        Continue
+                    </button>
+                </div>
+            </div>
+        }
+
+        @if (selectedPlacementAttackSlot != null &&
+             !showFatiguedAttackActions)
+        {
+            Card? selectedFieldAttack =
+                GetSelectedPlacementAttack(player);
+
+            <div class="card-action-overlay"
+                 @onclick="ClosePlacementAttack">
+                <div class="card-action-panel placement-picker-panel"
+                     @onclick:stopPropagation="true">
+
+                    <h3>
+                        @(selectedFieldAttack == null
+                            ? "Deploy Attack"
+                            : "Replace Attack")
+                    </h3>
+
+                    @if (selectedFieldAttack == null)
+                    {
+                        <p>
+                            Choose an Attack for Slot
+                            @selectedPlacementAttackSlot.
+                        </p>
+                    }
+                    else
+                    {
+                        <p>
+                            Choose an Attack to replace
+                            <strong>@selectedFieldAttack.Name</strong>.
+                        </p>
+                    }
+
+                    @{
+                        var deployableAttacks =
+                            player.HandSlots
+                                .Where(slot =>
+                                    !slot.IsEmpty &&
+                                    slot.CardInSlot?.Type ==
+                                        CardType.Attack)
+                                .ToList();
+                    }
+
+@if (deployableAttacks.Count == 0)
+{
+    <p>No Attack cards in hand.</p>
+}
+else
+{
+    <div class="placement-card-choices">
+        @foreach (HandSlot slot in deployableAttacks)
+        {
+            <div class="@GetReplacementChoiceClass(slot)">
+                <HandCard
+                    Slot="slot"
+                    IsClickable="@CanChoosePlacementAttack(slot)"
+                    OnCardClicked="DeploySelectedAttack" />
+            </div>
+        }
+    </div>
+}
+
+                    <button @onclick="ClosePlacementAttack">
+                        Cancel
+                    </button>
+                </div>
+            </div>
+        }
+
+        @if (selectedPlacementAttackSlot != null &&
+             showFatiguedAttackActions)
+        {
+            Card? fatiguedAttack =
+                GetSelectedPlacementAttack(player);
+
+            if (fatiguedAttack != null)
+            {
+                <div class="card-action-overlay"
+                     @onclick="CloseFatiguedAttackActions">
+                    <div class="card-action-panel"
+                         @onclick:stopPropagation="true">
+
+                        <h3>@fatiguedAttack.Name</h3>
+                        <p>This Attack is Fatigued.</p>
+
+                        @if (player.Deck.Structure ==
+                             DeckStructure.PriorityQueue)
+                        {
+                            <button disabled="@(!CanResolveFatigueWithRest)"
+                                    @onclick="EmergencyRestSelectedAttack">
+                                Emergency Rest
+                            </button>
+                        }
+                        else
+                        {
+                            <button disabled="@(!CanResolveFatigueWithRest)"
+                                    @onclick="RestSelectedAttack">
+                                Rest
+                            </button>
+                        }
+
+                        <button disabled="@(!CanResolveFatigueWithReplace)"
+                                @onclick="ReplaceSelectedFatiguedAttack">
+                            Replace
+                        </button>
+
+                        <button @onclick="CloseFatiguedAttackActions">
+                            Cancel
+                        </button>
+                    </div>
+                </div>
+            }
+        }
+
+        @if (showZeroEnergyDialog && Session.CurrentMatch != null)
+        {
+            MatchState finishedMatch = Session.CurrentMatch;
+            Player? winner =
+                surrendered
+                    ? GetPresentedOpponent()
+                    : MatchManager.GetWinner(
+                        finishedMatch.Player1,
+                        finishedMatch.Player2);
+
+            <div class="card-action-overlay">
+                <div class="card-action-panel result-panel"
+                     @onclick:stopPropagation="true">
+
+                    @if (surrendered)
+                    {
+                        <h3>Defeat</h3>
+                        <p>You surrendered the match.</p>
+
+                        <p>
+                            <strong>
+                                @GetPresentedOpponent().Name
+                            </strong>
+                            wins the match.
+                        </p>
+                    }
+                    else if (finishedMatch.IsDraw)
+                    {
+                        <h3>Draw!</h3>
+                        <p>Both players reached 0 Energy.</p>
+                        <p>Neither player wins the match.</p>
+                    }
+                    else
+                    {
+                        bool playerWon =
+                            winner == finishedMatch.Player1;
+
+                        @if (IsTournamentChampion)
+                        {
+                            <div class="tournament-champion-result">
+                                <div class="champion-kicker">
+                                    GRAND TOURNAMENT
+                                </div>
+
+                                <h3 class="champion-heading">
+                                    Champion!
+                                </h3>
+
+                                <div class="champion-title">
+                                    MASTER STRATEGIST
+                                </div>
+
+                                <p>
+                                    You defeated all three Tournament
+                                    opponents.
+                                </p>
+
+                                <p>
+                                    <strong>Rogue Nomad</strong>
+                                    has been defeated.
+                                </p>
+
+                                @if (Session.Tournament.LockedPlayerDeck != null)
+                                {
+                                    <div class="champion-quote">
+                                        @TournamentManager.GetVictoryQuote(
+                                            Session.Tournament
+                                                .LockedPlayerDeck
+                                                .Structure)
+                                    </div>
+                                }
+                            </div>
+                        }
+                        else
+                        {
+                            <h3>
+                                @(playerWon ? "Victory!" : "Defeat")
+                            </h3>
+
+                            @if (winner != null)
+                            {
+                                <p>
+                                    <strong>@winner.Name</strong>
+                                    wins the match.
+                                </p>
+                            }
+
+                            @if (finishedMatch.Player1.Energy <= 0)
+                            {
+                                <p>Your Energy reached 0.</p>
+                            }
+                            else if (finishedMatch.Player2.Energy <= 0)
+                            {
+                                <p>
+                                    @finishedMatch.Player2.Name's
+                                    Energy reached 0.
+                                </p>
+                            }
+                        }
+                    }
+
+                    <button disabled="@IsObserveBoardDisabled"
+                            @onclick="ObserveFinishedMatch">
+                        Observe Board
+                    </button>
+
+                    @if (IsFinishedTournamentMatch)
+                    {
+                        @if (HasNextTournamentRound)
+                        {
+                            <button @onclick="ContinueTournament">
+                                Continue Tournament
+                            </button>
+                        }
+                        else
+                        {
+                            <button @onclick="ReturnToTournament">
+                                Return to Tournament
+                            </button>
+                        }
+                    }
+                    else if (!IsGuidedTutorialBattle)
+                    {
+                        <button @onclick="ReturnToMainMenu">
+                            Main Menu
+                        </button>
+                    }
+                </div>
+            </div>
+        }
+
+        @if (showZeroEnergyWarning)
+        {
+            <div class="card-action-overlay">
+                <div class="card-action-panel"
+                     @onclick:stopPropagation="true">
+
+                    <h3>Warning</h3>
+
+                    <p>
+                        This action will reduce your Energy to 0.
+                    </p>
+
+                    <p>
+                        Reaching 0 Energy immediately ends the match.
+                        This action could result in a loss or a draw.
+                    </p>
+
+                    <button @onclick="ConfirmZeroEnergyAction">
+                        Continue Anyway
+                    </button>
+
+                    <button @onclick="CancelZeroEnergyAction">
+                        Cancel
+                    </button>
+                </div>
+            </div>
+        }
+
+        @if (showLeaveMatchDialog)
+        {
+            <div class="card-action-overlay"
+                 @onclick="CancelLeaveMatch">
+                <div class="card-action-panel"
+                     @onclick:stopPropagation="true">
+
+                    <h3>Surrender Match?</h3>
+
+                    <p>
+                        Leaving the battle will surrender the current match.
+                    </p>
+
+                    <button @onclick="ConfirmLeaveMatch">
+                        Surrender
+                    </button>
+
+                    <button @onclick="CancelLeaveMatch">
+                        Stay
+                    </button>
+                </div>
+            </div>
+        }
+
+        @if (showCharacterPicker)
+        {
+            <div class="card-action-overlay"
+                 @onclick="CloseCharacterPicker">
+                <div class="card-action-panel character-picker-panel"
+                     @onclick:stopPropagation="true">
+
+                    <h3>
+                        @(player.ActiveCharacter == null
+                            ? "Deploy Character"
+                            : "Replace Character")
+                    </h3>
+
+                    @if (player.ActiveCharacter == null)
+                    {
+                        <p>Choose a Character to deploy.</p>
+                    }
+                    else
+                    {
+                        <p>
+                            Choose a Character to replace
+                            <strong>
+                                @player.ActiveCharacter.Name
+                            </strong>.
+                        </p>
+                    }
+
+                    @{
+                        var deployableCharacters =
+                            player.HandSlots
+                                .Where(slot =>
+                                    !slot.IsEmpty &&
+                                    slot.CardInSlot?.Type ==
+                                        CardType.Character)
+                                .ToList();
+                    }
+
+                    @if (deployableCharacters.Count == 0)
+                    {
+                        <p>No Character cards in hand.</p>
+                    }
+                    else
+                    {
+                        <div class="character-picker-choices">
+                            @foreach (HandSlot slot
+                                in deployableCharacters)
+                            {
+                                Card character =
+                                    slot.CardInSlot!;
+
+                                <div class="character-choice">
+                                    <HandCard
+                                        Slot="slot"
+                                        IsClickable="@CanChoosePlacementCharacter(character)"
+                                        OnCardClicked="DeploySelectedCharacter" />
+
+                                    <div class="character-choice-info">
+                                        <div class="character-choice-archetype">
+                                            @character.Archetype ·
+                                            @character.Type
+                                        </div>
+
+                                        <div class="character-choice-ability entry">
+                                            <strong>
+                                                ENTRY ·
+                                                @CharacterInfo.GetEntryName(character)
+                                            </strong>
+
+                                            <span>
+                                                @CharacterInfo.GetEntryDescription(character)
+                                            </span>
+                                        </div>
+
+                                        <div class="character-choice-ability passive">
+                                            <strong>
+                                                PASSIVE ·
+                                                @CharacterInfo.GetPassiveName(character)
+                                            </strong>
+
+                                            <span>
+                                                @CharacterInfo.GetPassiveDescription(character)
+                                            </span>
+                                        </div>
+
+                                        <div class="character-choice-ability active">
+                                            <strong>
+                                                ACTIVE ·
+                                                @CharacterInfo.GetActiveName(character)
+                                            </strong>
+
+                                            <span>
+                                                @CharacterInfo.GetActiveDescription(character)
+                                            </span>
+                                        </div>
+                                    </div>
+                                </div>
+                            }
+                        </div>
+                    }
+
+                    <button @onclick="CloseCharacterPicker">
+                        Cancel
+                    </button>
+                </div>
+            </div>
+        }
+
+<TutorialOverlay
+    @key="Session.Tutorial.CurrentStep"
+    Visible="@ShowTutorialOverlay"
+    OnAdvanced="HandleTutorialOverlayAdvanced"
+    OnFinish="FinishCurrentTutorial" />
+
+    </div>
+}
+<style>
+* { box-sizing: border-box; }
+
+.battle {
+    height: calc(100vh - 60px);
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) 320px;
+    grid-template-rows: minmax(0, 1fr) 72px minmax(0, 1fr) 200px;
+    background: #171d24;
+    overflow: hidden;
+}
+
+.battle.log-collapsed {
+    grid-template-columns: minmax(0, 1fr) 115px;
+}
+
+.side {
+    min-width: 0;
+    padding: 20px 25px;
+}
+
+.enemy-side {
+    grid-column: 1;
+    grid-row: 1;
+    position: relative;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: #3a2428;
+    color: #f5f5f5;
+}
+
+.enemy-side > :first-child {
+    position: absolute;
+    left: 25px;
+}
+
+.player-side {
+    grid-column: 1;
+    grid-row: 3;
+    display: flex;
+    align-items: center;
+    background: #23364a;
+    color: #f5f5f5;
+}
+
+.field {
+    min-width: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: clamp(10px, 2vw, 30px);
+}
+
+.player-row {
+    position: relative;
+    width: 100%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.player-field {
+    min-width: 0;
+}
+
+.player-info {
+    position: absolute;
+    left: 0;
+    align-self: center;
+}
+
+.phase-bar {
+    grid-column: 1;
+    grid-row: 2;
+    position: relative;
+    padding: 8px 25px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-top: 3px solid #090c10;
+    border-bottom: 3px solid #090c10;
+    background: #151b22;
+    color: #f5f5f5;
+    font-size: 18px;
+}
+
+.turn-details {
+    position: absolute;
+    left: 25px;
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 3px;
+    white-space: nowrap;
+}
+
+.turn-details strong {
+    font-size: 18px;
+    line-height: 1;
+}
+
+.initiative-owner {
+    color: #e5cc67;
+    font-size: 9px;
+    font-weight: bold;
+    line-height: 1;
+    text-transform: uppercase;
+    letter-spacing: .6px;
+}
+
+.turn-owner {
+    position: absolute;
+    right: 25px;
+    padding: 6px 12px;
+    border: 2px solid;
+    border-radius: 6px;
+    font-size: 12px;
+    font-weight: bold;
+    letter-spacing: .8px;
+    white-space: nowrap;
+}
+
+.turn-owner.player-turn {
+    color: #81c784;
+    border-color: #81c784;
+    background: rgba(129, 199, 132, .1);
+}
+
+.turn-owner.bot-turn {
+    color: #ef9a9a;
+    border-color: #ef9a9a;
+    background: rgba(239, 154, 154, .1);
+}
+
+.phases {
+    display: flex;
+    justify-content: center;
+    gap: 12px;
+}
+
+.phase {
+    padding: 8px 18px;
+    border: 2px solid rgba(255, 255, 255, .16);
+    border-radius: 7px;
+    color: #fff;
+    font-weight: bold;
+    white-space: nowrap;
+    opacity: .48;
+    transition: opacity .15s, transform .15s, border-color .15s, box-shadow .15s;
+}
+
+.phase.active {
+    opacity: 1;
+    border-color: #fff;
+    transform: scale(1.07);
+    box-shadow: 0 0 0 2px #000, 0 4px 10px rgba(0, 0, 0, .35);
+}
+
+.utility { background: #2f7d4a; }
+.placement { background: #a98224; }
+.attack { background: #b84747; }
+.end { background: #59616a; }
+
+.piles {
+    position: absolute;
+    right: 0;
+    display: flex;
+    align-items: flex-end;
+    gap: 14px;
+}
+
+.deck,
+.discard {
+    flex-shrink: 0;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    border-radius: 8px;
+}
+
+.deck {
+    width: 82px;
+    height: 112px;
+    border: 3px solid #333;
+    background: #d9d1bc;
+    color: #222;
+}
+
+.discard {
+    width: 64px;
+    height: 82px;
+    border: 2px dashed #8b949e;
+    background: #292f36;
+    color: #eee;
+    font-size: 10px;
+}
+
+.pile-number {
+    margin-top: 5px;
+    font-size: 21px;
+    font-weight: bold;
+}
+
+.deck-structure {
+    font-size: 10px;
+    white-space: nowrap;
+}
+
+.deck-clickable {
+    cursor: pointer;
+    transition: transform .14s, border-color .14s, box-shadow .14s;
+}
+
+.deck-clickable:hover {
+    transform: translateY(-4px);
+    border-color: #c7b98f;
+    box-shadow: 0 7px 14px rgba(0, 0, 0, .3);
+}
+
+.deck-disabled {
+    cursor: default;
+    filter: grayscale(.85);
+    opacity: .52;
+}
+
+.log-panel {
+    grid-column: 2;
+    grid-row: 1 / 5;
+    min-width: 0;
+    padding: 15px;
+    display: flex;
+    flex-direction: column;
+    border-left: 3px solid #090c10;
+    background: #171d24;
+    color: #f5f5f5;
+}
+
+.log-header {
+    margin-bottom: 10px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
+}
+
+.log-header h2 {
+    flex: 1;
+    margin: 0;
+    text-align: center;
+    font-size: clamp(18px, 1.8vw, 28px);
+    white-space: nowrap;
+}
+
+.log-toggle {
+    min-width: 38px;
+    height: 38px;
+    cursor: pointer;
+    font-weight: bold;
+}
+
+.copy-log-button {
+    min-width: 72px;
+    height: 32px;
+    padding: 0 9px;
+    border: 1px solid #777;
+    border-radius: 4px;
+    background: #e8e8e8;
+    color: #171717;
+    cursor: pointer;
+    font-size: 10px;
+    font-weight: bold;
+    white-space: nowrap;
+}
+
+.copy-log-button:hover {
+    background: #f4f4f4;
+}
+
+.log {
+    flex: 1;
+    min-height: 0;
+    padding: 10px;
+    overflow-y: auto;
+    border: 1px solid #46515d;
+    background: #202832;
+    font-size: 12px;
+}
+
+.log-entry {
+    margin-bottom: 6px;
+    padding: 6px 7px;
+    border-left: 4px solid #777;
+    border-bottom: 1px solid #46515d;
+    line-height: 1.25;
+}
+
+.log-phase {
+    display: inline-block;
+    min-width: 62px;
+    margin-right: 6px;
+    padding: 2px 5px;
+    border-radius: 4px;
+    background: #151b22;
+    font-size: 8px;
+    font-weight: bold;
+    text-align: center;
+    text-transform: uppercase;
+}
+
+.log-action {
+    font-size: 11px;
+    line-height: 1.3;
+}
+
+.log-entry.log-utility { border-left-color: #75c878; }
+.log-entry.log-utility .log-phase { color: #75c878; }
+.log-entry.log-placement { border-left-color: #e5cc67; }
+.log-entry.log-placement .log-phase { color: #e5cc67; }
+.log-entry.log-attack { border-left-color: #de7777; }
+.log-entry.log-attack .log-phase { color: #de7777; }
+.log-entry.log-end { border-left-color: #ccc; }
+.log-entry.log-end .log-phase { color: #ccc; }
+
+.log-entry.log-system {
+    border-left-color: #8b949e;
+    background: rgba(139, 148, 158, .08);
+}
+
+.log-entry.log-system .log-phase {
+    color: #c7cdd4;
+    border: 1px solid rgba(199, 205, 212, .22);
+}
+
+.muted {
+    color: #777;
+}
+
+.match-controls {
+    margin-top: auto;
+    padding-top: 14px;
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    border-top: 2px solid #aaa;
+}
+
+.match-controls button {
+    min-width: 80px;
+    padding: 11px 4px;
+    font-size: 13px;
+    font-weight: bold;
+    white-space: nowrap;
+}
+
+.match-controls > button,
+.log-toggle {
+    border: 1px solid #777;
+    background: #e8e8e8;
+    color: #171717;
+}
+
+.hand-area {
+    grid-column: 1;
+    grid-row: 4;
+    position: relative;
+    min-width: 0;
+    padding: 10px 24px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 18px;
+    overflow: hidden;
+    border-top: 3px solid #090c10;
+    background: #1b2733;
+    color: #f5f5f5;
+}
+
+.hand-label {
+    position: absolute;
+    left: 24px;
+    color: #d7dee5;
+    font-size: 14px;
+    text-align: center;
+    text-transform: uppercase;
+    letter-spacing: .8px;
+}
+
+.hand {
+    min-width: 0;
+    display: flex;
+    align-items: stretch;
+    justify-content: center;
+    gap: 13px;
+}
+
+.card-action-overlay {
+    position: fixed;
+    inset: 0;
+    z-index: 1000;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 20px;
+    background: rgba(0, 0, 0, .55);
+}
+
+.card-action-panel {
+    width: min(320px, calc(100vw - 40px));
+    max-height: calc(100vh - 40px);
+    padding: 24px;
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    overflow-y: auto;
+    border: 2px solid #9b9383;
+    border-radius: 10px;
+    background: #18212b;
+    color: #f5f5f5;
+    text-align: center;
+}
+
+.card-action-panel h3 {
+    margin: 0;
+    color: #f4efe3;
+}
+
+.card-action-panel p {
+    margin: 0 0 8px;
+    color: #c8d0d8;
+}
+
+.card-action-panel button {
+    padding: 10px 14px;
+    border: 1px solid #9b9383;
+    border-radius: 6px;
+    background: #f4efe3;
+    color: #222;
+    cursor: pointer;
+    font-weight: bold;
+}
+
+.card-action-panel button:hover:not(:disabled) {
+    filter: brightness(1.08);
+}
+
+.card-action-panel button:disabled,
+.match-controls button:disabled {
+    cursor: default;
+    filter: grayscale(.75);
+    opacity: .38;
+}
+
+.selected-card-meta {
+    padding: 8px 10px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    border: 1px solid #59636d;
+    border-radius: 6px;
+    background: #111820;
+}
+
+.selected-card-meta span {
+    color: #8faee0;
+    font-size: 9px;
+    font-weight: bold;
+    text-transform: uppercase;
+    letter-spacing: .6px;
+}
+
+.selected-card-meta strong {
+    color: #e5cc67;
+    font-size: 10px;
+    white-space: nowrap;
+}
+
+.utility-description {
+    padding: 11px 12px;
+    display: flex;
+    flex-direction: column;
+    gap: 5px;
+    border: 1px solid #59636d;
+    border-radius: 7px;
+    background: #111820;
+    text-align: left;
+}
+
+.utility-description strong {
+    color: #81c784;
+    font-size: 10px;
+    letter-spacing: .5px;
+}
+
+.utility-description span {
+    color: #c8d0d8;
+    font-size: 11px;
+    line-height: 1.4;
+}
+
+.placement-picker-panel {
+    width: fit-content;
+    min-width: 280px;
+    max-width: calc(100vw - 80px);
+}
+
+.placement-card-choices {
+    width: fit-content;
+    max-width: 100%;
+    margin: 0 auto;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 14px;
+}
+
+.character-picker-panel {
+    width: fit-content;
+    min-width: 320px;
+    max-width: calc(100vw - 60px);
+}
+
+.character-picker-choices {
+    width: fit-content;
+    max-width: 100%;
+    margin: 0 auto;
+    display: flex;
+    align-items: flex-start;
+    justify-content: center;
+    flex-wrap: wrap;
+    gap: 18px;
+}
+
+.character-choice {
+    width: 250px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 10px;
+}
+
+.character-choice-info {
+    width: 100%;
+    padding: 11px 12px;
+    display: flex;
+    flex-direction: column;
+    gap: 9px;
+    border: 1px solid #59636d;
+    border-radius: 7px;
+    background: #111820;
+    text-align: left;
+}
+
+.character-choice-archetype {
+    padding-bottom: 7px;
+    border-bottom: 1px solid rgba(255, 255, 255, .12);
+    color: #8faee0;
+    font-size: 10px;
+    font-weight: bold;
+    text-transform: uppercase;
+    letter-spacing: .7px;
+}
+
+.character-choice-ability {
+    display: flex;
+    flex-direction: column;
+    gap: 3px;
+}
+
+.character-choice-ability strong {
+    font-size: 10px;
+    letter-spacing: .3px;
+}
+
+.character-choice-ability span {
+    color: #c8d0d8;
+    font-size: 10px;
+    line-height: 1.35;
+}
+
+.character-choice-ability.entry strong { color: #e5cc67; }
+.character-choice-ability.passive strong { color: #b98adb; }
+.character-choice-ability.active strong { color: #81c784; }
+
+.pass-device-overlay {
+    position: fixed;
+    inset: 0;
+    z-index: 10000;
+    padding: 20px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: rgba(7, 11, 15, .96);
+}
+
+.pass-device-dialog {
+    width: min(420px, 100%);
+    padding: 30px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    border: 2px solid #777064;
+    border-radius: 12px;
+    background: #18232e;
+    color: #f4efe3;
+    text-align: center;
+}
+
+.pass-device-icon {
+    margin-bottom: 10px;
+    color: #e5cc67;
+    font-size: 42px;
+    font-weight: bold;
+}
+
+.pass-device-dialog h2 {
+    margin: 0 0 18px;
+    font-size: 30px;
+}
+
+.pass-device-dialog p {
+    margin: 5px 0;
+    color: #c8d0d8;
+}
+
+.pass-player-name {
+    margin: 8px 0 16px;
+    color: #e5cc67;
+    font-size: 25px;
+}
+
+.pass-warning {
+    max-width: 320px;
+    margin-bottom: 20px !important;
+    font-size: 12px;
+}
+
+.pass-device-dialog button {
+    width: min(280px, 100%);
+    padding: 13px 18px;
+    border: 2px solid #9b9383;
+    border-radius: 7px;
+    background: #f4efe3;
+    color: #222;
+    cursor: pointer;
+    font-weight: bold;
+}
+
+.finished-observation-label {
+    width: 100%;
+    padding: 12px 8px;
+    border: 1px solid #59636d;
+    border-radius: 6px;
+    background: rgba(255, 255, 255, .05);
+    color: #c8d0d8;
+    font-size: 10px;
+    font-weight: bold;
+    text-align: center;
+    text-transform: uppercase;
+    letter-spacing: .8px;
+}
+
+.tournament-champion-result {
+    padding: 8px 0;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 8px;
+}
+
+.champion-kicker {
+    color: #e5cc67;
+    font-size: 9px;
+    font-weight: 900;
+    letter-spacing: 1.6px;
+}
+
+.card-action-panel .champion-heading {
+    margin: 2px 0 4px;
+    color: #f4efe3;
+    font-size: 28px;
+    text-transform: uppercase;
+    text-shadow: 0 0 15px rgba(229, 204, 103, .25);
+}
+
+.champion-title {
+    width: 100%;
+    margin: 4px 0 8px;
+    padding: 11px 14px;
+    border: 1px solid #b69d55;
+    border-radius: 7px;
+    background: rgba(229, 204, 103, .1);
+    color: #e5cc67;
+    font-size: 17px;
+    font-weight: 900;
+    letter-spacing: 1.2px;
+    box-shadow: 0 0 15px rgba(229, 204, 103, .12);
+}
+
+.champion-quote {
+    width: 100%;
+    margin-top: 5px;
+    padding: 11px 12px;
+    border-left: 3px solid #e5cc67;
+    background: rgba(255, 255, 255, .04);
+    color: #c8d0d8;
+    font-size: 11px;
+    font-style: italic;
+    line-height: 1.4;
+}
+
+/* Guided tutorial targets */
+
+.tutorial-target {
+    position: relative;
+    z-index: 5;
+    outline: 3px solid #e5cc67;
+    outline-offset: 4px;
+    box-shadow: 0 0 20px rgba(229, 204, 103, .5);
+    animation: tutorialPulse 1.2s ease-in-out infinite alternate;
+}
+
+.tutorial-disabled {
+    pointer-events: none;
+    filter: grayscale(.8);
+    opacity: .45;
+}
+
+.tutorial-finish-label {
+    width: 100%;
+    padding: 11px;
+    border: 1px solid #4f9364;
+    border-radius: 6px;
+    background: rgba(81, 199, 132, .08);
+    color: #81c784;
+    font-size: 10px;
+    font-weight: bold;
+    text-align: center;
+}
+
+@@keyframes tutorialPulse {
+    from {
+        outline-color: rgba(229, 204, 103, .55);
+        box-shadow: 0 0 8px rgba(229, 204, 103, .2);
+    }
+
+    to {
+        outline-color: #e5cc67;
+        box-shadow: 0 0 22px rgba(229, 204, 103, .6);
+    }
+}
+
+@@media (max-width: 1100px) {
+    .battle,
+    .battle.log-collapsed {
+        grid-template-columns: minmax(0, 1fr) 250px;
+    }
+
+    .turn-details {
+        left: 12px;
+    }
+
+    .turn-owner {
+        right: 12px;
+    }
+
+    .phase {
+        padding: 7px 11px;
+        font-size: 13px;
+    }
+}
+
+@@media (max-width: 900px) {
+    .placement-card-choices {
+        flex-wrap: wrap;
+    }
+
+    .placement-picker-panel {
+        width: min(760px, calc(100vw - 40px));
+    }
+
+    .battle,
+    .battle.log-collapsed {
+        height: auto;
+        min-height: calc(100vh - 60px);
+        grid-template-columns: 1fr;
+        grid-template-rows: auto auto auto auto auto;
+        overflow: visible;
+    }
+
+    .enemy-side { grid-column: 1; grid-row: 1; min-height: 230px; }
+    .phase-bar { grid-column: 1; grid-row: 2; min-height: 90px; }
+    .player-side { grid-column: 1; grid-row: 3; min-height: 250px; }
+    .hand-area { grid-column: 1; grid-row: 4; min-height: 190px; overflow-x: auto; }
+    .log-panel { grid-column: 1; grid-row: 5; min-height: 370px; border-left: 0; border-top: 3px solid #090c10; }
+
+    .turn-details,
+    .turn-owner {
+        position: static;
+    }
+
+    .phase-bar {
+        flex-wrap: wrap;
+        justify-content: space-between;
+        gap: 10px;
+    }
+
+    .phases {
+        order: 3;
+        width: 100%;
+    }
+}
+
+@@media (max-width: 700px) {
+    .character-picker-panel {
+        width: min(440px, calc(100vw - 30px));
+    }
+
+    .character-picker-choices,
+    .character-choice {
+        width: 100%;
+    }
+
+    .side {
+        padding: 14px;
+    }
+
+    .enemy-side > :first-child,
+    .player-info,
+    .piles {
+        position: static;
+    }
+
+    .enemy-side,
+    .player-row {
+        flex-direction: column;
+        gap: 14px;
+    }
+
+    .piles {
+        margin-top: 12px;
+    }
+
+    .hand {
+        justify-content: flex-start;
+        overflow-x: auto;
+    }
+
+    .hand-label {
+        position: static;
+        flex-shrink: 0;
+    }
+
+    .phase {
+        flex: 1;
+        padding: 7px 4px;
+        font-size: 10px;
+        text-align: center;
+    }
+}
+.tutorial-focus {
+    position: relative;
+    z-index: 20;
+    outline: 4px solid #e5cc67;
+    outline-offset: -4px;
+    box-shadow:
+        inset 0 0 24px rgba(229, 204, 103, .18),
+        0 0 12px rgba(229, 204, 103, .45),
+        0 0 32px rgba(229, 204, 103, .28);
+    animation:
+        tutorialFocusPulse
+        1.15s
+        ease-in-out
+        infinite alternate;
+}
+
+.deck.tutorial-focus,
+.discard.tutorial-focus {
+    z-index: 30;
+    outline: 4px solid #ffe078;
+    outline-offset: 6px;
+    filter: none;
+    opacity: 1;
+    box-shadow:
+        0 0 0 3px rgba(0, 0, 0, .48),
+        0 0 18px rgba(255, 224, 120, .75),
+        0 0 38px rgba(229, 204, 103, .42);
+}
+.hand-area.tutorial-focus {
+    z-index: 25;
+    outline: 5px solid #ffe078;
+    outline-offset: -7px;
+    box-shadow:
+        inset 0 0 30px rgba(229, 204, 103, .18),
+        0 0 18px rgba(255, 224, 120, .65),
+        0 0 40px rgba(229, 204, 103, .32);
+}
+.log-panel.tutorial-focus {
+    outline-offset: -5px;
+}
+
+@@keyframes tutorialFocusPulse {
+    from {
+        outline-color:
+            rgba(229, 204, 103, .65);
+
+        box-shadow:
+            inset 0 0 15px rgba(229, 204, 103, .10),
+            0 0 8px rgba(229, 204, 103, .28),
+            0 0 18px rgba(229, 204, 103, .18);
+    }
+
+    to {
+        outline-color:
+            #ffe078;
+
+        box-shadow:
+            inset 0 0 30px rgba(229, 204, 103, .23),
+            0 0 18px rgba(229, 204, 103, .60),
+            0 0 42px rgba(229, 204, 103, .36);
+    }
+}
+.tutorial-replacement-choice {
+    position: relative;
+    z-index: 2;
+    padding: 5px;
+    border: 3px solid #ffe078;
+    border-radius: 11px;
+    background: rgba(229, 204, 103, .12);
+    box-shadow:
+        0 0 0 3px rgba(0, 0, 0, .45),
+        0 0 18px rgba(255, 224, 120, .72),
+        0 0 36px rgba(229, 204, 103, .42);
+    animation:
+        tutorialReplacementPulse
+        .85s
+        ease-in-out
+        infinite alternate;
+}
+.tutorial-nonreplacement-choice {
+    filter: grayscale(.85);
+    opacity: .38;
+    pointer-events: none;
+}
+
+@@keyframes tutorialReplacementPulse {
+    from {
+        transform: scale(1);
+        border-color: rgba(255, 224, 120, .7);
+        box-shadow:
+            0 0 0 3px rgba(0, 0, 0, .4),
+            0 0 10px rgba(255, 224, 120, .4);
+    }
+
+    to {
+        transform: scale(1.045);
+        border-color: #ffe078;
+        box-shadow:
+            0 0 0 3px rgba(0, 0, 0, .48),
+            0 0 22px rgba(255, 224, 120, .85),
+            0 0 42px rgba(229, 204, 103, .48);
+    }
+}
+.tutorial-hand-card-target {
+    position: relative;
+    z-index: 25;
+    padding: 4px;
+    border: 4px solid #ffe078;
+    border-radius: 11px;
+    background: rgba(229, 204, 103, .1);
+    box-shadow:
+        0 0 0 3px rgba(0, 0, 0, .45),
+        0 0 18px rgba(255, 224, 120, .78),
+        0 0 38px rgba(229, 204, 103, .44);
+    animation:
+        tutorialHandCardPulse
+        .85s
+        ease-in-out
+        infinite alternate;
+}
+
+.tutorial-hand-card-disabled {
+    filter: grayscale(.72);
+    opacity: .46;
+    pointer-events: none;
+}
+
+@@keyframes tutorialHandCardPulse {
+    from {
+        transform: scale(1);
+        border-color:
+            rgba(255, 224, 120, .7);
+    }
+
+    to {
+        transform: scale(1.045);
+        border-color:
+            #ffe078;
+    }
+}
+</style>
+@code {
+private bool logCollapsed, botIsActing, coinFlipAcknowledged, showLeaveMatchDialog;
+private bool showCoinFlipDialog = true;
+private bool showPassDeviceDialog, allowNavigation, showZeroEnergyDialog;
+private bool showZeroEnergyWarning, logCopied, surrendered, observingFinishedMatch;
+private bool finishedTournamentMatch, showDeckAction, showCharacterPicker;
+private bool showFatiguedAttackActions, awaitingWandererEntry;
+private bool dsaRecyclePrepared;
+private bool dsaRecycleResolved;
+private bool linkedNodeMoved;
+private int dsaRecycleCardCount;
+private const int DsaRecycleSampleSize =4;
+private string? pendingNavigationUrl;
+private Func<bool>? pendingZeroEnergyAction;
+private ElementReference battleLogElement;
+private int lastBattleLogCount;
+private HandSlot? selectedHandSlot;
+private int? selectedPlacementAttackSlot;
+private List<Card>? peekedCards, drawPoolCards, reorderCards;
+
+private bool IsGuidedTutorialBattle =>
+    Session.Tutorial.IsActive &&
+    Session.Tutorial.IsBattleTutorial &&
+    Session.CurrentMatch != null;
+
+private bool IsLearnToPlayBattle =>
+    IsGuidedTutorialBattle &&
+    Session.Tutorial.CurrentTutorial == TutorialType.LearnToPlay;
+
+private bool IsDsaTutorialBattle =>
+    IsGuidedTutorialBattle &&
+    Session.Tutorial.CurrentTutorial is
+        TutorialType.Queue or
+        TutorialType.PriorityQueue or
+        TutorialType.Stack or
+        TutorialType.RandomList or
+        TutorialType.LinkedList;
+
+private TutorialAction RequiredTutorialAction =>
+    TutorialManager.GetRequiredAction(Session.Tutorial);
+
+private string TutorialTarget =>
+    TutorialManager.GetHighlightTarget(Session.Tutorial);
+
+private bool ShowTutorialOverlay =>
+    IsGuidedTutorialBattle &&
+    coinFlipAcknowledged &&
+    !showCoinFlipDialog &&
+    !showPassDeviceDialog;
+
+private bool IsSurrenderDisabled =>
+    IsGuidedTutorialBattle &&
+    RequiredTutorialAction != TutorialAction.Surrender;
+
+private bool IsObserveBoardDisabled =>
+    IsGuidedTutorialBattle &&
+    RequiredTutorialAction != TutorialAction.ObserveBoard;
+
+private bool CanPlaySelectedUtility =>
+    !IsGuidedTutorialBattle ||
+    RequiredTutorialAction == TutorialAction.PlayUtility;
+
+private bool CanDiscardSelectedCard =>
+    !IsGuidedTutorialBattle ||
+    RequiredTutorialAction == TutorialAction.DiscardAndDraw;
+
+private bool CanResolveFatigueWithRest =>
+    !IsGuidedTutorialBattle ||
+    RequiredTutorialAction == TutorialAction.RestAttack;
+
+private bool CanResolveFatigueWithReplace =>
+    !IsGuidedTutorialBattle ||
+    RequiredTutorialAction == TutorialAction.ReplaceAttack;
+
+private void RefreshTutorialState() => StateHasChanged();
+
+private bool TutorialAllows(TutorialAction action) =>
+    !IsGuidedTutorialBattle ||
+    TutorialManager.CanPerformAction(Session.Tutorial, action);
+
+private bool NotifyTutorialAction(TutorialAction action)
+{
+    if (!IsGuidedTutorialBattle) return false;
+    bool advanced = TutorialManager.NotifyAction(Session.Tutorial, action);
+    if (advanced) StateHasChanged();
+    return advanced;
+}
+
+private async Task HandleTutorialOverlayAdvanced()
+{
+    if (!IsGuidedTutorialBattle)
+    {
+        StateHasChanged();
+        return;
+    }
+
+    if (IsDsaTutorialBattle)
+        await HandleDsaInformationalAdvance();
+
+    StateHasChanged();
+}
+
+private void FinishCurrentTutorial()
+{
+    if (!IsGuidedTutorialBattle) return;
+
+    TutorialManager.CompleteTutorial(Session.Tutorial);
+    Session.CurrentMatch = null;
+    allowNavigation = true;
+    Navigation.NavigateTo("/tutorial");
+}
+
+private string RequiredTutorialCardId => TutorialTarget switch
+{
+    "tutorial-utility" => "UM1",
+    "sorcerer" => "CM2",
+    "fireball" => "AM6",
+    "piercing-attack" => "AP4",
+    "piercing-slot" => "AP4",
+    "multi-hit-attack" => "AM3",
+    "wanderer" => "CN1",
+    _ => ""
+};
+
+private bool TutorialAllowsCard(Card card)
+{
+    if (!IsLearnToPlayBattle) return true;
+    string required = RequiredTutorialCardId;
+    return string.IsNullOrWhiteSpace(required) ||
+           string.Equals(card.Id, required, StringComparison.OrdinalIgnoreCase);
+}
+
+private bool CanChoosePlacementAttack(
+    HandSlot slot)
+{
+    if (slot.IsEmpty ||
+        slot.CardInSlot?.Type !=
+            CardType.Attack)
+    {
+        return false;
+    }
+
+    if (IsDsaTutorialBattle)
+    {
+        return true;
+    }
+
+    if (!IsLearnToPlayBattle)
+    {
+        return true;
+    }
+
+    Card card =
+        slot.CardInSlot;
+
+    if (RequiredTutorialAction ==
+        TutorialAction.DeployAttack)
+    {
+        return TutorialAllowsCard(
+            card);
+    }
+
+    if (RequiredTutorialAction ==
+        TutorialAction.ReplaceAttack)
+    {
+        return string.Equals(
+            card.Id,
+            "AM3",
+            StringComparison.OrdinalIgnoreCase);
+    }
+
+    return false;
+}
+private bool CanChoosePlacementCharacter(Card card)
+{
+    if (!IsLearnToPlayBattle) return true;
+
+    return RequiredTutorialAction == TutorialAction.DeployCharacter &&
+           TutorialAllowsCard(card);
+}
+
+private bool CanPerformDeckTutorialAction(TutorialAction action) =>
+    !IsGuidedTutorialBattle || RequiredTutorialAction == action;
+
+private bool CanContinuePhase(
+    Player player)
+{
+    MatchState? match =
+        Session.CurrentMatch;
+
+    if (match == null ||
+        IsBattleFinished ||
+        botIsActing ||
+        showPassDeviceDialog ||
+        awaitingWandererEntry ||
+        !coinFlipAcknowledged ||
+        match.GetActingPlayer() != player)
+    {
+        return false;
+    }
+
+    if (IsGuidedTutorialBattle &&
+        RequiredTutorialAction !=
+            TutorialAction.ContinuePhase)
+    {
+        return false;
+    }
+
+    /*
+        DSA tutorials require at least one deployed
+        Attack before leaving the Placement Phase.
+
+        This creates an empty hand slot so the later
+        recycle and End Phase draw remain visible.
+    */
+    if (IsDsaTutorialBattle &&
+        match.CurrentPhase ==
+            MatchPhase.Placement &&
+        !HasDeployedAttack(
+            player))
+    {
+        return false;
+    }
+
+    if (match.CurrentPhase ==
+            MatchPhase.Placement &&
+        HasUnresolvedFatigue(
+            player))
+    {
+        return false;
+    }
+
+    return true;
+}
+
+private bool IsContinueDisabled(
+    Player player) =>
+    !CanContinuePhase(player);
+
+private async Task ToggleLog()
+{
+    logCollapsed = !logCollapsed;
+    if (logCollapsed) return;
+
+    StateHasChanged();
+    await Task.Yield();
+    await JS.InvokeVoidAsync(
+        "redPandaBattle.scrollLogToBottom",
+        battleLogElement);
+}
+
+private void HandleNavigationAway(LocationChangingContext context)
+{
+    if (allowNavigation) return;
+
+    if (Session.CurrentMatch == null)
+    {
+        allowNavigation = true;
+        return;
+    }
+
+    if (IsBattleFinished)
+    {
+        Session.CurrentMatch = null;
+        allowNavigation = true;
+        return;
+    }
+
+    context.PreventNavigation();
+    pendingNavigationUrl = context.TargetLocation;
+    showLeaveMatchDialog = true;
+}
+
+private RenderFragment PhaseBox(
+    string name,
+    MatchPhase phase,
+    string cssClass) =>
+    @<div class="phase @cssClass @(Session.CurrentMatch!.CurrentPhase == phase ? "active" : "")">
+        @name
+    </div>;
+
+private string GetLogPhaseClass(BattleLogEntry entry)
+{
+    if (entry.IsSystem) return "log-system";
+
+    return entry.Phase switch
+    {
+        MatchPhase.Utility => "log-utility",
+        MatchPhase.Placement => "log-placement",
+        MatchPhase.Attack => "log-attack",
+        MatchPhase.End => "log-end",
+        _ => ""
+    };
+}
+
+private bool CanUseDeckAction(Player player)
+{
+    MatchState? match =
+        Session.CurrentMatch;
+
+    if (match == null ||
+        IsBattleFinished ||
+        botIsActing ||
+        match.CurrentPhase != MatchPhase.Utility ||
+        match.GetActingPlayer() != player ||
+        player.Deck.RuntimeStorage == null ||
+        player.Deck.RuntimeStorage.Count == 0 ||
+        player.Deck.Structure ==
+            DeckStructure.PriorityQueue)
+    {
+        return false;
+    }
+
+    if (IsGuidedTutorialBattle)
+    {
+        TutorialAction required =
+            RequiredTutorialAction;
+
+        bool correctAction =
+            (
+                required ==
+                    TutorialAction.PeekDeck &&
+                player.Deck.Structure is
+                    (DeckStructure.Queue or
+                     DeckStructure.Stack)
+            ) ||
+            (
+                required ==
+                    TutorialAction.ViewDrawPool &&
+                player.Deck.Structure ==
+                    DeckStructure.RandomList
+            ) ||
+            (
+                required ==
+                    TutorialAction.StartReorderNodes &&
+                player.Deck.Structure ==
+                    DeckStructure.LinkedList
+            );
+
+        if (!correctAction)
+        {
+            return false;
+        }
+    }
+
+    bool freePeek =
+        CharacterManager.HasPassive(
+            player,
+            "FreePeek");
+
+    bool peekStructure =
+        player.Deck.Structure is
+            DeckStructure.Queue or
+            DeckStructure.Stack or
+            DeckStructure.RandomList;
+
+    if (peekStructure &&
+        !freePeek &&
+        player.UtilityActionsRemaining <= 0)
+    {
+        return false;
+    }
+
+    if (player.Deck.Structure ==
+            DeckStructure.LinkedList &&
+        player.UtilityActionsRemaining <= 0)
+    {
+        return false;
+    }
+
+    return true;
+}
+
+private void SelectDeckAction(Player player)
+{
+    if (CanUseDeckAction(player)) showDeckAction = true;
+}
+
+private void CloseDeckAction() => showDeckAction = false;
+
+private void PeekSelectedDeck()
+{
+    if (Session.CurrentMatch == null)
+    {
+        return;
+    }
+
+    Player player =
+        GetPresentedPlayer();
+
+    if (!CanUseDeckAction(player) ||
+        player.Deck.Structure is not
+            (DeckStructure.Queue or
+             DeckStructure.Stack))
+    {
+        return;
+    }
+
+    List<Card>? result =
+        UtilityManager.PeekDeck(
+            player);
+
+    if (result == null)
+    {
+        return;
+    }
+
+    peekedCards = result;
+    showDeckAction = false;
+
+    NotifyTutorialAction(
+        TutorialAction.PeekDeck);
+
+    StateHasChanged();
+}
+
+private void ClosePeek()
+{
+    peekedCards = null;
+    StateHasChanged();
+}
+
+private void ViewSelectedDrawPool()
+{
+    if (Session.CurrentMatch == null)
+    {
+        return;
+    }
+
+    Player player =
+        GetPresentedPlayer();
+
+    TutorialAction actionBeforeView =
+        RequiredTutorialAction;
+
+    if (!CanUseDeckAction(player) ||
+        player.Deck.Structure !=
+            DeckStructure.RandomList)
+    {
+        return;
+    }
+
+    List<Card>? result =
+        UtilityManager.ViewDrawPool(
+            player);
+
+    if (result == null)
+    {
+        return;
+    }
+
+    drawPoolCards = result;
+    showDeckAction = false;
+
+    if (IsGuidedTutorialBattle &&
+        actionBeforeView ==
+            TutorialAction.ViewDrawPool)
+    {
+        TutorialManager.NotifyAction(
+            Session.Tutorial,
+            TutorialAction.ViewDrawPool);
+    }
+
+    StateHasChanged();
+}
+
+private void CloseDrawPool()
+{
+    drawPoolCards = null;
+    StateHasChanged();
+}
+
+private void StartReorderNodes()
+{
+    if (Session.CurrentMatch == null) return;
+
+    Player player = GetPresentedPlayer();
+
+    if (!CanUseDeckAction(player) ||
+        player.Deck.Structure != DeckStructure.LinkedList ||
+        !UtilityManager.StartReorderNodes(player))
+        return;
+
+    reorderCards = player.Deck.RuntimeStorage!
+        .GetCards()
+        .Take(6)
+        .ToList();
+
+    linkedNodeMoved = false;
+    NotifyTutorialAction(TutorialAction.StartReorderNodes);
+    showDeckAction = false;
+    StateHasChanged();
+}
+
+private void MoveReorderNode((int From, int To) move)
+{
+    if (Session.CurrentMatch == null) return;
+
+    Player player = GetPresentedPlayer();
+
+    if (player.Deck.Structure != DeckStructure.LinkedList ||
+        reorderCards == null ||
+        !TutorialAllows(TutorialAction.MoveReorderNode) ||
+        !UtilityManager.ReorderNodes(player, move.From, move.To))
+        return;
+
+    linkedNodeMoved = true;
+
+    reorderCards = player.Deck.RuntimeStorage!
+        .GetCards()
+        .Take(6)
+        .ToList();
+
+    NotifyTutorialAction(TutorialAction.MoveReorderNode);
+    StateHasChanged();
+}
+
+private void CloseReorderPreview()
+{
+    if (Session.CurrentMatch == null ||
+        reorderCards == null)
+    {
+        return;
+    }
+
+    Player player =
+        GetPresentedPlayer();
+
+    if (player.Deck.Structure !=
+        DeckStructure.LinkedList)
+    {
+        return;
+    }
+
+    UtilityManager.FinishReorderNodes(
+        player);
+
+    reorderCards = null;
+
+    if (linkedNodeMoved &&
+        RequiredTutorialAction ==
+            TutorialAction.FinishReorderNodes)
+    {
+        NotifyTutorialAction(
+            TutorialAction.FinishReorderNodes);
+    }
+
+    StateHasChanged();
+}
+
+private string GetDeckActionMessage(Player player) =>
+    player.Deck.Structure switch
+    {
+        DeckStructure.Queue =>
+            "Peek at up to the next two cards.",
+        DeckStructure.Stack =>
+            "Peek at up to the top two cards.",
+        DeckStructure.RandomList =>
+            "View the cards currently available in the random draw pool.",
+        DeckStructure.LinkedList =>
+            "Reorder the upcoming linked nodes.",
+        DeckStructure.PriorityQueue =>
+            "Priority Queue retrieval is automatic.",
+        _ => "No deck action available."
+    };
+private bool CanSelectHandCard(
+    Player player,
+    HandSlot slot)
+{
+    MatchState? match =
+        Session.CurrentMatch;
+
+    if (match == null ||
+        IsBattleFinished ||
+        botIsActing ||
+        match.GetActingPlayer() != player ||
+        match.CurrentPhase != MatchPhase.Utility ||
+        player.UtilityActionsRemaining <= 0 ||
+        slot.IsEmpty ||
+        slot.CardInSlot == null)
+    {
+        return false;
+    }
+
+    if (!IsGuidedTutorialBattle)
+    {
+        return true;
+    }
+
+    return RequiredTutorialAction switch
+    {
+        TutorialAction.SelectUtility =>
+            !IsLearnToPlayBattle ||
+            string.Equals(
+                slot.CardInSlot.Id,
+                "UM1",
+                StringComparison.OrdinalIgnoreCase),
+
+        TutorialAction.DiscardAndDraw =>
+            !IsLearnToPlayBattle ||
+            string.Equals(
+                slot.CardInSlot.Id,
+                "AN1",
+                StringComparison.OrdinalIgnoreCase),
+
+        _ =>
+            false
+    };
+}
+
+private void SelectHandCard(HandSlot slot)
+{
+    if (Session.CurrentMatch == null) return;
+
+    Player player = GetPresentedPlayer();
+    if (!CanSelectHandCard(player, slot)) return;
+
+    selectedHandSlot = slot;
+
+    if (RequiredTutorialAction == TutorialAction.SelectUtility)
+        NotifyTutorialAction(TutorialAction.SelectUtility);
+}
+
+private void CloseHandCard()
+{
+    selectedHandSlot =
+        null;
+}
+
+private bool CanCloseSelectedHandCard =>
+    !IsLearnToPlayBattle ||
+    RequiredTutorialAction !=
+        TutorialAction.PlayUtility;
+
+private void RequestCloseHandCard()
+{
+    if (!CanCloseSelectedHandCard)
+    {
+        return;
+    }
+
+    selectedHandSlot =
+        null;
+}
+
+private void DiscardSelectedCard()
+{
+    if (Session.CurrentMatch == null ||
+        selectedHandSlot?.CardInSlot == null ||
+        !TutorialAllows(
+            TutorialAction.DiscardAndDraw))
+    {
+        return;
+    }
+
+    if (IsLearnToPlayBattle &&
+        RequiredTutorialAction ==
+            TutorialAction.DiscardAndDraw &&
+        !string.Equals(
+            selectedHandSlot.CardInSlot.Id,
+            "AN1",
+            StringComparison.OrdinalIgnoreCase))
+    {
+        return;
+    }
+
+    MatchState match =
+        Session.CurrentMatch;
+
+    Player player =
+        GetPresentedPlayer();
+
+    if (match.CurrentPhase !=
+            MatchPhase.Utility ||
+        match.GetActingPlayer() != player ||
+        player.UtilityActionsRemaining <= 0)
+    {
+        return;
+    }
+
+    bool success =
+        UtilityManager.DiscardAndDraw(
+            player,
+            selectedHandSlot.SlotNumber);
+
+    if (!success)
+    {
+        return;
+    }
+
+    player.UtilityActionsRemaining--;
+
+    selectedHandSlot =
+        null;
+
+    NotifyTutorialAction(
+        TutorialAction.DiscardAndDraw);
+
+    StateHasChanged();
+}
+
+private void PlaySelectedUtility()
+{
+    if (Session.CurrentMatch == null ||
+        selectedHandSlot?.CardInSlot == null ||
+        !TutorialAllows(TutorialAction.PlayUtility))
+        return;
+
+    MatchState match = Session.CurrentMatch;
+    Player player = GetPresentedPlayer();
+    Card card = selectedHandSlot.CardInSlot;
+
+    if (match.CurrentPhase != MatchPhase.Utility ||
+        match.GetActingPlayer() != player ||
+        player.UtilityActionsRemaining <= 0 ||
+        card.Type != CardType.Utility ||
+        player.Energy < card.Cost)
+        return;
+
+    if (IsLearnToPlayBattle && card.Id != "UM1")
+        return;
+
+    bool success = UtilityManager.PlayUtility(
+        player,
+        GetPresentedOpponent(),
+        selectedHandSlot.SlotNumber);
+
+    if (!success) return;
+
+    player.UtilityActionsRemaining--;
+    selectedHandSlot = null;
+
+    NotifyTutorialAction(TutorialAction.PlayUtility);
+    StateHasChanged();
+}
+
+private string GetDeckStructureName(DeckStructure structure) =>
+    structure switch
+    {
+        DeckStructure.RandomList => "Random List",
+        DeckStructure.LinkedList => "Linked List",
+        DeckStructure.PriorityQueue => "Priority Queue",
+        _ => structure.ToString()
+    };
+
+private void CancelLeaveMatch()
+{
+    showLeaveMatchDialog = false;
+    pendingNavigationUrl = null;
+}
+
+private void RequestSurrender()
+{
+    if (IsBattleFinished || IsSurrenderDisabled) return;
+
+    pendingNavigationUrl = null;
+    showLeaveMatchDialog = true;
+}
+
+private void ConfirmLeaveMatch()
+{
+    if (Session.CurrentMatch == null || IsBattleFinished)
+    {
+        showLeaveMatchDialog = false;
+        pendingNavigationUrl = null;
+        return;
+    }
+
+    string? destination = pendingNavigationUrl;
+    bool tournamentMatch = IsTournamentMatch;
+    bool tutorialSurrender =
+        IsLearnToPlayBattle &&
+        RequiredTutorialAction == TutorialAction.Surrender;
+
+    showLeaveMatchDialog = false;
+    pendingNavigationUrl = null;
+    surrendered = true;
+    observingFinishedMatch = false;
+
+    Player losingPlayer = GetPresentedPlayer();
+    Player winningPlayer = GetPresentedOpponent();
+
+    BattleLog.WriteSystem($"{losingPlayer.Name} surrendered.");
+    BattleLog.WriteSystem($"Match ended. {winningPlayer.Name} wins.");
+
+    if (tournamentMatch)
+    {
+        finishedTournamentMatch = true;
+        TournamentManager.EndAfterLoss(Session.Tournament);
+    }
+
+    botIsActing = false;
+    CloseGameplayPopups();
+    showZeroEnergyWarning = false;
+    pendingZeroEnergyAction = null;
+
+    if (tutorialSurrender)
+        NotifyTutorialAction(TutorialAction.Surrender);
+
+    if (!string.IsNullOrWhiteSpace(destination))
+    {
+        Session.CurrentMatch = null;
+        allowNavigation = true;
+        Navigation.NavigateTo(destination);
+        return;
+    }
+
+    showZeroEnergyDialog = true;
+    logCollapsed = false;
+    StateHasChanged();
+}
+
+private async Task ContinuePhase()
+{
+    if (Session.CurrentMatch == null)
+    {
+        return;
+    }
+
+    MatchState match =
+        Session.CurrentMatch;
+
+    Player player =
+        GetPresentedPlayer();
+
+    /*
+        Use the exact same condition as the button.
+
+        This prevents the UI from enabling Continue
+        while the handler silently rejects the click
+        through a different condition.
+    */
+    if (!CanContinuePhase(player))
+    {
+        return;
+    }
+
+    MatchPhase previousPhase =
+        match.CurrentPhase;
+
+    int previousTurn =
+        match.TurnNumber;
+
+    TutorialAction actionBeforePhaseChange =
+        RequiredTutorialAction;
+
+    CloseGameplayPopups();
+
+    PhaseManager.CompleteCurrentPlayerPhase(
+        match);
+
+    /*
+        Advance the Tutorial using the action captured
+        before the real phase changed.
+    */
+    if (IsGuidedTutorialBattle &&
+        actionBeforePhaseChange ==
+            TutorialAction.ContinuePhase)
+    {
+        NotifyTutorialAction(
+            TutorialAction.ContinuePhase);
+    }
+
+    if (MatchManager.IsMatchOver(
+            match.Player1,
+            match.Player2))
+    {
+        CheckForZeroEnergy();
+        return;
+    }
+
+    if (IsPassAndPlay())
+    {
+        showPassDeviceDialog = true;
+        StateHasChanged();
+        return;
+    }
+
+    /*
+        If Stack Placement begins immediately after the
+        human phase transition, resolve it before Bot
+        processing only when the human is now acting.
+    */
+    await RunAutomaticHumanPlacementIfNeeded();
+
+    await RunBotIfNeeded();
+
+    if (MatchManager.IsMatchOver(
+            match.Player1,
+            match.Player2))
+    {
+        CheckForZeroEnergy();
+        return;
+    }
+
+    /*
+        The Bot may have advanced the match to a new
+        human Stack Placement Phase.
+    */
+    await RunAutomaticHumanPlacementIfNeeded();
+
+    await HandleTutorialPhaseTransition(
+        previousPhase,
+        previousTurn);
+
+    StateHasChanged();
+}
+private async Task HandleTutorialPhaseTransition(
+    MatchPhase previousPhase,
+    int previousTurn)
+{
+    if (!IsGuidedTutorialBattle ||
+        Session.CurrentMatch == null)
+    {
+        return;
+    }
+
+    MatchState match =
+        Session.CurrentMatch;
+
+    if (previousPhase == MatchPhase.End &&
+        match.TurnNumber > previousTurn &&
+        IsDsaTutorialBattle)
+    {
+        await ResolveDsaRecycleDemonstration();
+    }
+}
+private async Task RunBotIfNeeded()
+{
+    if (Session.CurrentMatch == null || botIsActing)
+        return;
+
+    MatchState match = Session.CurrentMatch;
+    Player actingPlayer = match.GetActingPlayer();
+
+    if (!actingPlayer.IsBot) return;
+
+    Player bot = actingPlayer;
+    Player human = match.GetOpponent();
+
+    botIsActing = true;
+    logCollapsed = false;
+
+    CloseGameplayPopups();
+    StateHasChanged();
+
+    try
+    {
+        while (Session.CurrentMatch != null &&
+               !match.IsCompleted &&
+               !MatchManager.IsMatchOver(
+                   match.Player1,
+                   match.Player2) &&
+               match.GetActingPlayer() == bot)
+        {
+            MatchPhase phaseBefore = match.CurrentPhase;
+            int turnBefore = match.TurnNumber;
+
+            switch (match.CurrentPhase)
+            {
+                case MatchPhase.Utility:
+                    await RunBotUtilityPhase(bot, human);
+                    break;
+
+                case MatchPhase.Placement:
+                    await RunBotPlacementPhase(bot);
+                    break;
+
+                case MatchPhase.Attack:
+                    await RunBotAttackPhase(bot, human);
+                    break;
+
+                case MatchPhase.End:
+                    await BotThinkingDelay();
+                    break;
+            }
+
+            if (MatchManager.IsMatchOver(
+                    match.Player1,
+                    match.Player2))
+            {
+                CheckForZeroEnergy();
+                return;
+            }
+
+PhaseManager.CompleteCurrentPlayerPhase(
+    match);
+
+await HandleTutorialPhaseTransition(
+    phaseBefore,
+    turnBefore);
+
+/*
+    DSA tutorials demonstrate one complete turn.
+
+    After the Bot finishes Turn 1 End Phase,
+    Initiative swaps and Turn 2 begins. Stop the
+    Bot here so it cannot perform Turn 2 Utility.
+*/
+if (IsDsaTutorialBattle &&
+    match.TurnNumber > turnBefore)
+{
+    StateHasChanged();
+
+    break;
+}
+
+StateHasChanged();
+        }
+    }
+    finally
+    {
+        botIsActing = false;
+        StateHasChanged();
+    }
+}
+
+private async Task RunBotUtilityPhase(
+    Player bot,
+    Player human)
+{
+    await BotThinkingDelay();
+
+    int before =
+        BattleLog.GetPhaseActions().Count;
+
+    BotManager.RunNextUtilityAction(bot, human);
+
+    if (BattleLog.GetPhaseActions().Count == before)
+        BattleLog.Write(
+            $"{bot.Name} took no Utility action.");
+
+    StateHasChanged();
+}
+
+private async Task RunBotPlacementPhase(Player bot)
+{
+    int before =
+        BattleLog.GetPhaseActions().Count;
+
+    for (int step = 0; step <= 4; step++)
+    {
+        await BotThinkingDelay();
+        BotManager.RunNextPlacementAction(bot, step);
+        StateHasChanged();
+    }
+
+    if (BattleLog.GetPhaseActions().Count == before)
+    {
+        BattleLog.Write(
+            $"{bot.Name} made no Placement changes.");
+
+        StateHasChanged();
+    }
+}
+
+private async Task RunBotAttackPhase(
+    Player bot,
+    Player human)
+{
+    int before =
+        BattleLog.GetPhaseActions().Count;
+
+    for (int step = 0; step <= 2; step++)
+    {
+        if (MatchManager.IsMatchOver(bot, human))
+            return;
+
+        await BotThinkingDelay();
+
+        BotManager.RunNextAttackAction(
+            bot,
+            human,
+            step);
+
+        if (CheckForZeroEnergy())
+        {
+            StateHasChanged();
+            return;
+        }
+
+        StateHasChanged();
+    }
+
+    if (BattleLog.GetPhaseActions().Count == before)
+    {
+        BattleLog.Write(
+            $"{bot.Name} made no attacks.");
+
+        StateHasChanged();
+    }
+}
+
+private async Task BotThinkingDelay()
+{
+    StateHasChanged();
+
+    await Task.Delay(
+        Random.Shared.Next(500, 1501));
+}
+
+private void CloseGameplayPopups()
+{
+    selectedHandSlot = null;
+    selectedPlacementAttackSlot = null;
+    showFatiguedAttackActions = false;
+    showDeckAction = false;
+    peekedCards = null;
+    drawPoolCards = null;
+    reorderCards = null;
+    showCharacterPicker = false;
+}
+
+private async Task AcknowledgeCoinFlip()
+{
+    if (Session.CurrentMatch == null ||
+        coinFlipAcknowledged)
+        return;
+
+    coinFlipAcknowledged = true;
+    showCoinFlipDialog = false;
+
+    MatchState match = Session.CurrentMatch;
+
+    if (IsPassAndPlay())
+    {
+        showPassDeviceDialog = true;
+        StateHasChanged();
+        return;
+    }
+
+    if (match.GetActingPlayer().IsBot)
+        await RunBotIfNeeded();
+}
+
+protected override void OnInitialized()
+{
+    if (Session.CurrentMatch == null)
+    {
+        allowNavigation =
+            true;
+
+        Navigation.NavigateTo(
+            "/");
+
+        return;
+    }
+
+    showCoinFlipDialog =
+        true;
+
+    coinFlipAcknowledged =
+        false;
+
+    if (IsDsaTutorialBattle)
+    {
+        PrepareDsaTutorialBattle();
+    }
+}
+
+private void PrepareDsaTutorialBattle()
+{
+    if (Session.CurrentMatch == null ||
+        dsaRecyclePrepared)
+    {
+        return;
+    }
+
+    Player player =
+        GetPresentedPlayer();
+
+    dsaRecyclePrepared =
+        true;
+
+    dsaRecycleResolved =
+        false;
+
+    dsaRecycleCardCount =
+        0;
+
+    if (player.DiscardPile.Count == 0 &&
+        player.Deck.RuntimeStorage != null)
+    {
+        for (int i = 0;
+             i < DsaRecycleSampleSize &&
+             player.Deck.RuntimeStorage.Count > 0;
+             i++)
+        {
+            Card? card =
+                player.Deck.RuntimeStorage.Draw();
+
+            if (card != null)
+            {
+                player.DiscardPile.Add(
+                    card);
+            }
+        }
+    }
+
+    dsaRecycleCardCount =
+        player.DiscardPile.Count;
+}
+
+private async Task HandleDsaInformationalAdvance()
+{
+    if (!IsDsaTutorialBattle ||
+        Session.CurrentMatch == null)
+    {
+        return;
+    }
+
+    TutorialAction action =
+        RequiredTutorialAction;
+
+    if (action ==
+        TutorialAction.PrepareRecycle)
+    {
+        PrepareDsaRecycleState();
+
+        NotifyTutorialAction(
+            TutorialAction.PrepareRecycle);
+    }
+
+    await Task.CompletedTask;
+}
+
+private void PrepareDsaRecycleState()
+{
+    if (Session.CurrentMatch == null ||
+        dsaRecycleResolved)
+        return;
+
+    Player player = GetPresentedPlayer();
+
+    if (player.Deck.RuntimeStorage == null ||
+        player.DiscardPile.Count == 0)
+        return;
+
+    /*
+        Empty only runtime storage. The field and hand
+        remain visible, while the saved discard cards
+        demonstrate how this deck structure receives
+        recycled cards.
+    */
+    while (player.Deck.RuntimeStorage.Count > 0)
+        player.Deck.RuntimeStorage.Draw();
+}
+
+private async Task ResolveDsaRecycleDemonstration()
+{
+    if (Session.CurrentMatch == null ||
+        dsaRecycleResolved ||
+        RequiredTutorialAction !=
+            TutorialAction.ObserveRecycle)
+    {
+        return;
+    }
+
+    Player player =
+        GetPresentedPlayer();
+
+    if (player.Deck.RuntimeStorage == null)
+    {
+        return;
+    }
+
+    int recycledCount =
+        dsaRecycleCardCount;
+
+    /*
+        If cards remain in discard, the normal End
+        draw did not need them. Recycle them now
+        through the real structure's Add operation.
+    */
+    if (player.DiscardPile.Count > 0)
+    {
+        List<Card> recycled =
+            player.DiscardPile.ToList();
+
+        recycledCount =
+            recycled.Count;
+
+        player.DiscardPile.Clear();
+
+        foreach (Card card in recycled)
+        {
+            player.Deck.RuntimeStorage.Add(card);
+        }
+
+        BattleLog.WriteSystem(
+            GetRecycleLogMessage(
+                player.Deck.Structure,
+                recycledCount));
+    }
+    else
+    {
+        /*
+            DrawUntilHandSize already recycled the
+            discard pile during the real End Phase.
+        */
+        BattleLog.WriteSystem(
+            GetRecycleLogMessage(
+                player.Deck.Structure,
+                recycledCount));
+    }
+
+    dsaRecycleResolved = true;
+
+    NotifyTutorialAction(
+        TutorialAction.ObserveRecycle);
+
+    StateHasChanged();
+
+    await Task.CompletedTask;
+}
+
+private string GetRecycleLogMessage(
+    DeckStructure structure,
+    int count)
+{
+    string destination = structure switch
+    {
+        DeckStructure.Queue =>
+            "the rear of the Queue",
+
+        DeckStructure.PriorityQueue =>
+            "the Priority Queue using each card's priority",
+
+        DeckStructure.Stack =>
+            "the top of the Stack",
+
+        DeckStructure.RandomList =>
+            "the Random List draw pool",
+
+        DeckStructure.LinkedList =>
+            "the tail of the Linked List",
+
+        _ => "the deck"
+    };
+
+    return
+        $"{count} discarded card(s) recycled into {destination}.";
+}
+
+private async Task AcknowledgePassDevice()
+{
+    showPassDeviceDialog = false;
+
+    CloseGameplayPopups();
+    StateHasChanged();
+
+    await RunAutomaticHumanPlacementIfNeeded();
+}
+
+private async Task RunAutomaticHumanPlacementIfNeeded()
+{
+    if (Session.CurrentMatch == null)
+        return;
+
+    MatchState match = Session.CurrentMatch;
+
+    if (match.CurrentPhase != MatchPhase.Placement)
+        return;
+
+    Player player = GetPresentedPlayer();
+
+    if (player.IsBot ||
+        player.Deck.Structure != DeckStructure.Stack)
+        return;
+
+    StateHasChanged();
+
+    await Task.Delay(
+        Random.Shared.Next(500, 1501));
+
+    if (Session.CurrentMatch == null ||
+        match.IsCompleted ||
+        match.CurrentPhase != MatchPhase.Placement ||
+        match.GetActingPlayer() != player)
+        return;
+
+    PlacementManager.AutoStackPlacement(player);
+
+    if (IsDsaTutorialBattle &&
+        Session.Tutorial.CurrentTutorial ==
+            TutorialType.Stack)
+    {
+        NotifyTutorialAction(
+            TutorialAction.ObserveAutomaticPlacement);
+    }
+
+    CheckForZeroEnergy();
+    StateHasChanged();
+}
+private bool CanSelectPlacementAttack(
+    Player player)
+{
+    MatchState? match =
+        Session.CurrentMatch;
+
+    if (match == null ||
+        IsBattleFinished ||
+        botIsActing ||
+        match.CurrentPhase !=
+            MatchPhase.Placement ||
+        match.GetActingPlayer() != player)
+    {
+        return false;
+    }
+
+    if (!IsGuidedTutorialBattle ||
+        IsDsaTutorialBattle)
+    {
+        return true;
+    }
+
+    return RequiredTutorialAction is
+        TutorialAction.DeployAttack or
+        TutorialAction.ReplaceAttack or
+        TutorialAction.RestAttack or
+        TutorialAction.ResolveWandererEntry;
+}
+
+private void SelectPlacementAttack(int slot)
+{
+    if (Session.CurrentMatch == null ||
+        slot is not (1 or 2))
+        return;
+
+    Player player = GetPresentedPlayer();
+
+    if (!CanSelectPlacementAttack(player))
+        return;
+
+    if (awaitingWandererEntry)
+    {
+        ResolveWandererEntrySelection(player, slot);
+        return;
+    }
+
+    Card? deployed =
+        slot == 1
+            ? player.AttackSlot1
+            : player.AttackSlot2;
+
+    bool fatigued =
+        slot == 1
+            ? player.IsFatiguedSlot1
+            : player.IsFatiguedSlot2;
+
+if (IsLearnToPlayBattle &&
+    RequiredTutorialAction ==
+        TutorialAction.ReplaceAttack &&
+    (deployed == null ||
+     !string.Equals(
+         deployed.Id,
+         "AP4",
+         StringComparison.OrdinalIgnoreCase)))
+{
+    return;
+}
+
+if (IsLearnToPlayBattle &&
+    RequiredTutorialAction ==
+        TutorialAction.RestAttack &&
+    (deployed == null ||
+     !TutorialAllowsCard(deployed)))
+{
+    return;
+}
+
+    if (fatigued)
+    {
+        selectedPlacementAttackSlot = slot;
+        showFatiguedAttackActions = true;
+        return;
+    }
+
+    if (RequiredTutorialAction == TutorialAction.RestAttack)
+        return;
+
+    if (deployed != null &&
+        !player.HandSlots.Any(handSlot =>
+            !handSlot.IsEmpty &&
+            handSlot.CardInSlot?.Type ==
+                CardType.Attack))
+        return;
+
+    selectedPlacementAttackSlot = slot;
+}
+
+private void ClosePlacementAttack() =>
+    selectedPlacementAttackSlot = null;
+
+private void DeployAttackFromHand(int handSlotNumber)
+{
+    if (Session.CurrentMatch == null ||
+        selectedPlacementAttackSlot == null ||
+        handSlotNumber < 1 ||
+        handSlotNumber > Player.MAX_HAND_SIZE)
+        return;
+
+    Player player = GetPresentedPlayer();
+
+    if (!CanSelectPlacementAttack(player))
+        return;
+
+    HandSlot handSlot =
+        player.HandSlots[handSlotNumber - 1];
+
+    if (!CanChoosePlacementAttack(handSlot))
+        return;
+
+    Card selectedAttack =
+        handSlot.CardInSlot!;
+
+    int fieldSlot =
+        selectedPlacementAttackSlot.Value;
+
+    Card? previous =
+        fieldSlot == 1
+            ? player.AttackSlot1
+            : player.AttackSlot2;
+
+    TutorialAction completedAction =
+        previous == null
+            ? TutorialAction.DeployAttack
+            : TutorialAction.ReplaceAttack;
+
+    if (IsLearnToPlayBattle &&
+    RequiredTutorialAction != completedAction)
+{
+    return;
+}
+
+    int cost = selectedAttack.Cost;
+
+    if (player.DiscountActive)
+        cost = Math.Max(0, cost - 1);
+
+    if (WouldReachZeroEnergy(player, cost))
+    {
+        if (IsGuidedTutorialBattle) return;
+
+        selectedPlacementAttackSlot = null;
+
+        WarnBeforeZeroEnergy(() =>
+            PlacementManager.TryDeployAttack(
+                player,
+                handSlotNumber,
+                fieldSlot));
+
+        return;
+    }
+
+    bool success =
+        PlacementManager.TryDeployAttack(
+            player,
+            handSlotNumber,
+            fieldSlot);
+
+    if (!success) return;
+
+    selectedPlacementAttackSlot = null;
+
+    if (IsLearnToPlayBattle)
+{
+    NotifyTutorialAction(
+        completedAction);
+}
+    CheckForZeroEnergy();
+    StateHasChanged();
+}
+
+private void DeploySelectedAttack(HandSlot slot) =>
+    DeployAttackFromHand(slot.SlotNumber);
+
+private Card? GetSelectedPlacementAttack(Player player)
+{
+    if (selectedPlacementAttackSlot == null)
+        return null;
+
+    return selectedPlacementAttackSlot == 1
+        ? player.AttackSlot1
+        : player.AttackSlot2;
+}
+
+private bool HasUnresolvedFatigue(Player player) =>
+    player.IsFatiguedSlot1 ||
+    player.IsFatiguedSlot2;
+
+private static bool HasDeployedAttack(
+    Player player)
+{
+    return
+        player.AttackSlot1 != null ||
+        player.AttackSlot2 != null;
+}
+
+private bool ShouldHighlightContinue(Player player)
+{
+    MatchState? match = Session.CurrentMatch;
+
+    if (match == null ||
+        botIsActing ||
+        !coinFlipAcknowledged ||
+        awaitingWandererEntry ||
+        match.GetActingPlayer() != player)
+        return false;
+
+    if (IsGuidedTutorialBattle)
+{
+    if (RequiredTutorialAction !=
+        TutorialAction.ContinuePhase)
+    {
+        return false;
+    }
+
+    if (IsDsaTutorialBattle &&
+        match.CurrentPhase ==
+            MatchPhase.Placement &&
+        !HasDeployedAttack(
+            player))
+    {
+        return false;
+    }
+
+    return true;
+}
+
+    if (match.CurrentPhase == MatchPhase.Placement &&
+        HasUnresolvedFatigue(player))
+        return false;
+
+    return !HasLegalPlayerAction(player);
+}
+
+private bool HasLegalPlayerAction(Player player)
+{
+    if (Session.CurrentMatch == null)
+        return false;
+
+    return Session.CurrentMatch.CurrentPhase switch
+    {
+        MatchPhase.Utility =>
+            HasLegalUtilityAction(player),
+
+        MatchPhase.Placement =>
+            HasLegalPlacementAction(player),
+
+        MatchPhase.Attack =>
+            HasLegalAttackAction(player),
+
+        _ => false
+    };
+}
+
+private bool HasLegalUtilityAction(Player player)
+{
+    bool deckHasCards =
+        player.Deck.RuntimeStorage != null &&
+        player.Deck.RuntimeStorage.Count > 0;
+
+    bool freePeek =
+        CharacterManager.HasPassive(
+            player,
+            "FreePeek");
+
+    if (freePeek &&
+        deckHasCards &&
+        player.Deck.Structure is
+            DeckStructure.Queue or
+            DeckStructure.Stack or
+            DeckStructure.RandomList)
+        return true;
+
+    if (player.UtilityActionsRemaining <= 0)
+        return false;
+
+    if (player.HandSlots.Any(slot =>
+            !slot.IsEmpty))
+        return true;
+
+bool supportsDeckAction =
+    player.Deck.Structure is
+        DeckStructure.Queue or
+        DeckStructure.Stack or
+        DeckStructure.RandomList or
+        DeckStructure.LinkedList;
+
+return
+    deckHasCards &&
+    supportsDeckAction;
+}
+
+private bool HasLegalPlacementAction(Player player)
+{
+    if (HasUnresolvedFatigue(player))
+        return true;
+
+    foreach (HandSlot slot in player.HandSlots)
+    {
+        Card? card = slot.CardInSlot;
+
+        if (card == null) continue;
+
+        if (card.Type == CardType.Character)
+        {
+            int cost =
+                player.CharacterDefeatedSinceLastPlacement
+                    ? 0
+                    : player.ActiveCharacter != null
+                        ? 4
+                        : card.Cost;
+
+            if (player.Energy >= cost)
+                return true;
+        }
+
+        if (card.Type == CardType.Attack)
+        {
+            int cost = card.Cost;
+
+            if (player.DiscountActive)
+                cost = Math.Max(0, cost - 1);
+
+            if (player.Energy >= cost)
+                return true;
+        }
+    }
+
+    return false;
+}
+
+private bool HasLegalAttackAction(Player player)
+{
+    bool slot1 =
+        player.AttackSlot1 != null &&
+        !player.IsFatiguedSlot1 &&
+        !player.IsRestingSlot1 &&
+        !player.AttackSlot1UsedThisPhase &&
+        player.Energy >=
+            player.AttackSlot1TotalUses;
+
+    bool slot2 =
+        player.AttackSlot2 != null &&
+        !player.IsFatiguedSlot2 &&
+        !player.IsRestingSlot2 &&
+        !player.AttackSlot2UsedThisPhase &&
+        player.Energy >=
+            player.AttackSlot2TotalUses;
+
+    bool ability =
+        player.ActiveCharacter != null &&
+        !player.CharacterNewlyDeployed &&
+        !player.AbilityUsedThisPhase &&
+        player.AbilityCooldownRemaining <= 0 &&
+        CanAffordCharacterAbility(player);
+
+    return slot1 || slot2 || ability;
+}
+
+private bool CanAffordCharacterAbility(Player player)
+{
+    if (player.ActiveCharacter == null)
+        return false;
+
+    int cost =
+        player.ActiveCharacter.ActiveAbility switch
+        {
+            "ShieldGain" => 2,
+            "MagicBoost" => 1,
+            "FieldShield" => 3,
+            "PowerSurge" => 3,
+            "AttackBoost" => 2,
+            "Heal" => 2,
+            _ => int.MaxValue
+        };
+
+    return player.Energy >= cost;
+}
+
+private void CloseFatiguedAttackActions()
+{
+    showFatiguedAttackActions = false;
+    selectedPlacementAttackSlot = null;
+}
+
+private void RestSelectedAttack()
+{
+    if (Session.CurrentMatch == null ||
+        selectedPlacementAttackSlot == null ||
+        !CanResolveFatigueWithRest)
+        return;
+
+    Player player = GetPresentedPlayer();
+
+    if (!CanSelectPlacementAttack(player))
+        return;
+
+    bool success =
+        PlacementManager.RestFatiguedAttack(
+            player,
+            selectedPlacementAttackSlot.Value);
+
+    if (!success) return;
+
+    showFatiguedAttackActions = false;
+    selectedPlacementAttackSlot = null;
+
+    NotifyTutorialAction(
+        TutorialAction.RestAttack);
+
+    StateHasChanged();
+}
+
+private void EmergencyRestSelectedAttack()
+{
+    if (Session.CurrentMatch == null ||
+        selectedPlacementAttackSlot == null ||
+        !CanResolveFatigueWithRest)
+        return;
+
+    Player player = GetPresentedPlayer();
+
+    if (!CanSelectPlacementAttack(player))
+        return;
+
+    bool success =
+        PlacementManager.EmergencyRestFatiguedAttack(
+            player,
+            selectedPlacementAttackSlot.Value);
+
+    if (!success) return;
+
+    showFatiguedAttackActions = false;
+    selectedPlacementAttackSlot = null;
+
+    NotifyTutorialAction(
+        TutorialAction.RestAttack);
+
+    StateHasChanged();
+}
+
+private void ReplaceSelectedFatiguedAttack()
+{
+    if (Session.CurrentMatch == null ||
+        selectedPlacementAttackSlot == null ||
+        !CanResolveFatigueWithReplace)
+        return;
+
+    Player player = GetPresentedPlayer();
+
+    if (!CanSelectPlacementAttack(player))
+        return;
+
+    bool success =
+        PlacementManager.ReplaceFatiguedAttack(
+            player,
+            selectedPlacementAttackSlot.Value);
+
+    if (!success) return;
+
+    showFatiguedAttackActions = false;
+
+    /*
+        PlacementManager removes the Fatigued card.
+        Keep the selected field slot so the Attack
+        picker can now choose its replacement.
+    */
+    StateHasChanged();
+}
+
+private bool CanSelectPlacementCharacter(Player player)
+{
+    MatchState? match = Session.CurrentMatch;
+
+    if (match == null ||
+        IsBattleFinished ||
+        botIsActing ||
+        match.CurrentPhase != MatchPhase.Placement ||
+        match.GetActingPlayer() != player)
+        return false;
+
+    if (!IsGuidedTutorialBattle) return true;
+
+    return RequiredTutorialAction is
+        TutorialAction.DeployCharacter or
+        TutorialAction.ReplaceCharacter;
+}
+
+private void SelectPlacementCharacter()
+{
+    if (Session.CurrentMatch == null)
+        return;
+
+    Player player = GetPresentedPlayer();
+
+    if (!CanSelectPlacementCharacter(player))
+        return;
+
+    bool hasCharacter =
+        player.HandSlots.Any(slot =>
+            !slot.IsEmpty &&
+            slot.CardInSlot?.Type ==
+                CardType.Character);
+
+    if (!hasCharacter) return;
+
+    showCharacterPicker = true;
+
+    if (RequiredTutorialAction ==
+        TutorialAction.ReplaceCharacter)
+    {
+        NotifyTutorialAction(
+            TutorialAction.ReplaceCharacter);
+    }
+
+    StateHasChanged();
+}
+
+private void CloseCharacterPicker()
+{
+    /*
+        During the informational Wanderer-inspection
+        step, closing the picker would hide the card
+        required by the next deployment step.
+    */
+    if (IsLearnToPlayBattle &&
+        RequiredTutorialAction ==
+            TutorialAction.Acknowledge &&
+        TutorialTarget == "wanderer")
+        return;
+
+    showCharacterPicker = false;
+}
+
+private void DeploySelectedCharacter(HandSlot slot)
+{
+    if (Session.CurrentMatch == null ||
+        slot.IsEmpty ||
+        slot.CardInSlot?.Type !=
+            CardType.Character)
+        return;
+
+    Card character = slot.CardInSlot;
+
+    if (!CanChoosePlacementCharacter(character))
+        return;
+
+    Player player = GetPresentedPlayer();
+
+    if (!CanSelectPlacementCharacter(player))
+        return;
+
+    int cost =
+        player.CharacterDefeatedSinceLastPlacement
+            ? 0
+            : player.ActiveCharacter != null
+                ? 4
+                : character.Cost;
+
+    if (WouldReachZeroEnergy(player, cost))
+    {
+        if (IsGuidedTutorialBattle) return;
+
+        showCharacterPicker = false;
+
+        WarnBeforeZeroEnergy(() =>
+            PlacementManager.TryDeployCharacter(
+                player,
+                slot.SlotNumber));
+
+        return;
+    }
+
+    bool success =
+        PlacementManager.TryDeployCharacter(
+            player,
+            slot.SlotNumber);
+
+    if (!success) return;
+
+    showCharacterPicker = false;
+
+    NotifyTutorialAction(
+        TutorialAction.DeployCharacter);
+
+    if (player.ActiveCharacter?.Name ==
+            "Wanderer Red Panda" &&
+        (player.AttackSlot1 != null ||
+         player.AttackSlot2 != null))
+    {
+        awaitingWandererEntry = true;
+    }
+
+    CheckForZeroEnergy();
+    StateHasChanged();
+}
+
+private bool CanInteractWithAttack(
+    Player player,
+    int slot)
+{
+    MatchState? match =
+        Session.CurrentMatch;
+
+    if (match == null ||
+        IsBattleFinished ||
+        botIsActing ||
+        match.GetActingPlayer() != player ||
+        slot is not (1 or 2))
+    {
+        return false;
+    }
+
+    Card? attack =
+        slot == 1
+            ? player.AttackSlot1
+            : player.AttackSlot2;
+
+    if (match.CurrentPhase ==
+        MatchPhase.Placement)
+    {
+        if (IsDsaTutorialBattle)
+{
+    return attack == null;
+}
+
+        if (!IsGuidedTutorialBattle)
+        {
+            return true;
+        }
+
+        if (RequiredTutorialAction ==
+            TutorialAction.ResolveWandererEntry)
+        {
+            return attack != null;
+        }
+
+        if (RequiredTutorialAction ==
+                TutorialAction.ReplaceAttack &&
+            IsLearnToPlayBattle)
+        {
+            return
+                attack != null &&
+                string.Equals(
+                    attack.Id,
+                    "AP4",
+                    StringComparison.OrdinalIgnoreCase);
+        }
+
+        if (RequiredTutorialAction ==
+                TutorialAction.RestAttack &&
+            IsLearnToPlayBattle)
+        {
+            return
+                attack != null &&
+                TutorialAllowsCard(
+                    attack);
+        }
+
+        if (RequiredTutorialAction ==
+            TutorialAction.DeployAttack)
+        {
+            return attack == null;
+        }
+
+        return false;
+    }
+
+    if (match.CurrentPhase !=
+            MatchPhase.Attack ||
+        attack == null)
+    {
+        return false;
+    }
+
+    if (IsGuidedTutorialBattle &&
+        RequiredTutorialAction !=
+            TutorialAction.UseAttack)
+    {
+        return false;
+    }
+
+    if (IsLearnToPlayBattle &&
+        !TutorialAllowsCard(
+            attack))
+    {
+        return false;
+    }
+
+    bool fatigued =
+        slot == 1
+            ? player.IsFatiguedSlot1
+            : player.IsFatiguedSlot2;
+
+    bool resting =
+        slot == 1
+            ? player.IsRestingSlot1
+            : player.IsRestingSlot2;
+
+    bool used =
+        slot == 1
+            ? player.AttackSlot1UsedThisPhase
+            : player.AttackSlot2UsedThisPhase;
+
+    int useCost =
+        slot == 1
+            ? player.AttackSlot1TotalUses
+            : player.AttackSlot2TotalUses;
+
+    return
+        !fatigued &&
+        !resting &&
+        !used &&
+        player.Energy >= useCost;
+}
+
+private void HandleAttackCardClick(int slot)
+{
+    if (Session.CurrentMatch == null)
+        return;
+
+    MatchState match = Session.CurrentMatch;
+    Player player = GetPresentedPlayer();
+
+    if (botIsActing ||
+        match.GetActingPlayer() != player)
+        return;
+
+    if (match.CurrentPhase == MatchPhase.Placement)
+    {
+        if (awaitingWandererEntry)
+        {
+            ResolveWandererEntrySelection(
+                player,
+                slot);
+
+            return;
+        }
+
+        SelectPlacementAttack(slot);
+        return;
+    }
+
+    if (match.CurrentPhase != MatchPhase.Attack ||
+        !CanInteractWithAttack(player, slot))
+        return;
+
+    bool success =
+        AttackManager.UseAttack(
+            player,
+            GetPresentedOpponent(),
+            slot);
+
+    if (!success) return;
+
+    NotifyTutorialAction(
+        TutorialAction.UseAttack);
+
+    CheckForZeroEnergy();
+    StateHasChanged();
+}
+
+private bool CanInteractWithCharacter(Player player)
+{
+    MatchState? match = Session.CurrentMatch;
+
+    if (match == null ||
+        IsBattleFinished ||
+        botIsActing ||
+        match.GetActingPlayer() != player)
+        return false;
+
+    if (match.CurrentPhase == MatchPhase.Placement)
+    {
+        if (!IsGuidedTutorialBattle)
+            return true;
+
+        return RequiredTutorialAction is
+            TutorialAction.DeployCharacter or
+            TutorialAction.ReplaceCharacter;
+    }
+
+    if (match.CurrentPhase != MatchPhase.Attack ||
+        player.ActiveCharacter == null)
+        return false;
+
+    if (IsGuidedTutorialBattle &&
+        RequiredTutorialAction !=
+            TutorialAction.UseCharacterAbility)
+        return false;
+
+    if (player.CharacterNewlyDeployed ||
+        player.AbilityUsedThisPhase ||
+        player.AbilityCooldownRemaining > 0)
+        return false;
+
+    return CanAffordCharacterAbility(player);
+}
+
+private void HandleCharacterCardClick()
+{
+    if (Session.CurrentMatch == null)
+        return;
+
+    MatchState match = Session.CurrentMatch;
+    Player player = GetPresentedPlayer();
+
+    if (botIsActing ||
+        match.GetActingPlayer() != player)
+        return;
+
+    if (match.CurrentPhase == MatchPhase.Placement)
+    {
+        SelectPlacementCharacter();
+        return;
+    }
+
+    if (match.CurrentPhase != MatchPhase.Attack ||
+        !CanInteractWithCharacter(player))
+        return;
+
+    bool success =
+        AttackManager.UseCharacterAbility(player);
+
+    if (!success) return;
+
+    NotifyTutorialAction(
+        TutorialAction.UseCharacterAbility);
+
+    CheckForZeroEnergy();
+    StateHasChanged();
+}
+
+private void ResolveWandererEntrySelection(
+    Player player,
+    int slot)
+{
+    if (!awaitingWandererEntry ||
+        !TutorialAllows(
+            TutorialAction.ResolveWandererEntry))
+        return;
+
+    bool success =
+        PlacementManager.ResolveWandererEntry(
+            player,
+            slot);
+
+    if (!success) return;
+
+    awaitingWandererEntry = false;
+
+    NotifyTutorialAction(
+        TutorialAction.ResolveWandererEntry);
+
+    StateHasChanged();
+}
+
+private bool CheckForZeroEnergy()
+{
+    if (Session.CurrentMatch == null)
+        return false;
+
+    MatchState match = Session.CurrentMatch;
+
+    if (match.Player1.Energy > 0 &&
+        match.Player2.Energy > 0)
+        return false;
+
+    bool tournamentMatch =
+        IsTournamentMatch;
+
+    BattleEngine.CompleteMatch(match);
+
+    if (!match.IsCompleted)
+        return false;
+
+    finishedTournamentMatch =
+        tournamentMatch;
+
+    if (tournamentMatch)
+    {
+        Player? winner =
+            MatchManager.GetWinner(
+                match.Player1,
+                match.Player2);
+
+        if (match.IsDraw ||
+            winner == null)
+        {
+            TournamentManager.EndAfterLoss(
+                Session.Tournament);
+        }
+        else if (winner == match.Player1)
+        {
+            TournamentManager.AdvanceAfterWin(
+                Session.Tournament);
+        }
+        else
+        {
+            TournamentManager.EndAfterLoss(
+                Session.Tournament);
+        }
+    }
+
+    CloseGameplayPopups();
+
+    surrendered = false;
+    observingFinishedMatch = false;
+    showZeroEnergyWarning = false;
+    pendingZeroEnergyAction = null;
+    showZeroEnergyDialog = true;
+
+    return true;
+}
+
+private bool WouldReachZeroEnergy(
+    Player player,
+    int cost) =>
+    cost > 0 &&
+    player.Energy - cost <= 0;
+
+private void WarnBeforeZeroEnergy(
+    Func<bool> action)
+{
+    pendingZeroEnergyAction = action;
+    showZeroEnergyWarning = true;
+}
+
+private void CancelZeroEnergyAction()
+{
+    showZeroEnergyWarning = false;
+    pendingZeroEnergyAction = null;
+}
+
+private void ConfirmZeroEnergyAction()
+{
+    Func<bool>? action =
+        pendingZeroEnergyAction;
+
+    showZeroEnergyWarning = false;
+    pendingZeroEnergyAction = null;
+
+    if (action == null ||
+        !action())
+        return;
+
+    CheckForZeroEnergy();
+}
+
+private void ObserveFinishedMatch()
+{
+    if (IsObserveBoardDisabled) return;
+
+    showZeroEnergyDialog = false;
+    observingFinishedMatch = true;
+
+    CloseGameplayPopups();
+
+    NotifyTutorialAction(
+        TutorialAction.ObserveBoard);
+
+    StateHasChanged();
+}
+
+private void ReturnToMainMenu()
+{
+    showZeroEnergyDialog = false;
+    observingFinishedMatch = false;
+    Session.CurrentMatch = null;
+    allowNavigation = true;
+    Navigation.NavigateTo("/");
+}
+
+private async Task CopyBattleLog()
+{
+    IReadOnlyList<BattleLogEntry> entries =
+        BattleLog.GetPhaseActions();
+
+    if (entries.Count == 0) return;
+
+    string logText =
+        "RED PANDA TCD - BATTLE LOG" +
+        Environment.NewLine +
+        Environment.NewLine +
+        string.Join(
+            Environment.NewLine,
+            entries.Select(entry =>
+                $"[{entry.Label.ToUpperInvariant()}] " +
+                entry.Message));
+
+    await JS.InvokeVoidAsync(
+        "navigator.clipboard.writeText",
+        logText);
+
+    logCopied = true;
+    await Task.Delay(1200);
+    logCopied = false;
+}
+
+private bool IsPassAndPlay()
+{
+    if (Session.CurrentMatch == null)
+        return false;
+
+    return
+        !Session.CurrentMatch.Player1.IsBot &&
+        !Session.CurrentMatch.Player2.IsBot;
+}
+
+private Player GetPresentedPlayer()
+{
+    MatchState match =
+        Session.CurrentMatch!;
+
+    return IsPassAndPlay()
+        ? match.GetActingPlayer()
+        : match.Player1;
+}
+
+private Player GetPresentedOpponent()
+{
+    MatchState match =
+        Session.CurrentMatch!;
+
+    Player player =
+        GetPresentedPlayer();
+
+    return player == match.Player1
+        ? match.Player2
+        : match.Player1;
+}
+
+protected override async Task OnAfterRenderAsync(
+    bool firstRender)
+{
+    int currentCount =
+        BattleLog.GetPhaseActions().Count;
+
+    if (currentCount == lastBattleLogCount)
+        return;
+
+    lastBattleLogCount = currentCount;
+
+    if (logCollapsed) return;
+
+    await JS.InvokeVoidAsync(
+        "redPandaBattle.scrollLogToBottom",
+        battleLogElement);
+}
+
+private bool IsBattleFinished
+{
+    get
+    {
+        if (surrendered) return true;
+        if (Session.CurrentMatch == null) return true;
+
+        return Session.CurrentMatch.IsCompleted ||
+               MatchManager.IsMatchOver(
+                   Session.CurrentMatch.Player1,
+                   Session.CurrentMatch.Player2);
+    }
+}
+
+private bool IsTournamentMatch =>
+    Session.Tournament.IsActive &&
+    Session.CurrentMatch != null &&
+    Session.Tournament.CurrentOpponentName ==
+        GetPresentedOpponent().Name;
+
+private bool ShouldConfirmExternalNavigation =>
+    Session.CurrentMatch != null &&
+    !allowNavigation &&
+    !IsBattleFinished;
+
+private string GetTurnOwnerClass(
+    Player presentedPlayer)
+{
+    if (Session.CurrentMatch == null)
+        return "player-turn";
+
+    return Session.CurrentMatch.GetActingPlayer() ==
+           presentedPlayer
+        ? "player-turn"
+        : "bot-turn";
+}
+
+private string GetTurnOwnerText(
+    Player presentedPlayer)
+{
+    if (Session.CurrentMatch == null)
+        return "";
+
+    Player acting =
+        Session.CurrentMatch.GetActingPlayer();
+
+    if (IsPassAndPlay())
+        return
+            $"{acting.Name.ToUpperInvariant()} ACTING";
+
+    return acting == presentedPlayer
+        ? $"{presentedPlayer.Name.ToUpperInvariant()} ACTING"
+        : $"{acting.Name.ToUpperInvariant()} ACTING";
+}
+
+private bool ShouldHighlightAttack(
+    Player player,
+    int slot)
+{
+    if (Session.CurrentMatch?.CurrentPhase !=
+        MatchPhase.Attack)
+        return false;
+
+    return CanInteractWithAttack(
+        player,
+        slot);
+}
+
+private string GetAttackPlacementHighlight(
+    Player player,
+    int slot)
+{
+    MatchState? match =
+        Session.CurrentMatch;
+
+    if (match == null ||
+        IsBattleFinished ||
+        botIsActing ||
+        match.GetActingPlayer() != player)
+    {
+        return "";
+    }
+
+    Card? attack =
+        slot == 1
+            ? player.AttackSlot1
+            : player.AttackSlot2;
+
+    if (awaitingWandererEntry)
+    {
+        return attack != null
+            ? "placement-replace"
+            : "";
+    }
+
+    if (match.CurrentPhase !=
+        MatchPhase.Placement)
+    {
+        return "";
+    }
+
+    if (IsDsaTutorialBattle)
+    {
+        return
+            attack == null &&
+            HasAffordableAttackInHand(
+                player)
+                ? "placement-deploy"
+                : "";
+    }
+
+    if (IsGuidedTutorialBattle)
+    {
+        if (RequiredTutorialAction ==
+                TutorialAction.RestAttack &&
+            attack != null &&
+            TutorialAllowsCard(
+                attack))
+        {
+            return "placement-fatigued";
+        }
+
+        if (RequiredTutorialAction ==
+                TutorialAction.ReplaceAttack &&
+            attack != null &&
+            string.Equals(
+                attack.Id,
+                "AP4",
+                StringComparison.OrdinalIgnoreCase))
+        {
+            return "placement-replace";
+        }
+
+        if (RequiredTutorialAction ==
+            TutorialAction.DeployAttack)
+        {
+            return
+                attack == null &&
+                HasAffordableAttackInHand(
+                    player)
+                    ? "placement-deploy"
+                    : "";
+        }
+
+        return "";
+    }
+
+    bool fatigued =
+        slot == 1
+            ? player.IsFatiguedSlot1
+            : player.IsFatiguedSlot2;
+
+    if (attack != null &&
+        fatigued)
+    {
+        return "placement-fatigued";
+    }
+
+    if (!HasAffordableAttackInHand(
+            player))
+    {
+        return "";
+    }
+
+    return attack == null
+        ? "placement-deploy"
+        : "placement-replace";
+}
+
+private bool HasAffordableAttackInHand(
+    Player player)
+{
+    foreach (HandSlot slot in player.HandSlots)
+    {
+        Card? card = slot.CardInSlot;
+
+        if (card?.Type != CardType.Attack)
+            continue;
+
+        if (IsLearnToPlayBattle &&
+            !TutorialAllowsCard(card))
+            continue;
+
+        int cost = card.Cost;
+
+        if (player.DiscountActive)
+            cost = Math.Max(0, cost - 1);
+
+        if (player.Energy >= cost)
+            return true;
+    }
+
+    return false;
+}
+
+private bool ShouldHighlightCharacterAbility(
+    Player player)
+{
+    if (Session.CurrentMatch?.CurrentPhase !=
+        MatchPhase.Attack)
+        return false;
+
+    return CanInteractWithCharacter(player);
+}
+
+private string GetCharacterPlacementHighlight(
+    Player player)
+{
+    MatchState? match = Session.CurrentMatch;
+
+    if (match == null ||
+        IsBattleFinished ||
+        botIsActing ||
+        match.CurrentPhase !=
+            MatchPhase.Placement ||
+        match.GetActingPlayer() != player)
+        return "";
+
+    if (IsGuidedTutorialBattle &&
+        RequiredTutorialAction is not
+            (TutorialAction.DeployCharacter or
+             TutorialAction.ReplaceCharacter))
+        return "";
+
+    if (!HasAffordableCharacterInHand(player))
+        return "";
+
+    return player.ActiveCharacter == null
+        ? "placement-deploy"
+        : "placement-replace";
+}
+
+private bool HasAffordableCharacterInHand(
+    Player player)
+{
+    foreach (HandSlot slot in player.HandSlots)
+    {
+        Card? card = slot.CardInSlot;
+
+        if (card?.Type != CardType.Character)
+            continue;
+
+        if (IsLearnToPlayBattle &&
+            !TutorialAllowsCard(card))
+            continue;
+
+        int cost =
+            player.CharacterDefeatedSinceLastPlacement
+                ? 0
+                : player.ActiveCharacter != null
+                    ? 4
+                    : card.Cost;
+
+        if (player.Energy >= cost)
+            return true;
+    }
+
+    return false;
+}
+
+private bool IsFinishedTournamentMatch =>
+    Session.CurrentMatch != null &&
+    finishedTournamentMatch &&
+    IsBattleFinished;
+
+private bool HasNextTournamentRound =>
+    IsFinishedTournamentMatch &&
+    Session.Tournament.IsActive &&
+    !Session.Tournament.IsCompleted;
+
+private bool IsTournamentChampion =>
+    IsFinishedTournamentMatch &&
+    Session.Tournament.IsCompleted &&
+    Session.Tournament.PlayerWonTournament &&
+    Session.Tournament.HasMasterStrategistTitle;
+
+private void ReturnToTournament()
+{
+    showZeroEnergyDialog = false;
+    observingFinishedMatch = false;
+    Session.CurrentMatch = null;
+    finishedTournamentMatch = false;
+    allowNavigation = true;
+
+    Navigation.NavigateTo("/tournament");
+}
+
+private void ContinueTournament()
+{
+    showZeroEnergyDialog = false;
+    observingFinishedMatch = false;
+    Session.CurrentMatch = null;
+    finishedTournamentMatch = false;
+    allowNavigation = true;
+
+    Navigation.NavigateTo("/tournament");
+}
+private string GetTutorialFocusClass(
+    params string[] targets)
+{
+    if (!IsGuidedTutorialBattle)
+    {
+        return "";
+    }
+
+    return targets.Any(target =>
+        string.Equals(
+            TutorialTarget,
+            target,
+            StringComparison.OrdinalIgnoreCase))
+        ? "tutorial-focus"
+        : "";
+}
+
+private string GetDeckClass(
+    Player player)
+{
+    string interactionClass =
+        CanUseDeckAction(player)
+            ? "deck-clickable"
+            : "deck-disabled";
+
+    string tutorialClass =
+        GetTutorialFocusClass(
+            "player-deck",
+            "deck");
+
+    return
+        $"deck {interactionClass} {tutorialClass}";
+}
+private string GetTutorialHandFocusClass()
+{
+    if (!IsGuidedTutorialBattle)
+    {
+        return "";
+    }
+
+    TutorialStep? currentStep =
+        TutorialManager.GetCurrentStep(
+            Session.Tutorial);
+
+    bool isHandInformationStep =
+        string.Equals(
+            TutorialTarget,
+            "player-hand",
+            StringComparison.OrdinalIgnoreCase) ||
+        string.Equals(
+            TutorialTarget,
+            "hand-area",
+            StringComparison.OrdinalIgnoreCase) ||
+        string.Equals(
+            currentStep?.Title,
+            "Your Hand",
+            StringComparison.OrdinalIgnoreCase);
+
+    if (isHandInformationStep)
+    {
+        return "tutorial-focus";
+    }
+
+    return RequiredTutorialAction switch
+    {
+        TutorialAction.SelectUtility =>
+            "tutorial-focus",
+
+        TutorialAction.PlayUtility =>
+            "tutorial-focus",
+
+        TutorialAction.DiscardAndDraw =>
+            "tutorial-focus",
+
+        TutorialAction.DeployCharacter =>
+            "tutorial-focus",
+
+        TutorialAction.DeployAttack =>
+            "tutorial-focus",
+
+        _ =>
+            ""
+    };
+}
+private string GetReplacementChoiceClass(
+    HandSlot slot)
+{
+    if (!IsLearnToPlayBattle ||
+        RequiredTutorialAction !=
+            TutorialAction.ReplaceAttack ||
+        slot.CardInSlot == null)
+    {
+        return "";
+    }
+
+    return string.Equals(
+        slot.CardInSlot.Id,
+        "AM3",
+        StringComparison.OrdinalIgnoreCase)
+        ? "tutorial-replacement-choice"
+        : "tutorial-nonreplacement-choice";
+}
+private string GetTutorialHandCardClass(
+    HandSlot slot)
+{
+    if (!IsLearnToPlayBattle ||
+        slot.CardInSlot == null)
+    {
+        return "";
+    }
+
+    if (RequiredTutorialAction ==
+        TutorialAction.DiscardAndDraw)
+    {
+        return string.Equals(
+            slot.CardInSlot.Id,
+            "AN1",
+            StringComparison.OrdinalIgnoreCase)
+            ? "tutorial-hand-card-target"
+            : "tutorial-hand-card-disabled";
+    }
+
+    if (RequiredTutorialAction ==
+        TutorialAction.SelectUtility)
+    {
+        return string.Equals(
+            slot.CardInSlot.Id,
+            "UM1",
+            StringComparison.OrdinalIgnoreCase)
+            ? "tutorial-hand-card-target"
+            : "tutorial-hand-card-disabled";
+    }
+
+    return "";
+}
+}

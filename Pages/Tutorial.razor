@@ -1,0 +1,1993 @@
+@page "/tutorial"
+
+@using RedPandaTCD_Web.Game
+
+@inject GameSessionState Session
+@inject NavigationManager Navigation
+
+<PageTitle>Tutorial - Red Panda TCD</PageTitle>
+
+<div class="tutorial-page">
+
+    <main class="tutorial-shell">
+
+        <header class="tutorial-header">
+
+            <div>
+                <span class="tutorial-kicker">
+                    RED PANDA TCD
+                </span>
+
+                <h1>
+                    Tutorial
+                </h1>
+
+                <p>
+                    Learn the battle system, then explore how each
+                    data structure changes the way your deck behaves.
+                </p>
+            </div>
+
+            <button class="back-button"
+                    @onclick="GoHome">
+                Main Menu
+            </button>
+
+        </header>
+
+
+        <section class="tutorial-intro">
+
+            <div class="intro-mark">
+                ?
+            </div>
+
+            <div class="intro-copy">
+
+                <span>
+                    START HERE
+                </span>
+
+                <h2>
+                    Learn by Playing
+                </h2>
+
+                <p>
+                    These tutorials use the real game systems.
+                    Actions, cards, phases, and deck structures behave
+                    the same way they do in normal matches.
+                </p>
+
+            </div>
+
+        </section>
+
+
+        <section class="tutorial-section">
+
+            <div class="section-heading">
+
+                <div>
+                    <span>
+                        CORE TUTORIAL
+                    </span>
+
+                    <h2>
+                        Learn to Play
+                    </h2>
+                </div>
+
+                @if (Session.Tutorial.LearnToPlayCompleted)
+                {
+                    <div class="section-complete">
+                        COMPLETED
+                    </div>
+                }
+
+            </div>
+
+
+            <article class="tutorial-card featured-card">
+
+                <div class="card-number">
+                    01
+                </div>
+
+                <div class="card-content">
+
+                    <div class="card-title-row">
+
+                        <div>
+                            <span class="card-category">
+                                BATTLE TUTORIAL
+                            </span>
+
+                            <h3>
+                                Learn to Play Red Panda TCD
+                            </h3>
+                        </div>
+
+                        @if (Session.Tutorial.LearnToPlayCompleted)
+                        {
+                            <span class="completion-badge">
+                                COMPLETE
+                            </span>
+                        }
+
+                    </div>
+
+
+                    <p>
+                        Play through a guided battle covering the complete
+                        turn structure and the major mechanics you'll use
+                        throughout Red Panda TCD.
+                    </p>
+
+
+                    <div class="topic-list">
+
+                        <span>
+                            Initiative
+                        </span>
+
+                        <span>
+                            Utility
+                        </span>
+
+                        <span>
+                            Placement
+                        </span>
+
+                        <span>
+                            Attacks
+                        </span>
+
+                        <span>
+                            Characters
+                        </span>
+
+                        <span>
+                            Piercing
+                        </span>
+
+                        <span>
+                            Multi-Hit
+                        </span>
+
+                        <span>
+                            Fatigue
+                        </span>
+
+                        <span>
+                            Rest
+                        </span>
+
+                        <span>
+                            Surrender
+                        </span>
+
+                    </div>
+
+
+                    <button class="start-button"
+                            @onclick="StartLearnToPlay">
+
+                        <span>
+                            @(Session.Tutorial.LearnToPlayCompleted
+                                ? "PLAY AGAIN"
+                                : "START TUTORIAL")
+                        </span>
+
+                        <span class="button-arrow">
+                            →
+                        </span>
+
+                    </button>
+
+                </div>
+
+            </article>
+
+        </section>
+
+
+        <section class="tutorial-section">
+
+            <div class="section-heading">
+
+                <div>
+                    <span>
+                        DATA STRUCTURES
+                    </span>
+
+                    <h2>
+                        Deck Structure Tutorials
+                    </h2>
+                </div>
+
+                <div class="progress-summary">
+                    @CompletedDsaTutorials / 5 COMPLETE
+                </div>
+
+            </div>
+
+
+            <p class="section-description">
+                Each tutorial focuses on one deck structure and demonstrates
+                how that structure affects card storage, retrieval, and
+                battlefield decisions.
+            </p>
+
+
+            <div class="dsa-grid">
+
+
+                <article class="tutorial-card dsa-card queue-card">
+
+                    <div class="structure-accent queue-accent"></div>
+
+                    <div class="dsa-header">
+
+                        <div class="structure-icon">
+                            Q
+                        </div>
+
+                        <div>
+                            <span class="card-category">
+                                FIFO
+                            </span>
+
+                            <h3>
+                                Queue
+                            </h3>
+                        </div>
+
+                    </div>
+
+                    <p>
+                        See how First-In, First-Out ordering determines
+                        which cards become available next.
+                    </p>
+
+                    <div class="concept">
+                        FIRST IN
+                        <span>→</span>
+                        FIRST OUT
+                    </div>
+
+                    @if (Session.Tutorial.QueueCompleted)
+                    {
+                        <div class="completion-badge inline-complete">
+                            COMPLETE
+                        </div>
+                    }
+
+                    <button class="structure-button"
+                            disabled="@(!DsaTutorialsAvailable)"
+                            @onclick="() => StartDsaTutorial(TutorialType.Queue)">
+
+                        @(DsaTutorialsAvailable
+                            ? "START QUEUE TUTORIAL"
+                            : "COMING NEXT")
+
+                    </button>
+
+                </article>
+
+
+                <article class="tutorial-card dsa-card priority-card">
+
+                    <div class="structure-accent priority-accent"></div>
+
+                    <div class="dsa-header">
+
+                        <div class="structure-icon">
+                            PQ
+                        </div>
+
+                        <div>
+                            <span class="card-category">
+                                PRIORITY
+                            </span>
+
+                            <h3>
+                                Priority Queue
+                            </h3>
+                        </div>
+
+                    </div>
+
+                    <p>
+                        Learn how priority values affect which cards are
+                        retrieved before others.
+                    </p>
+
+                    <div class="concept">
+                        HIGHEST PRIORITY
+                        <span>→</span>
+                        FIRST
+                    </div>
+
+                    @if (Session.Tutorial.PriorityQueueCompleted)
+                    {
+                        <div class="completion-badge inline-complete">
+                            COMPLETE
+                        </div>
+                    }
+
+                    <button class="structure-button"
+                            disabled="@(!DsaTutorialsAvailable)"
+                            @onclick="() => StartDsaTutorial(TutorialType.PriorityQueue)">
+
+                        @(DsaTutorialsAvailable
+                            ? "START PRIORITY QUEUE"
+                            : "COMING NEXT")
+
+                    </button>
+
+                </article>
+
+
+                <article class="tutorial-card dsa-card stack-card">
+
+                    <div class="structure-accent stack-accent"></div>
+
+                    <div class="dsa-header">
+
+                        <div class="structure-icon">
+                            S
+                        </div>
+
+                        <div>
+                            <span class="card-category">
+                                LIFO
+                            </span>
+
+                            <h3>
+                                Stack
+                            </h3>
+                        </div>
+
+                    </div>
+
+                    <p>
+                        Experience Last-In, First-Out retrieval and
+                        automatic Stack placement.
+                    </p>
+
+                    <div class="concept">
+                        LAST IN
+                        <span>→</span>
+                        FIRST OUT
+                    </div>
+
+                    @if (Session.Tutorial.StackCompleted)
+                    {
+                        <div class="completion-badge inline-complete">
+                            COMPLETE
+                        </div>
+                    }
+
+                    <button class="structure-button"
+                            disabled="@(!DsaTutorialsAvailable)"
+                            @onclick="() => StartDsaTutorial(TutorialType.Stack)">
+
+                        @(DsaTutorialsAvailable
+                            ? "START STACK TUTORIAL"
+                            : "COMING NEXT")
+
+                    </button>
+
+                </article>
+
+
+                <article class="tutorial-card dsa-card random-card">
+
+                    <div class="structure-accent random-accent"></div>
+
+                    <div class="dsa-header">
+
+                        <div class="structure-icon">
+                            ?
+                        </div>
+
+                        <div>
+                            <span class="card-category">
+                                RANDOM ACCESS
+                            </span>
+
+                            <h3>
+                                Random List
+                            </h3>
+                        </div>
+
+                    </div>
+
+                    <p>
+                        Explore unpredictable retrieval and learn how to
+                        adapt when card order isn't guaranteed.
+                    </p>
+
+                    <div class="concept">
+                        RANDOM
+                        <span>→</span>
+                        RETRIEVAL
+                    </div>
+
+                    @if (Session.Tutorial.RandomListCompleted)
+                    {
+                        <div class="completion-badge inline-complete">
+                            COMPLETE
+                        </div>
+                    }
+
+                    <button class="structure-button"
+                            disabled="@(!DsaTutorialsAvailable)"
+                            @onclick="() => StartDsaTutorial(TutorialType.RandomList)">
+
+                        @(DsaTutorialsAvailable
+                            ? "START RANDOM LIST"
+                            : "COMING NEXT")
+
+                    </button>
+
+                </article>
+
+
+                <article class="tutorial-card dsa-card linked-card">
+
+                    <div class="structure-accent linked-accent"></div>
+
+                    <div class="dsa-header">
+
+                        <div class="structure-icon">
+                            L
+                        </div>
+
+                        <div>
+                            <span class="card-category">
+                                LINKED NODES
+                            </span>
+
+                            <h3>
+                                Linked List
+                            </h3>
+                        </div>
+
+                    </div>
+
+                    <p>
+                        Learn how linked nodes form the deck and how
+                        reordering changes the cards that come next.
+                    </p>
+
+                    <div class="concept">
+                        NODE
+                        <span>→</span>
+                        NODE
+                        <span>→</span>
+                        NODE
+                    </div>
+
+                    @if (Session.Tutorial.LinkedListCompleted)
+                    {
+                        <div class="completion-badge inline-complete">
+                            COMPLETE
+                        </div>
+                    }
+
+                    <button class="structure-button"
+                            disabled="@(!DsaTutorialsAvailable)"
+                            @onclick="() => StartDsaTutorial(TutorialType.LinkedList)">
+
+                        @(DsaTutorialsAvailable
+                            ? "START LINKED LIST"
+                            : "COMING NEXT")
+
+                    </button>
+
+                </article>
+
+            </div>
+
+        </section>
+
+
+        <section class="tutorial-section mode-section">
+
+            <div class="section-heading">
+
+                <div>
+                    <span>
+                        GAME MODES & TOOLS
+                    </span>
+
+                    <h2>
+                        More Tutorials
+                    </h2>
+                </div>
+
+            </div>
+
+
+<div class="mode-grid">
+
+    <button class="mode-card tutorial-launch-card"
+            @onclick="StartDeckBuilderTutorial">
+
+        <div class="mode-card-heading">
+            <strong>
+                Deck Builder
+            </strong>
+
+            @if (Session.Tutorial.DeckBuilderCompleted)
+            {
+                <span class="mode-complete-badge">
+                    COMPLETE
+                </span>
+            }
+        </div>
+
+        <span>
+            Learn structure-specific deck construction.
+        </span>
+
+        <small>
+            @(Session.Tutorial.DeckBuilderCompleted
+                ? "REPLAY TUTORIAL →"
+                : "START TUTORIAL →")
+        </small>
+
+    </button>
+
+    <button class="mode-card tutorial-launch-card"
+            @onclick="StartTournamentTutorial">
+
+        <div class="mode-card-heading">
+            <strong>
+                Grand Tournament
+            </strong>
+
+            @if (Session.Tutorial.TournamentCompleted)
+            {
+                <span class="mode-complete-badge">
+                    COMPLETE
+                </span>
+            }
+        </div>
+
+        <span>
+            Learn Tournament progression and locked decks.
+        </span>
+
+        <small>
+            @(Session.Tutorial.TournamentCompleted
+                ? "REPLAY TUTORIAL →"
+                : "START TUTORIAL →")
+        </small>
+
+    </button>
+
+    <button class="mode-card tutorial-launch-card"
+            @onclick="StartSimulatorTutorial">
+
+        <div class="mode-card-heading">
+            <strong>
+                Battle Simulator
+            </strong>
+
+            @if (Session.Tutorial.SimulatorCompleted)
+            {
+                <span class="mode-complete-badge">
+                    COMPLETE
+                </span>
+            }
+        </div>
+
+        <span>
+            Learn how to run and inspect simulations.
+        </span>
+
+        <small>
+            @(Session.Tutorial.SimulatorCompleted
+                ? "REPLAY TUTORIAL →"
+                : "START TUTORIAL →")
+        </small>
+
+    </button>
+
+</div>
+
+        </section>
+
+
+<footer class="tutorial-footer">
+
+    <span>
+        TUTORIAL PROGRESS
+    </span>
+
+    <strong>
+        @CompletedTutorials / 9
+    </strong>
+
+    <div class="footer-progress">
+        <div class="footer-progress-fill"
+             style="width: @ProgressPercent%;">
+        </div>
+    </div>
+
+</footer>
+
+    </main>
+
+</div>
+@if (showStartWarning)
+{
+    <div class="tutorial-warning-overlay"
+         @onclick="CloseStartWarning">
+
+        <div class="tutorial-warning-dialog"
+             @onclick:stopPropagation="true">
+
+            <div class="warning-icon">
+                !
+            </div>
+
+            <span class="warning-kicker">
+                BEFORE YOU BEGIN
+            </span>
+
+            <h2>
+                Start Learn to Play?
+            </h2>
+
+            <p>
+                Learn to Play takes approximately
+                <strong>10 minutes</strong>
+                and includes both Deck Building and a guided Battle.
+            </p>
+
+            <div class="warning-details">
+
+                <div>
+                    <strong>
+                        Progress is not saved midway
+                    </strong>
+
+                    <span>
+                        Leaving the Tutorial before completion
+                        resets the current run.
+                    </span>
+                </div>
+
+                <div>
+                    <strong>
+                        Restarting begins from the start
+                    </strong>
+
+                    <span>
+                        You will need to rebuild the Tutorial deck
+                        and replay the guided Battle.
+                    </span>
+                </div>
+
+            </div>
+
+            <p class="warning-question">
+                Make sure you have enough time before starting.
+            </p>
+
+            <div class="warning-actions">
+
+                <button class="confirm-start-button"
+                        @onclick="ConfirmStartLearnToPlay">
+                    START TUTORIAL
+                </button>
+
+                <button class="cancel-start-button"
+                        @onclick="CloseStartWarning">
+                    NOT YET
+                </button>
+
+            </div>
+
+        </div>
+
+    </div>
+}
+<style>
+.tutorial-warning-overlay {
+    position: fixed;
+    inset: 0;
+    z-index: 10000;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 20px;
+    background: rgba(7, 11, 15, 0.9);
+}
+
+.tutorial-warning-dialog {
+    width: min(430px, 100%);
+    box-sizing: border-box;
+    padding: 28px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 12px;
+    border: 2px solid #8e7943;
+    border-radius: 12px;
+    background: #18212b;
+    color: #f5f5f5;
+    text-align: center;
+    box-shadow: 0 22px 55px rgba(0, 0, 0, 0.52);
+}
+
+.warning-icon {
+    width: 48px;
+    height: 48px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border: 2px solid #e5cc67;
+    border-radius: 50%;
+    color: #e5cc67;
+    font-size: 22px;
+    font-weight: 900;
+}
+
+.warning-kicker {
+    color: #e5cc67;
+    font-size: 8px;
+    font-weight: 900;
+    letter-spacing: 1.4px;
+}
+
+.tutorial-warning-dialog h2 {
+    margin: 0;
+    color: #f4efe3;
+    font-size: 24px;
+}
+
+.tutorial-warning-dialog > p {
+    margin: 0;
+    color: #b9c3cc;
+    font-size: 11px;
+    line-height: 1.55;
+}
+
+.warning-details {
+    width: 100%;
+    display: flex;
+    flex-direction: column;
+    gap: 7px;
+}
+
+.warning-details > div {
+    padding: 10px 11px;
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    border: 1px solid #596674;
+    border-radius: 7px;
+    background: #151e27;
+    text-align: left;
+}
+
+.warning-details strong {
+    color: #f4efe3;
+    font-size: 10px;
+}
+
+.warning-details span {
+    color: #909ca6;
+    font-size: 9px;
+    line-height: 1.4;
+}
+
+.warning-question {
+    color: #e5cc67 !important;
+    font-weight: bold;
+}
+
+.warning-actions {
+    width: 100%;
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 8px;
+}
+
+.warning-actions button {
+    padding: 11px 12px;
+    border-radius: 6px;
+    cursor: pointer;
+    font-size: 9px;
+    font-weight: 900;
+}
+
+.confirm-start-button {
+    border: 2px solid #b69d55;
+    background: #e5cc67;
+    color: #222222;
+}
+
+.cancel-start-button {
+    border: 1px solid #697580;
+    background: #27333e;
+    color: #d2d9df;
+}
+
+@@media (max-width: 720px) {
+    .warning-actions {
+        grid-template-columns: 1fr;
+    }
+}
+
+    /* =========================
+       PAGE
+       ========================= */
+
+    .tutorial-page {
+        min-height: calc(100vh - 58px);
+
+        box-sizing: border-box;
+
+        background:
+            radial-gradient(
+                circle at 15% 10%,
+                rgba(53, 111, 196, 0.12),
+                transparent 32%
+            ),
+            radial-gradient(
+                circle at 90% 75%,
+                rgba(184, 71, 71, 0.12),
+                transparent 34%
+            ),
+            linear-gradient(
+                160deg,
+                #18212b 0%,
+                #23364a 55%,
+                #3a2428 100%
+            );
+
+        color: #f5f5f5;
+    }
+
+
+    .tutorial-shell {
+        width: min(1050px, 100%);
+
+        margin: 0 auto;
+
+        box-sizing: border-box;
+
+        padding:
+            38px
+            24px
+            70px;
+    }
+
+
+    /* =========================
+       HEADER
+       ========================= */
+
+    .tutorial-header {
+        margin-bottom: 27px;
+
+        display: flex;
+        align-items: flex-start;
+        justify-content: space-between;
+
+        gap: 20px;
+    }
+
+    .tutorial-kicker {
+        color: #e5cc67;
+
+        font-size: 8px;
+        font-weight: 900;
+
+        letter-spacing: 1.7px;
+    }
+
+    .tutorial-header h1 {
+        margin:
+            4px
+            0
+            6px;
+
+        color: #f4efe3;
+
+        font-size:
+            clamp(
+                35px,
+                5vw,
+                50px
+            );
+    }
+
+    .tutorial-header p {
+        max-width: 610px;
+
+        margin: 0;
+
+        color: #b7c1ca;
+
+        font-size: 12px;
+        line-height: 1.5;
+    }
+
+    .back-button {
+        padding:
+            10px
+            15px;
+
+        flex-shrink: 0;
+
+        border:
+            1px solid #9b9383;
+
+        border-radius: 7px;
+
+        background: #f4efe3;
+        color: #222222;
+
+        cursor: pointer;
+
+        font-weight: bold;
+
+        transition:
+            transform 0.12s ease,
+            background 0.12s ease;
+    }
+
+    .back-button:hover {
+        transform: translateY(-2px);
+
+        background: #e5ddcc;
+    }
+
+
+    /* =========================
+       INTRO
+       ========================= */
+
+    .tutorial-intro {
+        margin-bottom: 35px;
+
+        padding:
+            19px
+            22px;
+
+        display: flex;
+        align-items: center;
+
+        gap: 17px;
+
+        border:
+            1px solid #596674;
+
+        border-radius: 10px;
+
+        background:
+            rgba(17, 24, 32, 0.76);
+    }
+
+    .intro-mark {
+        width: 48px;
+        height: 48px;
+
+        flex-shrink: 0;
+
+        display: flex;
+        align-items: center;
+        justify-content: center;
+
+        border:
+            2px solid #e5cc67;
+
+        border-radius: 50%;
+
+        color: #e5cc67;
+
+        font-size: 20px;
+        font-weight: 900;
+    }
+
+    .intro-copy > span {
+        color: #e5cc67;
+
+        font-size: 7px;
+        font-weight: bold;
+
+        letter-spacing: 1.2px;
+    }
+
+    .intro-copy h2 {
+        margin:
+            3px
+            0
+            4px;
+
+        color: #f4efe3;
+
+        font-size: 19px;
+    }
+
+    .intro-copy p {
+        margin: 0;
+
+        color: #aeb8c1;
+
+        font-size: 10px;
+        line-height: 1.45;
+    }
+
+
+    /* =========================
+       SECTIONS
+       ========================= */
+
+    .tutorial-section {
+        margin-top: 34px;
+    }
+
+    .section-heading {
+        margin-bottom: 13px;
+
+        display: flex;
+        align-items: flex-end;
+        justify-content: space-between;
+
+        gap: 15px;
+    }
+
+    .section-heading span {
+        color: #e5cc67;
+
+        font-size: 7px;
+        font-weight: 900;
+
+        letter-spacing: 1.2px;
+    }
+
+    .section-heading h2 {
+        margin:
+            3px
+            0
+            0;
+
+        color: #f4efe3;
+
+        font-size: 22px;
+    }
+
+    .section-complete,
+    .progress-summary {
+        padding:
+            5px
+            8px;
+
+        border:
+            1px solid #4f9364;
+
+        border-radius: 5px;
+
+        background:
+            rgba(53, 199, 89, 0.08);
+
+        color: #81c784;
+
+        font-size: 7px;
+        font-weight: 900;
+
+        letter-spacing: 0.8px;
+    }
+
+    .section-description {
+        max-width: 700px;
+
+        margin:
+            -3px
+            0
+            15px;
+
+        color: #929da8;
+
+        font-size: 10px;
+        line-height: 1.45;
+    }
+
+
+    /* =========================
+       TUTORIAL CARD
+       ========================= */
+
+    .tutorial-card {
+        position: relative;
+
+        box-sizing: border-box;
+
+        border:
+            1px solid #53606c;
+
+        border-radius: 10px;
+
+        background:
+            rgba(18, 26, 34, 0.94);
+
+        overflow: hidden;
+
+        box-shadow:
+            0 7px 18px
+            rgba(0, 0, 0, 0.18);
+    }
+
+
+    /* =========================
+       LEARN TO PLAY
+       ========================= */
+
+    .featured-card {
+        padding:
+            24px;
+
+        display: grid;
+
+        grid-template-columns:
+            70px
+            minmax(0, 1fr);
+
+        gap: 20px;
+
+        border-color: #786f54;
+
+        background:
+            linear-gradient(
+                145deg,
+                rgba(34, 40, 44, 0.98),
+                rgba(21, 29, 37, 0.98)
+            );
+    }
+
+    .featured-card::before {
+        content: "";
+
+        position: absolute;
+
+        top: 0;
+        left: 0;
+        bottom: 0;
+
+        width: 4px;
+
+        background: #e5cc67;
+    }
+
+    .card-number {
+        width: 58px;
+        height: 58px;
+
+        display: flex;
+        align-items: center;
+        justify-content: center;
+
+        border:
+            2px solid #e5cc67;
+
+        border-radius: 50%;
+
+        color: #e5cc67;
+
+        font-size: 17px;
+        font-weight: 900;
+
+        letter-spacing: 1px;
+    }
+
+    .card-content {
+        min-width: 0;
+    }
+
+    .card-title-row {
+        display: flex;
+        align-items: flex-start;
+        justify-content: space-between;
+
+        gap: 15px;
+    }
+
+    .card-category {
+        color: #8d99a4;
+
+        font-size: 7px;
+        font-weight: bold;
+
+        letter-spacing: 1.1px;
+    }
+
+    .card-title-row h3 {
+        margin:
+            4px
+            0
+            0;
+
+        color: #f4efe3;
+
+        font-size: 21px;
+    }
+
+    .card-content > p {
+        max-width: 700px;
+
+        margin:
+            10px
+            0
+            15px;
+
+        color: #aeb8c1;
+
+        font-size: 11px;
+        line-height: 1.5;
+    }
+
+    .completion-badge {
+        padding:
+            5px
+            8px;
+
+        flex-shrink: 0;
+
+        border:
+            1px solid #4f9364;
+
+        border-radius: 5px;
+
+        background:
+            #193525;
+
+        color: #81c784;
+
+        font-size: 7px;
+        font-weight: 900;
+
+        letter-spacing: 0.7px;
+    }
+
+    .topic-list {
+        display: flex;
+        flex-wrap: wrap;
+
+        gap: 6px;
+    }
+
+    .topic-list span {
+        padding:
+            4px
+            7px;
+
+        border:
+            1px solid #46515d;
+
+        border-radius: 4px;
+
+        background: #151e27;
+
+        color: #aeb8c1;
+
+        font-size: 7px;
+        font-weight: bold;
+    }
+
+    .start-button {
+        min-width: 190px;
+
+        margin-top: 19px;
+
+        padding:
+            11px
+            15px;
+
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+
+        gap: 9px;
+
+        border:
+            2px solid #b69d55;
+
+        border-radius: 7px;
+
+        background:
+            linear-gradient(
+                145deg,
+                #f4e9c8,
+                #dccc9c
+            );
+
+        color: #222222;
+
+        cursor: pointer;
+
+        font-size: 9px;
+        font-weight: 900;
+
+        letter-spacing: 0.7px;
+
+        box-shadow:
+            0 4px 0 #776735;
+
+        transition:
+            transform 0.12s ease,
+            filter 0.12s ease;
+    }
+
+    .start-button:hover {
+        transform: translateY(-2px);
+
+        filter: brightness(1.06);
+    }
+
+    .button-arrow {
+        font-size: 14px;
+    }
+
+
+    /* =========================
+       DSA GRID
+       ========================= */
+
+    .dsa-grid {
+        display: grid;
+
+        grid-template-columns:
+            repeat(2, minmax(0, 1fr));
+
+        gap: 12px;
+    }
+
+    .dsa-card {
+        min-height: 245px;
+
+        padding:
+            20px;
+
+        display: flex;
+        flex-direction: column;
+    }
+
+    .dsa-card:last-child {
+        grid-column:
+            1
+            /
+            -1;
+
+        width: calc(50% - 6px);
+
+        justify-self: center;
+    }
+
+    .structure-accent {
+        position: absolute;
+
+        top: 0;
+        left: 0;
+        right: 0;
+
+        height: 3px;
+    }
+
+    .queue-accent {
+        background: #4d8fd8;
+    }
+
+    .priority-accent {
+        background: #d0a12d;
+    }
+
+    .stack-accent {
+        background: #b98adb;
+    }
+
+    .random-accent {
+        background: #c96565;
+    }
+
+    .linked-accent {
+        background: #59ae78;
+    }
+
+    .dsa-header {
+        display: flex;
+        align-items: center;
+
+        gap: 12px;
+    }
+
+    .structure-icon {
+        width: 39px;
+        height: 39px;
+
+        flex-shrink: 0;
+
+        display: flex;
+        align-items: center;
+        justify-content: center;
+
+        border:
+            1px solid #67737e;
+
+        border-radius: 6px;
+
+        background: #111820;
+        color: #e5cc67;
+
+        font-size: 11px;
+        font-weight: 900;
+    }
+
+    .dsa-header h3 {
+        margin:
+            3px
+            0
+            0;
+
+        color: #f4efe3;
+
+        font-size: 17px;
+    }
+
+    .dsa-card > p {
+        margin:
+            14px
+            0;
+
+        color: #a7b1ba;
+
+        font-size: 10px;
+        line-height: 1.45;
+    }
+
+    .concept {
+        padding:
+            8px
+            9px;
+
+        display: flex;
+        align-items: center;
+        justify-content: center;
+
+        gap: 7px;
+
+        border:
+            1px solid #46515d;
+
+        border-radius: 5px;
+
+        background: #111820;
+
+        color: #c4cbd2;
+
+        font-size: 7px;
+        font-weight: 900;
+
+        letter-spacing: 0.4px;
+    }
+
+    .concept span {
+        color: #e5cc67;
+    }
+
+    .inline-complete {
+        width: fit-content;
+
+        margin-top: 9px;
+    }
+
+    .structure-button {
+        width: 100%;
+
+        margin-top: auto;
+
+        padding:
+            10px;
+
+        border:
+            1px solid #6a7580;
+
+        border-radius: 6px;
+
+        background: #26323e;
+        color: #dfe5ea;
+
+        cursor: pointer;
+
+        font-size: 8px;
+        font-weight: 900;
+
+        letter-spacing: 0.5px;
+    }
+
+    .structure-button:hover:not(:disabled) {
+        background: #33414e;
+    }
+
+    .structure-button:disabled {
+        cursor: default;
+
+        opacity: 0.43;
+    }
+
+
+    /* =========================
+       MODES
+       ========================= */
+
+    .mode-grid {
+        display: grid;
+
+        grid-template-columns:
+            repeat(3, 1fr);
+
+        gap: 10px;
+    }
+
+    .mode-card {
+        padding:
+            15px;
+
+        display: flex;
+        flex-direction: column;
+
+        gap: 6px;
+
+        border:
+            1px solid #46515d;
+
+        border-radius: 8px;
+
+        background:
+            rgba(17, 24, 32, 0.74);
+    }
+
+    .mode-card strong {
+        color: #f4efe3;
+
+        font-size: 12px;
+    }
+
+    .mode-card span {
+        color: #89959f;
+
+        font-size: 9px;
+        line-height: 1.4;
+    }
+
+    .mode-card small {
+        margin-top: 5px;
+
+        color: #6f7a84;
+
+        font-size: 7px;
+        font-weight: bold;
+
+        letter-spacing: 0.8px;
+    }
+
+
+    /* =========================
+       FOOTER PROGRESS
+       ========================= */
+
+    .tutorial-footer {
+        margin-top: 38px;
+
+        padding:
+            14px
+            17px;
+
+        display: grid;
+
+        grid-template-columns:
+            auto
+            auto
+            minmax(100px, 1fr);
+
+        align-items: center;
+
+        gap: 13px;
+
+        border:
+            1px solid #46515d;
+
+        border-radius: 8px;
+
+        background: #111820;
+    }
+
+    .tutorial-footer > span {
+        color: #89959f;
+
+        font-size: 7px;
+        font-weight: bold;
+
+        letter-spacing: 1px;
+    }
+
+    .tutorial-footer > strong {
+        color: #e5cc67;
+
+        font-size: 10px;
+    }
+
+    .footer-progress {
+        height: 6px;
+
+        overflow: hidden;
+
+        border-radius: 4px;
+
+        background: #27323d;
+    }
+
+    .footer-progress-fill {
+        height: 100%;
+
+        background:
+            linear-gradient(
+                90deg,
+                #d0a12d,
+                #e5cc67
+            );
+
+        transition:
+            width 0.2s ease;
+    }
+
+
+    /* =========================
+       RESPONSIVE
+       ========================= */
+
+    @@media (max-width: 720px) {
+
+    .warning-actions {
+    grid-template-columns: 1fr;
+}
+
+        .tutorial-shell {
+            padding:
+                25px
+                13px
+                45px;
+        }
+
+        .tutorial-header {
+            flex-direction: column;
+        }
+
+        .back-button {
+            width: 100%;
+        }
+
+        .tutorial-intro {
+            align-items: flex-start;
+        }
+
+        .featured-card {
+            grid-template-columns: 1fr;
+        }
+
+        .card-number {
+            width: 45px;
+            height: 45px;
+        }
+
+        .dsa-grid,
+        .mode-grid {
+            grid-template-columns: 1fr;
+        }
+
+        .dsa-card:last-child {
+            grid-column: auto;
+
+            width: auto;
+        }
+
+        .tutorial-footer {
+            grid-template-columns:
+                auto
+                auto;
+
+            row-gap: 8px;
+        }
+
+        .footer-progress {
+            grid-column:
+                1
+                /
+                -1;
+        }
+
+    }
+.tutorial-launch-card {
+    width: 100%;
+    min-height: inherit;
+    padding: inherit;
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 10px;
+    border: inherit;
+    border-radius: inherit;
+    background: inherit;
+    color: inherit;
+    font: inherit;
+    text-align: left;
+    cursor: pointer;
+    transition:
+        transform .15s,
+        border-color .15s,
+        box-shadow .15s,
+        background .15s;
+}
+
+.tutorial-launch-card:hover {
+    transform: translateY(-3px);
+    border-color: #e5cc67;
+    background: rgba(229, 204, 103, .07);
+    box-shadow:
+        0 10px 25px rgba(0, 0, 0, .28),
+        0 0 18px rgba(229, 204, 103, .16);
+}
+
+.tutorial-launch-card:focus-visible {
+    outline: 3px solid #ffe078;
+    outline-offset: 4px;
+}
+
+.tutorial-launch-card strong {
+    color: #f4efe3;
+}
+
+.tutorial-launch-card span {
+    color: #aeb8c1;
+    line-height: 1.45;
+}
+
+.tutorial-launch-card small {
+    color: #e5cc67;
+    font-weight: 900;
+    letter-spacing: .7px;
+}
+
+.tutorial-launch-card {
+    width: 100%;
+    min-height: 150px;
+    padding: 18px;
+    appearance: none;
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 10px;
+    border: 1px solid #46515d;
+    border-radius: 8px;
+    background: rgba(17, 24, 32, .82);
+    color: inherit;
+    font: inherit;
+    text-align: left;
+    cursor: pointer;
+    transition:
+        transform .15s,
+        border-color .15s,
+        box-shadow .15s,
+        background .15s;
+}
+
+.tutorial-launch-card:hover {
+    transform: translateY(-3px);
+    border-color: #e5cc67;
+    background: rgba(229, 204, 103, .08);
+    box-shadow:
+        0 10px 24px rgba(0, 0, 0, .28),
+        0 0 18px rgba(229, 204, 103, .14);
+}
+
+.tutorial-launch-card:focus-visible {
+    outline: 3px solid #ffe078;
+    outline-offset: 4px;
+}
+
+.mode-card-heading {
+    width: 100%;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 10px;
+}
+
+.mode-card-heading strong {
+    color: #f4efe3;
+    font-size: 12px;
+}
+
+.mode-complete-badge {
+    flex-shrink: 0;
+    padding: 3px 7px;
+    border: 1px solid #4f9364;
+    border-radius: 999px;
+    background: rgba(81, 199, 132, .1);
+    color: #81c784 !important;
+    font-size: 7px !important;
+    font-weight: 900;
+    letter-spacing: .7px;
+}
+
+.tutorial-launch-card > span {
+    color: #aeb8c1;
+    font-size: 9px;
+    line-height: 1.45;
+}
+
+.tutorial-launch-card small {
+    margin-top: auto;
+    color: #e5cc67;
+    font-size: 8px;
+    font-weight: 900;
+    letter-spacing: .8px;
+}
+
+@@media (max-width: 900px) {
+    .mode-grid {
+        grid-template-columns: 1fr;
+    }
+
+    .tutorial-launch-card {
+        min-height: 130px;
+    }
+}
+</style>
+
+
+@code {
+    private bool showStartWarning;
+
+    private bool DsaTutorialsAvailable =>
+        true;
+
+    private int CompletedDsaTutorials
+    {
+        get
+        {
+            int completed = 0;
+
+            if (Session.Tutorial.QueueCompleted)
+                completed++;
+
+            if (Session.Tutorial.PriorityQueueCompleted)
+                completed++;
+
+            if (Session.Tutorial.StackCompleted)
+                completed++;
+
+            if (Session.Tutorial.RandomListCompleted)
+                completed++;
+
+            if (Session.Tutorial.LinkedListCompleted)
+                completed++;
+
+            return completed;
+        }
+    }
+
+private int CompletedTutorials =>
+    CompletedDsaTutorials +
+    (Session.Tutorial.LearnToPlayCompleted
+        ? 1
+        : 0) +
+    (Session.Tutorial.DeckBuilderCompleted
+        ? 1
+        : 0) +
+    (Session.Tutorial.TournamentCompleted
+        ? 1
+        : 0) +
+    (Session.Tutorial.SimulatorCompleted
+        ? 1
+        : 0);
+
+private double ProgressPercent =>
+    CompletedTutorials / 9.0 * 100.0;
+
+    private void StartLearnToPlay()
+    {
+        showStartWarning = true;
+    }
+
+    private void ConfirmStartLearnToPlay()
+    {
+        showStartWarning = false;
+
+        Session.CurrentMatch = null;
+
+        /*
+            Clear any unfinished tutorial while
+            preserving completed tutorial records.
+        */
+        Session.Tutorial.EndTutorial();
+
+        TutorialManager.StartLearnToPlay(
+            Session.Tutorial);
+
+        Navigation.NavigateTo(
+            "/deck-builder");
+    }
+
+    private void CloseStartWarning()
+    {
+        showStartWarning = false;
+    }
+
+    private void StartDsaTutorial(
+        TutorialType tutorial)
+    {
+        if (!DsaTutorialsAvailable ||
+            tutorial is
+                TutorialType.None or
+                TutorialType.LearnToPlay)
+        {
+            return;
+        }
+
+        Session.CurrentMatch = null;
+
+        /*
+            End any unfinished run first. Completion
+            flags remain stored in TutorialState.
+        */
+        Session.Tutorial.EndTutorial();
+
+        TutorialManager.StartTutorial(
+            Session.Tutorial,
+            tutorial);
+
+        string playerName =
+            Session.HasPlayerName
+                ? Session.PlayerName
+                : "Player";
+
+        Session.CurrentMatch =
+            GameSetupManager.StartDsaTutorialMatch(
+                playerName,
+                tutorial);
+
+        Navigation.NavigateTo(
+            "/battle");
+    }
+
+    private void GoHome()
+    {
+        Navigation.NavigateTo("/");
+    }
+    private void StartDeckBuilderTutorial()
+{
+    Navigation.NavigateTo(
+        "/deck-builder?tutorial=true");
+}
+
+private void StartTournamentTutorial()
+{
+    Navigation.NavigateTo(
+        "/tournament?tutorial=true");
+}
+
+private void StartSimulatorTutorial()
+{
+    Navigation.NavigateTo(
+        "/simulator?tutorial=true");
+}
+}

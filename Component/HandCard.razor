@@ -1,0 +1,505 @@
+@using RedPandaTCD_Web.Game
+
+@if (Slot.IsEmpty)
+{
+    <div class="hand-card empty">
+
+        <span class="empty-title">
+            EMPTY
+        </span>
+
+        <small>
+            Slot @Slot.SlotNumber
+        </small>
+
+    </div>
+}
+else
+{
+    Card card = Slot.CardInSlot!;
+
+<div class="hand-card @GetTypeClass(card) @GetInteractionClass()"
+     @onclick="HandleClick">
+
+        <div class="type-accent"></div>
+
+        <div class="card-header">
+
+            <strong class="card-name">
+                @card.Name
+            </strong>
+
+            <span class="card-type">
+                @card.Type
+            </span>
+
+        </div>
+
+        <div class="card-divider"></div>
+
+
+        <div class="cost-row">
+
+            <span class="stat-label">
+                COST
+            </span>
+
+            <span class="cost-value">
+                @card.Cost
+            </span>
+
+        </div>
+
+
+        @if (card.Type == CardType.Attack)
+        {
+            <div class="stats-area">
+
+                <div class="stat-box">
+
+                    <span class="stat-label">
+                        DAMAGE
+                    </span>
+
+                    <strong>
+                        @card.Damage
+                    </strong>
+
+                </div>
+
+                <div class="stat-box">
+
+                    <span class="stat-label">
+                        HITS
+                    </span>
+
+                    <strong>
+                        @card.Hits
+                    </strong>
+
+                </div>
+
+            </div>
+        }
+
+
+        @if (card.Type == CardType.Character)
+        {
+            <div class="stats-area">
+
+                <div class="stat-box">
+
+                    <span class="stat-label">
+                        HP
+                    </span>
+
+                    <strong class="hp-value">
+                        @card.HpValue
+                    </strong>
+
+                </div>
+
+                <div class="stat-box">
+
+                    <span class="stat-label">
+                        SHIELD
+                    </span>
+
+                    <strong class="shield-value">
+                        @card.ShieldValue
+                    </strong>
+
+                </div>
+
+            </div>
+        }
+
+
+        @if (card.Type == CardType.Utility)
+        {
+            <div class="utility-area">
+
+                <span class="utility-label">
+                    UTILITY
+                </span>
+
+                <small>
+                    Click for actions
+                </small>
+
+            </div>
+        }
+
+
+        <div class="slot-number">
+            SLOT @Slot.SlotNumber
+        </div>
+
+    </div>
+}
+
+
+<style>
+    .hand-card {
+        position: relative;
+
+        width: 140px;
+        min-height: 150px;
+
+        box-sizing: border-box;
+        flex-shrink: 0;
+
+        padding: 10px;
+
+        overflow: hidden;
+
+        border: 2px solid #655d51;
+        border-radius: 10px;
+
+        background:
+            linear-gradient(
+                145deg,
+                #fff9e9 0%,
+                #eee4cd 100%
+            );
+
+        color: #25221d;
+
+        display: flex;
+        flex-direction: column;
+
+        text-align: center;
+
+        box-shadow:
+            0 4px 10px rgba(0, 0, 0, 0.22);
+
+        transition:
+            transform 0.14s ease,
+            border-color 0.14s ease,
+            box-shadow 0.14s ease,
+            filter 0.14s ease,
+            opacity 0.14s ease;
+    }
+
+
+    /* CARD TYPE ACCENT */
+
+    .type-accent {
+        position: absolute;
+
+        top: 0;
+        left: 0;
+
+        width: 100%;
+        height: 5px;
+    }
+
+.hand-character .type-accent {
+    background: #c94a4f;
+}
+
+.hand-attack .type-accent {
+    background: #d47a32;
+}
+
+.hand-utility .type-accent {
+    background: #6655c7;
+}
+
+    /* HEADER */
+
+    .card-header {
+        min-height: 40px;
+
+        margin-top: 3px;
+
+        display: flex;
+        flex-direction: column;
+
+        align-items: center;
+        justify-content: center;
+    }
+
+    .card-name {
+        font-size: 13px;
+        line-height: 1.1;
+
+        overflow-wrap: normal;
+        word-break: normal;
+    }
+
+    .card-type {
+        margin-top: 4px;
+
+        color: #766d60;
+
+        font-size: 8px;
+        font-weight: bold;
+
+        text-transform: uppercase;
+        letter-spacing: 0.7px;
+    }
+
+    .card-divider {
+        height: 1px;
+
+        margin: 4px 0 7px;
+
+        background: rgba(65, 58, 48, 0.25);
+    }
+
+
+    /* COST */
+
+    .cost-row {
+        display: flex;
+
+        justify-content: space-between;
+        align-items: center;
+
+        padding: 0 3px 6px;
+    }
+
+    .stat-label {
+        color: #6c6358;
+
+        font-size: 8px;
+        font-weight: bold;
+
+        letter-spacing: 0.5px;
+    }
+
+    .cost-value {
+        min-width: 24px;
+
+        padding: 2px 6px;
+
+        border-radius: 8px;
+
+        background: rgba(160, 65, 221, 0.12);
+        color: #9735d3;
+
+        font-size: 14px;
+        font-weight: bold;
+    }
+
+
+    /* ATTACK / CHARACTER STATS */
+
+    .stats-area {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+
+        gap: 6px;
+
+        margin-top: 2px;
+    }
+
+    .stat-box {
+        min-height: 40px;
+
+        padding: 4px;
+
+        display: flex;
+        flex-direction: column;
+
+        align-items: center;
+        justify-content: center;
+
+        border-radius: 7px;
+
+        background: rgba(67, 58, 48, 0.07);
+    }
+
+    .stat-box strong {
+        margin-top: 2px;
+
+        font-size: 14px;
+    }
+
+    .hp-value {
+        color: #c6313b;
+    }
+
+    .shield-value {
+        color: #27894a;
+    }
+
+
+    /* UTILITY */
+
+    .utility-area {
+        margin-top: 3px;
+
+        padding: 9px 6px;
+
+        display: flex;
+        flex-direction: column;
+
+        gap: 2px;
+
+        border-radius: 7px;
+
+        background: rgba(102, 85, 199, 0.10);
+    }
+
+    .utility-label {
+        color: #5a49aa;
+
+        font-size: 10px;
+        font-weight: bold;
+
+        letter-spacing: 0.6px;
+    }
+
+    .utility-area small {
+        color: #716a78;
+
+        font-size: 8px;
+    }
+
+
+    /* SLOT */
+
+    .slot-number {
+        margin-top: auto;
+        padding-top: 7px;
+
+        color: #857c70;
+
+        font-size: 8px;
+        font-weight: bold;
+
+        letter-spacing: 0.5px;
+    }
+
+
+    /* CLICKABLE / USABLE */
+
+    .hand-card.clickable {
+        cursor: pointer;
+    }
+
+    .hand-card.clickable:hover {
+        transform: translateY(-5px);
+
+        border-color: #c7b98f;
+
+        box-shadow:
+            0 8px 16px rgba(0, 0, 0, 0.30);
+    }
+
+
+    /* DISABLED / UNUSABLE */
+
+    .hand-card.disabled {
+        cursor: default;
+
+        filter: grayscale(0.8);
+        opacity: 0.53;
+
+        box-shadow:
+            0 2px 5px rgba(0, 0, 0, 0.16);
+    }
+
+    .hand-card.disabled .type-accent {
+        background: #888888;
+    }
+
+    .hand-card.disabled .cost-value,
+    .hand-card.disabled .hp-value,
+    .hand-card.disabled .shield-value,
+    .hand-card.disabled .utility-label {
+        color: #666666;
+    }
+
+
+    /* EMPTY SLOT */
+
+    .hand-card.empty {
+        align-items: center;
+        justify-content: center;
+
+        gap: 5px;
+
+        border: 2px dashed rgba(255, 255, 255, 0.28);
+
+        background: rgba(255, 255, 255, 0.035);
+
+        box-shadow: none;
+
+        color: rgba(255, 255, 255, 0.45);
+    }
+
+    .empty-title {
+        font-size: 11px;
+        font-weight: bold;
+    }
+
+    .hand-card.empty small {
+        font-size: 8px;
+        opacity: 0.7;
+    }
+</style>
+
+
+@code {
+    [Parameter]
+    public HandSlot Slot { get; set; } = default!;
+
+    [Parameter]
+    public bool IsClickable { get; set; }
+
+    [Parameter]
+    public bool IsDisplayOnly { get; set; }
+
+    [Parameter]
+    public EventCallback<HandSlot> OnCardClicked { get; set; }
+
+
+    private async Task HandleClick()
+    {
+        if (!IsClickable ||
+            Slot.IsEmpty)
+        {
+            return;
+        }
+
+        await OnCardClicked.InvokeAsync(Slot);
+    }
+
+
+   private static string GetTypeClass(
+    Card card)
+{
+    return card.Type switch
+    {
+        CardType.Character =>
+            "hand-character",
+
+        CardType.Attack =>
+            "hand-attack",
+
+        CardType.Utility =>
+            "hand-utility",
+
+        _ =>
+            ""
+    };
+}
+private string GetInteractionClass()
+{
+    if (IsClickable)
+    {
+        return "clickable";
+    }
+
+    if (IsDisplayOnly)
+    {
+        return "display-only";
+    }
+
+    return "disabled";
+}
+
+}

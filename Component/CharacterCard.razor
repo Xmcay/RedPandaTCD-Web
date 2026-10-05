@@ -1,0 +1,1361 @@
+@using RedPandaTCD_Web.Game
+
+<div class="character-wrap">
+
+    <div class="badges">
+        @if (Owner.ActiveCharacter != null)
+        {
+            @foreach (string badge in GetBadges())
+            {
+                <span class="badge">
+                    @badge
+                </span>
+            }
+        }
+    </div>
+
+    @if (Owner.ActiveCharacter == null)
+    {
+        <div class="character-shell placeholder @(IsClickable ? "clickable" : "") @PlacementHighlightClass"
+             @onclick="HandleClick">
+
+            <div class="empty-character-body">
+                <span class="placeholder-title">
+                    CHARACTER
+                </span>
+
+                <span class="placeholder-subtitle">
+                    Empty Slot
+                </span>
+            </div>
+
+            <div class="empty-status-rail"></div>
+
+        </div>
+    }
+    else
+    {
+        Card character = Owner.ActiveCharacter;
+
+        <div class="character-shell occupied @(IsClickable ? "clickable" : "") @(HighlightAttackAction ? "attack-action-ready" : "") @PlacementHighlightClass"
+             @onclick="HandleClick">
+
+            <div class="character-card">
+
+                <div class="ability-rail">
+                    <div class="ability-rail-entry"></div>
+                    <div class="ability-rail-passive"></div>
+                    <div class="ability-rail-active"
+                         style="@GetActiveRailStyle(character)">
+                    </div>
+                </div>
+
+                <div class="character-header">
+                    <strong class="character-name">
+                        @character.Name
+                    </strong>
+
+                    <span class="character-type @GetArchetypeClass(character)">
+                        @character.Archetype
+                    </span>
+                </div>
+
+                <div class="character-divider"></div>
+
+                <div class="resource-block">
+                    <div class="resource-label">
+                        <span>HP</span>
+                        <span>
+                            @Owner.CurrentCharacterHp / @character.HpValue
+                        </span>
+                    </div>
+
+                    <div class="resource-track">
+                        <div class="resource-fill hp-fill"
+                             style="width: @(GetPercent(
+                                 Owner.CurrentCharacterHp,
+                                 character.HpValue))%;">
+                        </div>
+                    </div>
+                </div>
+
+                <div class="resource-block">
+                    <div class="resource-label">
+                        <span>SHIELD</span>
+                        <span>
+                            @Owner.Shield / @character.ShieldValue
+                        </span>
+                    </div>
+
+                    <div class="resource-track">
+                        <div class="resource-fill shield-fill"
+                             style="width: @(GetPercent(
+                                 Owner.Shield,
+                                 character.ShieldValue))%;">
+                        </div>
+                    </div>
+                </div>
+
+                <div class="character-summary">
+
+                    <div class="summary-line">
+                        <span class="summary-label">
+                            ENTRY
+                        </span>
+                        <strong>
+                            @GetEntryName(character)
+                        </strong>
+                    </div>
+
+                    <div class="summary-line">
+                        <span class="summary-label">
+                            PASSIVE
+                        </span>
+                        <strong>
+                            @GetPassiveName(character)
+                        </strong>
+                    </div>
+
+                    <div class="summary-line">
+                        <span class="summary-label">
+                            ACTIVE
+                        </span>
+                        <strong>
+                            @GetActiveName(character)
+                        </strong>
+                    </div>
+
+                </div>
+
+            </div>
+
+            <div class="character-hover-panel">
+
+                <div class="hover-ability entry-info">
+                    <strong>
+                        ENTRY · @GetEntryName(character)
+                    </strong>
+                    <span>
+                        @GetEntryDescription(character)
+                    </span>
+                </div>
+
+                <div class="hover-divider"></div>
+
+                <div class="hover-ability passive-info">
+                    <strong>
+                        PASSIVE · @GetPassiveName(character)
+                    </strong>
+                    <span>
+                        @GetPassiveDescription(character)
+                    </span>
+                </div>
+
+                <div class="hover-divider"></div>
+
+                <div class="hover-ability active-info @(IsActiveUnavailable() ? "active-info-disabled" : "")">
+                    <strong>
+                        ACTIVE · @GetActiveName(character)
+                    </strong>
+
+                    <span>
+                        @GetActiveDescription(character)
+                    </span>
+
+                    <div class="active-details">
+                        <span>
+                            Cost: @GetActiveCost(character) Energy
+                        </span>
+
+                        <span>
+                            Cooldown: @character.AbilityCooldown
+                        </span>
+
+                        <span class="active-status">
+                            STATUS: @GetCooldownStateText(character)
+                        </span>
+                    </div>
+                </div>
+
+            </div>
+
+        </div>
+    }
+
+</div>
+
+<style>
+
+    /* =========================
+       WRAPPER
+       ========================= */
+
+    .character-wrap {
+        width: clamp(155px, 10vw, 180px);
+        min-height: clamp(195px, 13vw, 220px);
+
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+
+        flex-shrink: 0;
+    }
+
+
+    /* =========================
+       CHARACTER SHELL
+       ========================= */
+
+    .character-shell {
+        width: clamp(145px, 9.2vw, 165px);
+        height: clamp(175px, 11vw, 195px);
+
+        position: relative;
+
+        display: block;
+
+        box-sizing: border-box;
+
+        border: 3px solid #665d50;
+        border-radius: 11px;
+
+        overflow: visible;
+
+        background:
+            linear-gradient(
+                145deg,
+                #fff9e9 0%,
+                #eee4cd 100%
+            );
+
+        color: #25221d;
+
+        box-shadow:
+            0 5px 12px rgba(0, 0, 0, 0.28);
+
+        flex-shrink: 0;
+
+        transition:
+            transform 0.14s ease,
+            border-color 0.14s ease,
+            box-shadow 0.14s ease;
+    }
+
+
+    /* =========================
+       CHARACTER BODY
+       ========================= */
+
+    .character-card {
+        position: absolute;
+        z-index: 1;
+
+        inset: 0;
+
+        box-sizing: border-box;
+
+        padding:
+            10px
+            12px
+            10px
+            10px;
+
+        display: flex;
+        flex-direction: column;
+
+        overflow: hidden;
+
+        border-radius: 8px;
+
+        background:
+            linear-gradient(
+                145deg,
+                #fff9e9 0%,
+                #eee4cd 100%
+            );
+
+        text-align: left;
+    }
+
+
+    /* =========================
+       HEADER
+       ========================= */
+
+    .character-header {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+
+        text-align: center;
+    }
+
+    .character-name {
+        width: 100%;
+
+        font-size:
+            clamp(
+                9px,
+                0.72vw,
+                13px
+            );
+
+        line-height: 1.08;
+
+        white-space: nowrap;
+
+        overflow: hidden;
+
+        text-align: center;
+    }
+
+    .character-type {
+        margin-top: 4px;
+
+        padding:
+            2px
+            7px;
+
+        border-radius: 8px;
+
+        color: white;
+
+        font-size: 8px;
+        font-weight: bold;
+
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+    }
+
+    .character-magic {
+        background: #356fc4;
+    }
+
+    .character-physical {
+        background: #b84747;
+    }
+
+    .character-neutral {
+        background: #666d75;
+    }
+
+    .character-divider {
+        height: 1px;
+
+        margin:
+            6px
+            0;
+
+        background:
+            rgba(65, 58, 48, 0.25);
+    }
+
+
+    /* =========================
+       HP + SHIELD
+       ========================= */
+
+    .resource-block {
+        width: 100%;
+
+        margin-top: 7px;
+    }
+
+    .resource-label {
+        margin-bottom: 4px;
+
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+
+        font-size: 9px;
+        font-weight: bold;
+    }
+
+    .resource-track {
+        width: 100%;
+        height: 10px;
+
+        overflow: hidden;
+
+        border-radius: 6px;
+
+        background: #292929;
+
+        box-shadow:
+            inset 0 1px 3px rgba(0, 0, 0, 0.4);
+    }
+
+    .resource-fill {
+        height: 100%;
+
+        border-radius: 6px;
+
+        transition:
+            width 0.2s ease;
+    }
+
+    .hp-fill {
+        background:
+            linear-gradient(
+                90deg,
+                #b91928,
+                #ee4550
+            );
+    }
+
+    .shield-fill {
+        background:
+            linear-gradient(
+                90deg,
+                #17873e,
+                #45d36e
+            );
+    }
+
+
+    /* =========================
+       COMPACT ABILITY SUMMARY
+       ========================= */
+
+    .character-summary {
+        margin-top: auto;
+
+        padding-top: 7px;
+
+        display: flex;
+        flex-direction: column;
+
+        gap: 2px;
+
+        font-size: 6px;
+        line-height: 1.2;
+    }
+
+    .summary-line {
+        min-width: 0;
+
+        display: grid;
+
+        grid-template-columns:
+            38px
+            minmax(0, 1fr);
+
+        gap: 4px;
+
+        align-items: center;
+    }
+
+    .summary-label {
+        color: #777066;
+
+        font-weight: bold;
+
+        letter-spacing: 0.35px;
+    }
+
+    .summary-line strong {
+        min-width: 0;
+
+        overflow: hidden;
+
+        color: #403a32;
+
+        text-overflow: ellipsis;
+        white-space: nowrap;
+
+        font-size: 6px;
+    }
+
+
+    /* =========================
+       CHARACTER ABILITY RAIL
+       ========================= */
+
+    .ability-rail {
+        position: absolute;
+
+        top: 0;
+        right: 0;
+        bottom: 0;
+
+        width: 5px;
+
+        z-index: 10;
+
+        display: grid;
+
+        grid-template-rows:
+            1fr
+            1fr
+            1fr;
+
+        overflow: hidden;
+
+        border-radius:
+            0
+            8px
+            8px
+            0;
+
+        pointer-events: none;
+    }
+
+    .ability-rail-entry {
+        min-height: 0;
+        background: #d0a12d;
+    }
+
+    .ability-rail-passive {
+        min-height: 0;
+        background: #825bc7;
+    }
+
+    .ability-rail-active {
+        min-height: 0;
+        background: #8b8f94;
+    }
+
+
+    /* =========================
+       WHOLE CHARACTER HOVER
+       ========================= */
+
+    .character-shell.occupied {
+        z-index: 1;
+    }
+
+    .character-shell.occupied:hover {
+        z-index: 100;
+    }
+
+    .character-hover-panel {
+        position: absolute;
+
+        left: calc(100% - 3px);
+        top: -3px;
+        bottom: -3px;
+
+        width: 0;
+
+        padding: 0;
+
+        z-index: 101;
+
+        display: flex;
+        flex-direction: column;
+
+        overflow: hidden;
+
+        box-sizing: border-box;
+
+        border:
+            3px solid
+            #665d50;
+
+        border-left: 0;
+
+        border-radius:
+            0
+            11px
+            11px
+            0;
+
+        background:
+            linear-gradient(
+                145deg,
+                #fff9e9 0%,
+                #eee4cd 100%
+            );
+
+        color: transparent;
+
+        opacity: 0;
+
+        pointer-events: none;
+
+        box-shadow: none;
+
+        transition:
+            width 0.15s ease,
+            padding 0.15s ease,
+            opacity 0.12s ease,
+            color 0.12s ease;
+    }
+
+    .character-shell.occupied:hover
+    .character-hover-panel {
+        width: 250px;
+
+        padding:
+            9px
+            12px;
+
+        color: #25221d;
+
+        opacity: 1;
+
+        box-shadow:
+            5px
+            5px
+            12px
+            rgba(0, 0, 0, 0.32);
+    }
+
+
+    /* =========================
+       PLACEMENT - DEPLOY
+       ========================= */
+
+    .character-shell.placement-deploy {
+        cursor: pointer;
+
+        border: 3px solid #35d05b;
+
+        box-shadow:
+            0 0 8px rgba(53, 208, 91, 0.65),
+            0 0 18px rgba(53, 208, 91, 0.28);
+    }
+
+    .character-shell.placement-deploy:hover {
+        transform: translateY(-5px);
+
+        border-color: #61f27f;
+
+        box-shadow:
+            0 0 12px rgba(53, 208, 91, 0.85),
+            0 0 24px rgba(53, 208, 91, 0.35),
+            0 8px 16px rgba(0, 0, 0, 0.30);
+    }
+
+
+    /* =========================
+       PLACEMENT - REPLACE
+       ========================= */
+
+.placement-replace {
+    position: relative;
+    z-index: 15;
+    outline: 4px solid #ffe078;
+    outline-offset: 5px;
+    box-shadow:
+        0 0 0 3px rgba(0, 0, 0, .5),
+        0 0 18px rgba(255, 224, 120, .8),
+        0 0 38px rgba(229, 204, 103, .48);
+    animation:
+        replacementTargetPulse
+        .85s
+        ease-in-out
+        infinite alternate;
+}
+
+@@keyframes replacementTargetPulse {
+    from {
+        transform: scale(1);
+    }
+
+    to {
+        transform: scale(1.045);
+    }
+}
+
+    .character-shell.placement-replace:hover {
+        transform: translateY(-5px);
+
+        border-color: #f5df7f;
+
+        box-shadow:
+            0 0 12px rgba(229, 204, 103, 0.82),
+            0 0 22px rgba(229, 204, 103, 0.28),
+            0 8px 16px rgba(0, 0, 0, 0.30);
+    }
+
+
+    /* =========================
+       ATTACK PHASE ACTIVE ABILITY
+       ========================= */
+
+    .character-shell.attack-action-ready {
+        cursor: pointer;
+
+        border: 3px solid #f0a13a;
+
+        box-shadow:
+            0 0 8px rgba(240, 161, 58, 0.55),
+            0 0 16px rgba(240, 161, 58, 0.20);
+    }
+
+    .character-shell.attack-action-ready:hover {
+        transform: translateY(-5px);
+
+        border-color: #ffb955;
+
+        box-shadow:
+            0 0 12px rgba(240, 161, 58, 0.80),
+            0 0 22px rgba(240, 161, 58, 0.30),
+            0 8px 16px rgba(0, 0, 0, 0.32);
+    }
+
+
+    /* =========================
+       HOVER ABILITY INFO
+       ========================= */
+
+    .hover-ability {
+        display: flex;
+        flex-direction: column;
+
+        gap: 2px;
+
+        text-align: left;
+    }
+
+    .hover-ability strong {
+        font-size: 9px;
+        line-height: 1.15;
+
+        font-weight: 800;
+    }
+
+    .hover-ability span {
+        font-size: 7.5px;
+        line-height: 1.25;
+    }
+
+    .entry-info strong {
+        color: #9a701d;
+    }
+
+    .passive-info strong {
+        color: #7256a3;
+    }
+
+    .active-info strong {
+        color: #268840;
+    }
+
+    .hover-divider {
+        height: 1px;
+
+        margin:
+            5px
+            0;
+
+        flex-shrink: 0;
+
+        background:
+            rgba(65, 58, 48, 0.22);
+    }
+
+    .active-details {
+        margin-top: 2px;
+
+        display: grid;
+
+        grid-template-columns:
+            auto
+            auto;
+
+        justify-content: start;
+
+        column-gap: 12px;
+        row-gap: 1px;
+
+        font-weight: bold;
+    }
+
+    .active-details
+    .active-status {
+        grid-column:
+            1 /
+            -1;
+
+        margin-top: 1px;
+
+        color: #268840;
+
+        font-weight: 800;
+
+        text-transform: uppercase;
+    }
+
+    .active-info-disabled strong,
+    .active-info-disabled span {
+        color: #8b8f94 !important;
+    }
+
+
+    /* =========================
+       EMPTY CHARACTER
+       ========================= */
+
+    .character-shell.placeholder {
+        border-style: dashed;
+
+        border-color:
+            rgba(
+                255,
+                255,
+                255,
+                0.28
+            );
+
+        background:
+            rgba(
+                255,
+                255,
+                255,
+                0.035
+            );
+
+        box-shadow: none;
+
+        color:
+            rgba(
+                255,
+                255,
+                255,
+                0.48
+            );
+    }
+
+    /*
+        Preserve the dashed empty-slot appearance
+        while still giving it the permanent green
+        Placement glow.
+    */
+    .character-shell.placeholder.placement-deploy {
+        border:
+            3px dashed
+            #35d05b;
+
+        box-shadow:
+            0 0 8px rgba(53, 208, 91, 0.65),
+            0 0 18px rgba(53, 208, 91, 0.28);
+    }
+
+    .character-shell.placeholder.placement-deploy:hover {
+        border-color: #61f27f;
+
+        box-shadow:
+            0 0 12px rgba(53, 208, 91, 0.85),
+            0 0 24px rgba(53, 208, 91, 0.35),
+            0 8px 16px rgba(0, 0, 0, 0.30);
+    }
+
+    .empty-character-body {
+        position: absolute;
+
+        inset: 0;
+
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+
+        text-align: center;
+    }
+
+    .empty-status-rail {
+        position: absolute;
+
+        top: 3px;
+        right: 3px;
+        bottom: 3px;
+
+        width: 4px;
+
+        border-radius:
+            0
+            5px
+            5px
+            0;
+
+        background:
+            rgba(
+                255,
+                255,
+                255,
+                0.025
+            );
+    }
+
+    .placeholder-title {
+        font-size: 12px;
+        font-weight: bold;
+    }
+
+    .placeholder-subtitle {
+        margin-top: 5px;
+
+        font-size: 8px;
+
+        text-transform: uppercase;
+        letter-spacing: 0.6px;
+    }
+
+
+    /* =========================
+       OCCUPIED + CLICKABLE
+       ========================= */
+
+    .character-shell.occupied.clickable {
+        cursor: pointer;
+    }
+
+    .character-shell.occupied.clickable:hover {
+        transform: translateY(-4px);
+
+        box-shadow:
+            0 8px 16px
+            rgba(
+                0,
+                0,
+                0,
+                0.32
+            );
+    }
+
+    /*
+        Keep action-state glow stronger than the
+        generic clickable hover shadow.
+    */
+
+    .character-shell.occupied.placement-replace:hover {
+        transform: translateY(-5px);
+
+        border-color: #f5df7f;
+
+        box-shadow:
+            0 0 12px rgba(229, 204, 103, 0.82),
+            0 0 22px rgba(229, 204, 103, 0.28),
+            0 8px 16px rgba(0, 0, 0, 0.30);
+    }
+
+    .character-shell.occupied.attack-action-ready:hover {
+        transform: translateY(-5px);
+
+        border-color: #ffb955;
+
+        box-shadow:
+            0 0 12px rgba(240, 161, 58, 0.80),
+            0 0 22px rgba(240, 161, 58, 0.30),
+            0 8px 16px rgba(0, 0, 0, 0.32);
+    }
+
+
+    /* =========================
+       EFFECT BADGES
+       ========================= */
+
+    .badges {
+        min-height: 25px;
+
+        margin-bottom: 4px;
+
+        display: flex;
+        justify-content: center;
+        flex-wrap: wrap;
+
+        gap: 4px;
+    }
+
+    .badge {
+        padding:
+            3px
+            7px;
+
+        border-radius: 9px;
+
+        background: #312d38;
+        color: #ffffff;
+
+        box-shadow:
+            0 2px 5px
+            rgba(
+                0,
+                0,
+                0,
+                0.25
+            );
+
+        font-size: 8px;
+        font-weight: bold;
+
+        letter-spacing: 0.25px;
+    }
+
+</style>
+
+@code {
+
+    [Parameter]
+    public Player Owner { get; set; } = default!;
+
+
+    [Parameter]
+    public bool IsClickable { get; set; }
+
+
+    [Parameter]
+    public bool HighlightAttackAction { get; set; }
+
+
+    [Parameter]
+    public string PlacementHighlightClass { get; set; } = "";
+
+
+    [Parameter]
+    public EventCallback OnCardClicked { get; set; }
+
+
+    private async Task HandleClick()
+    {
+        if (!IsClickable)
+        {
+            return;
+        }
+
+        await OnCardClicked.InvokeAsync();
+    }
+
+
+    private static double GetPercent(
+        int current,
+        int maximum)
+    {
+        if (maximum <= 0)
+        {
+            return 0;
+        }
+
+        double percent =
+            (double)current /
+            maximum *
+            100;
+
+        return Math.Clamp(
+            percent,
+            0,
+            100);
+    }
+
+
+    private static string GetArchetypeClass(
+        Card character)
+    {
+        return character.Archetype switch
+        {
+            Archetype.Magic =>
+                "character-magic",
+
+            Archetype.Physical =>
+                "character-physical",
+
+            _ =>
+                "character-neutral"
+        };
+    }
+
+
+    /* =========================
+       ACTIVE COOLDOWN DISPLAY
+       ========================= */
+
+    private static int GetCooldownSegments(
+        Card character)
+    {
+        return Math.Max(
+            1,
+            character.AbilityCooldown);
+    }
+
+
+    private int GetDisplayedCooldownRemaining(
+        Card character)
+    {
+        /*
+            Newly deployed Characters cannot use
+            their Active yet.
+
+            For the display, represent this as the
+            Character's full cooldown amount.
+        */
+        if (Owner.CharacterNewlyDeployed)
+        {
+            return character.AbilityCooldown;
+        }
+
+        return Math.Clamp(
+            Owner.AbilityCooldownRemaining,
+            0,
+            character.AbilityCooldown);
+    }
+
+
+    private string GetCooldownStateText(
+        Card character)
+    {
+        int remaining =
+            GetDisplayedCooldownRemaining(
+                character);
+
+        return remaining > 0
+            ? $"CD {remaining}"
+            : "READY";
+    }
+
+
+    private string GetActiveRailStyle(
+        Card character)
+    {
+        if (Owner.CharacterNewlyDeployed)
+        {
+            return
+                "background: #8b8f94;";
+        }
+
+        int total =
+            GetCooldownSegments(
+                character);
+
+        int remaining =
+            Math.Clamp(
+                Owner.AbilityCooldownRemaining,
+                0,
+                total);
+
+        int charged =
+            total -
+            remaining;
+
+        if (remaining == 0)
+        {
+            return
+                "background: #35c759;";
+        }
+
+        if (charged <= 0)
+        {
+            return
+                "background: #8b8f94;";
+        }
+
+        double chargedPercent =
+            (double)charged /
+            total *
+            100.0;
+
+        string percent =
+            chargedPercent.ToString(
+                "0.###",
+                System.Globalization.CultureInfo.InvariantCulture);
+
+        return
+            $"background: linear-gradient(" +
+            $"to bottom, " +
+            $"#35c759 0%, " +
+            $"#35c759 {percent}%, " +
+            $"#303030 {percent}%, " +
+            $"#8b8f94 calc({percent}% + 1px), " +
+            $"#8b8f94 100%);";
+    }
+
+
+    private static string GetEntryName(
+        Card character)
+    {
+        return CharacterInfo.GetEntryName(
+            character);
+    }
+
+
+    private static string GetEntryDescription(
+        Card character)
+    {
+        return CharacterInfo.GetEntryDescription(
+            character);
+    }
+
+
+    private static string GetPassiveName(
+        Card character)
+    {
+        return CharacterInfo.GetPassiveName(
+            character);
+    }
+
+
+    private static string GetPassiveDescription(
+        Card character)
+    {
+        return CharacterInfo.GetPassiveDescription(
+            character);
+    }
+
+
+    private static string GetActiveName(
+        Card character)
+    {
+        return CharacterInfo.GetActiveName(
+            character);
+    }
+
+
+    private static string GetActiveDescription(
+        Card character)
+    {
+        return CharacterInfo.GetActiveDescription(
+            character);
+    }
+
+
+    private static int GetActiveCost(
+        Card character)
+    {
+        return CharacterInfo.GetActiveCost(
+            character);
+    }
+
+
+    /* =========================
+       ACTIVE EFFECT BADGES
+       ========================= */
+
+private List<string> GetBadges()
+{
+    List<string> badges =
+        new();
+
+    if (Owner.ActiveCharacter == null)
+    {
+        return badges;
+    }
+
+    switch (Owner.ActiveCharacter.Name)
+    {
+        case "Sage Red Panda"
+            when Owner.CharacterNewlyDeployed &&
+                 !Owner.EntryDefenseUsed:
+
+            badges.Add(
+                "DAMAGE FLOOR");
+            break;
+
+        case "Sorcerer Red Panda":
+
+            int magicBonus =
+                GetSorcererMagicBonus();
+
+            if (magicBonus > 0)
+            {
+                badges.Add(
+                    $"+{magicBonus} MAGIC");
+            }
+
+            break;
+
+        case "Guardian Red Panda"
+            when Owner.CharacterNewlyDeployed &&
+                 !Owner.EntryDefenseUsed:
+
+            badges.Add(
+                "FORTIFIED");
+            break;
+
+        case "Berserker Red Panda"
+            when Owner.CharacterNewlyDeployed:
+
+            badges.Add(
+                "+1 PHYSICAL");
+            break;
+    }
+
+    /*
+        Retaliation applies to every Attack,
+        so it remains separate from Physical Surge.
+    */
+    if (Owner.HitDuringPreviousTurn &&
+        CharacterManager.HasPassive(
+            Owner,
+            "Retaliation"))
+    {
+        badges.Add(
+            "+1 ATK");
+    }
+
+    foreach (string status in
+        Owner.StatusEffects)
+    {
+        if (status ==
+            "DeflectNextHit")
+        {
+            badges.Add(
+                "DEFLECT");
+        }
+        else
+        {
+            badges.Add(
+                status);
+        }
+    }
+
+    if (Owner.DiscountActive)
+    {
+        badges.Add(
+            "DISCOUNT");
+    }
+
+    return badges;
+}
+
+    private bool IsActiveUnavailable()
+    {
+        return
+            Owner.CharacterNewlyDeployed ||
+            Owner.AbilityCooldownRemaining > 0;
+    }
+
+private int GetSorcererMagicBonus()
+{
+    if (Owner.ActiveCharacter?.Name !=
+        "Sorcerer Red Panda")
+    {
+        return 0;
+    }
+
+    int bonus = 0;
+
+    /*
+        Magic Surge Entry:
+        +1 Magic during Sorcerer's
+        deployment turn.
+    */
+    if (Owner.CharacterNewlyDeployed)
+    {
+        bonus++;
+    }
+
+    /*
+        Arcane Focus Passive:
+        +1 Magic while no Physical
+        Attack is deployed.
+    */
+    bool physicalAttackDeployed =
+        Owner.AttackSlot1?.Archetype ==
+            Archetype.Physical ||
+        Owner.AttackSlot2?.Archetype ==
+            Archetype.Physical;
+
+    if (CharacterManager.HasPassive(
+            Owner,
+            "ArcaneFocus") &&
+        !physicalAttackDeployed)
+    {
+        bonus++;
+    }
+
+    return bonus;
+}
+}
