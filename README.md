@@ -188,7 +188,6 @@ License
 No license has been selected yet.
 
 Until a license is added, the source code remains under the repository owner's default copyright protections.
-
 Author
 
 Developed by Earth Rhoy O. Sanchez as a student software project.
