@@ -21,6 +21,7 @@ player.IsReorderingNodes = false;
 player.EnergyDrainedThisPhaseCount = 0;
 player.AttackSlot1UsedThisPhase = false;
 player.AttackSlot2UsedThisPhase = false;
+player.DiscountActive = false;
 
         if (player.IsRestingSlot1)
         {

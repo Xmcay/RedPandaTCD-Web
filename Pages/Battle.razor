@@ -802,7 +802,57 @@ else
     Visible="@ShowTutorialOverlay"
     OnAdvanced="HandleTutorialOverlayAdvanced"
     OnFinish="FinishCurrentTutorial" />
+@if (showDiscardForEnergyPicker)
+{
+    <div class="card-action-overlay"
+         @onclick="CloseDiscardForEnergyPicker">
 
+        <div class="card-action-panel discard-energy-picker-panel"
+             @onclick:stopPropagation="true">
+
+            <h3>Discard For Energy</h3>
+
+            <p>
+                Choose a card to discard.
+                You will gain Energy equal to that card's Cost.
+            </p>
+
+            @{
+                var discardableCards =
+                    player.HandSlots
+                        .Where(slot =>
+                            !slot.IsEmpty &&
+                            slot.CardInSlot != null &&
+                            slot.SlotNumber !=
+                                discardForEnergyUtilitySlot)
+                        .ToList();
+            }
+
+            @if (discardableCards.Count == 0)
+            {
+                <p>No other cards in hand.</p>
+            }
+            else
+            {
+                <div class="discard-energy-card-choices">
+                    @foreach (HandSlot slot in discardableCards)
+                    {
+                        <div class="discard-energy-choice">
+                            <HandCard
+                                Slot="slot"
+                                IsClickable="true"
+                                OnCardClicked="SelectDiscardForEnergyCard" />
+                        </div>
+                    }
+                </div>
+            }
+
+            <button @onclick="CloseDiscardForEnergyPicker">
+                Cancel
+            </button>
+        </div>
+    </div>
+}
     </div>
 }
 <style>
@@ -1827,6 +1877,8 @@ private int lastBattleLogCount;
 private HandSlot? selectedHandSlot;
 private int? selectedPlacementAttackSlot;
 private List<Card>? peekedCards, drawPoolCards, reorderCards;
+private bool showDiscardForEnergyPicker;
+private int? discardForEnergyUtilitySlot;
 
 private bool IsGuidedTutorialBattle =>
     Session.Tutorial.IsActive &&
@@ -2420,21 +2472,22 @@ private bool CanSelectHandCard(
 
 private void SelectHandCard(HandSlot slot)
 {
-    if (Session.CurrentMatch == null) return;
+    if (Session.CurrentMatch == null)
+        return;
 
     Player player = GetPresentedPlayer();
-    if (!CanSelectHandCard(player, slot)) return;
+
+    if (!CanSelectHandCard(player, slot))
+        return;
 
     selectedHandSlot = slot;
 
     if (RequiredTutorialAction == TutorialAction.SelectUtility)
         NotifyTutorialAction(TutorialAction.SelectUtility);
 }
-
 private void CloseHandCard()
 {
-    selectedHandSlot =
-        null;
+    selectedHandSlot = null;
 }
 
 private bool CanCloseSelectedHandCard =>
@@ -2449,8 +2502,7 @@ private void RequestCloseHandCard()
         return;
     }
 
-    selectedHandSlot =
-        null;
+    selectedHandSlot = null;
 }
 
 private void DiscardSelectedCard()
@@ -2514,33 +2566,64 @@ private void PlaySelectedUtility()
     if (Session.CurrentMatch == null ||
         selectedHandSlot?.CardInSlot == null ||
         !TutorialAllows(TutorialAction.PlayUtility))
+    {
         return;
+    }
 
-    MatchState match = Session.CurrentMatch;
-    Player player = GetPresentedPlayer();
-    Card card = selectedHandSlot.CardInSlot;
+    MatchState match =
+        Session.CurrentMatch;
+
+    Player player =
+        GetPresentedPlayer();
+
+    Card card =
+        selectedHandSlot.CardInSlot;
 
     if (match.CurrentPhase != MatchPhase.Utility ||
         match.GetActingPlayer() != player ||
         player.UtilityActionsRemaining <= 0 ||
         card.Type != CardType.Utility ||
         player.Energy < card.Cost)
+    {
         return;
+    }
 
-    if (IsLearnToPlayBattle && card.Id != "UM1")
+    if (IsLearnToPlayBattle &&
+        card.Id != "UM1")
+    {
         return;
+    }
 
-    bool success = UtilityManager.PlayUtility(
-        player,
-        GetPresentedOpponent(),
-        selectedHandSlot.SlotNumber);
+    // Discard For Energy requires the player
+    // to choose another card from their hand first.
+    if (card.Name == "Discard For Energy")
+    {
+        discardForEnergyUtilitySlot =
+            selectedHandSlot.SlotNumber;
 
-    if (!success) return;
+        selectedHandSlot = null;
+        showDiscardForEnergyPicker = true;
 
-    player.UtilityActionsRemaining--;
+        StateHasChanged();
+        return;
+    }
+
+    bool success =
+        UtilityManager.PlayUtility(
+            player,
+            GetPresentedOpponent(),
+            selectedHandSlot.SlotNumber);
+
+    if (!success)
+    {
+        return;
+    }
+
     selectedHandSlot = null;
 
-    NotifyTutorialAction(TutorialAction.PlayUtility);
+    NotifyTutorialAction(
+        TutorialAction.PlayUtility);
+
     StateHasChanged();
 }
 
@@ -2587,11 +2670,19 @@ private void ConfirmLeaveMatch()
     surrendered = true;
     observingFinishedMatch = false;
 
+    MatchState match = Session.CurrentMatch;
+
     Player losingPlayer = GetPresentedPlayer();
     Player winningPlayer = GetPresentedOpponent();
 
+    // Record the surrender in the actual game state.
+    losingPlayer.HasSurrendered = true;
+
     BattleLog.WriteSystem($"{losingPlayer.Name} surrendered.");
     BattleLog.WriteSystem($"Match ended. {winningPlayer.Name} wins.");
+
+    // Complete the match through the normal engine pathway.
+    BattleEngine.CompleteMatch(match);
 
     if (tournamentMatch)
     {
@@ -2834,7 +2925,9 @@ private async Task RunBotUtilityPhase(
     int before =
         BattleLog.GetPhaseActions().Count;
 
-    BotManager.RunNextUtilityAction(bot, human);
+    BotManager.RunUtility(
+        bot,
+        human);
 
     if (BattleLog.GetPhaseActions().Count == before)
         BattleLog.Write(
@@ -2919,6 +3012,8 @@ private void CloseGameplayPopups()
     drawPoolCards = null;
     reorderCards = null;
     showCharacterPicker = false;
+    showDiscardForEnergyPicker = false;
+    discardForEnergyUtilitySlot = null;
 }
 
 private async Task AcknowledgeCoinFlip()
@@ -4692,5 +4787,47 @@ private string GetTutorialHandCardClass(
     }
 
     return "";
+}
+private void CloseDiscardForEnergyPicker()
+{
+    showDiscardForEnergyPicker = false;
+    discardForEnergyUtilitySlot = null;
+}
+
+private void SelectDiscardForEnergyCard(HandSlot slot)
+{
+    if (Session.CurrentMatch == null ||
+        !showDiscardForEnergyPicker ||
+        !discardForEnergyUtilitySlot.HasValue ||
+        slot.IsEmpty ||
+        slot.CardInSlot == null ||
+        slot.SlotNumber == discardForEnergyUtilitySlot.Value)
+    {
+        return;
+    }
+
+    MatchState match = Session.CurrentMatch;
+    Player player = GetPresentedPlayer();
+
+    if (match.CurrentPhase != MatchPhase.Utility ||
+        match.GetActingPlayer() != player ||
+        player.UtilityActionsRemaining <= 0)
+    {
+        return;
+    }
+
+    bool success =
+        UtilityManager.DiscardForEnergy(
+            player,
+            discardForEnergyUtilitySlot.Value,
+            slot.SlotNumber);
+
+    if (!success)
+        return;
+
+    showDiscardForEnergyPicker = false;
+    discardForEnergyUtilitySlot = null;
+
+    StateHasChanged();
 }
 }

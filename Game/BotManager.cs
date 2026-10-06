@@ -3,29 +3,58 @@ namespace RedPandaTCD_Web.Game;
 public static class BotManager
 {
     public static void RunUtility(
-        Player player,
-        Player opponent)
+    Player player,
+    Player opponent)
+{
+    foreach (HandSlot slot in player.HandSlots)
     {
-        foreach (HandSlot slot in player.HandSlots)
+        if (slot.IsEmpty)
         {
-            if (slot.IsEmpty)
-            {
-                continue;
-            }
+            continue;
+        }
 
-            if (slot.CardInSlot!.Type ==
-                CardType.Utility)
+        if (slot.CardInSlot!.Type != CardType.Utility)
+        {
+            continue;
+        }
+
+        Card utilityCard = slot.CardInSlot;
+
+        if (utilityCard.Name == "Discard For Energy")
+        {
+            foreach (HandSlot targetSlot in player.HandSlots)
             {
-                if (UtilityManager.BotPlayUtility(
+                if (targetSlot.IsEmpty)
+                {
+                    continue;
+                }
+
+                if (targetSlot.SlotNumber == slot.SlotNumber)
+                {
+                    continue;
+                }
+
+                if (UtilityManager.DiscardForEnergy(
                         player,
-                        opponent,
-                        slot.SlotNumber))
+                        slot.SlotNumber,
+                        targetSlot.SlotNumber))
                 {
                     return;
                 }
             }
+
+            continue;
+        }
+
+        if (UtilityManager.BotPlayUtility(
+                player,
+                opponent,
+                slot.SlotNumber))
+        {
+            return;
         }
     }
+}
     public static void RunPlacement(Player player)
 {
     PlacementManager.BotResolveFatigue(player);

@@ -308,6 +308,7 @@ new()
     Message =
         "The Battle Log records what happens as the battle progresses. " +
         "Use it to follow actions, effects, and combat resolution. " +
+        "You can copy the log and paste it into the Simulator to analyze or replay the match." +
         "When you're ready, Continue to the Placement Phase.",
     RequiredAction =
         TutorialAction.ContinuePhase,
@@ -488,8 +489,13 @@ new()
     Number = 21,
     Title = "Fireball",
     Message =
-        "Now use Fireball. Unlike Piercing Strike, Fireball " +
-        "interacts with the opponent's defenses normally.",
+    "Now use Fireball. Unlike Piercing Strike, Fireball " +
+    "interacts with the opponent's defenses normally. " +
+    "Shield acts as a hit barrier, so a normal hit consumes " +
+    "Shield points until it breaks once the shield is " +
+    "broken you can deal damage to the character" +
+    "Damage does not overflow from shield to character so prioritize breaking it first",
+    
     RequiredAction =
         TutorialAction.UseAttack,
     HighlightTarget =

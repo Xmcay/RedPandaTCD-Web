@@ -24,6 +24,13 @@ public static class UtilityManager
 
         Card card = handSlot.CardInSlot;
 
+        // Discard For Energy requires the player
+        // to choose another card first.
+        if (card.Name == "Discard For Energy")
+        {
+            return false;
+        }
+
         if (player.Energy < card.Cost)
             return false;
 
@@ -31,6 +38,8 @@ public static class UtilityManager
 
         handSlot.CardInSlot = null;
         player.DiscardPile.Add(card);
+
+        player.UtilityActionsRemaining--;
 
         switch (card.Name)
         {
@@ -135,242 +144,310 @@ public static class UtilityManager
 
                 break;
             }
-
-            case "Discard For Energy":
-            {
-                player.Energy =
-                    Math.Min(
-                        player.MaxEnergy,
-                        player.Energy + 2);
-
-                BattleLog.Write(
-                    $"{player.Name} used Discard For Energy " +
-                    $"(+2 Energy)");
-
-                break;
-            }
         }
 
         return true;
     }
+
+    public static bool DiscardForEnergy(
+        Player player,
+        int utilitySlotNumber,
+        int targetSlotNumber)
+    {
+        if (utilitySlotNumber < 1 ||
+            utilitySlotNumber > Player.MAX_HAND_SIZE ||
+            targetSlotNumber < 1 ||
+            targetSlotNumber > Player.MAX_HAND_SIZE)
+        {
+            return false;
+        }
+
+        if (utilitySlotNumber == targetSlotNumber)
+        {
+            return false;
+        }
+
+        HandSlot utilitySlot =
+            player.HandSlots[utilitySlotNumber - 1];
+
+        HandSlot targetSlot =
+            player.HandSlots[targetSlotNumber - 1];
+
+        if (utilitySlot.IsEmpty ||
+            utilitySlot.CardInSlot == null ||
+            targetSlot.IsEmpty ||
+            targetSlot.CardInSlot == null)
+        {
+            return false;
+        }
+
+        Card utilityCard =
+            utilitySlot.CardInSlot;
+
+        Card discardedCard =
+            targetSlot.CardInSlot;
+
+        if (utilityCard.Name != "Discard For Energy" ||
+            utilityCard.Type != CardType.Utility)
+        {
+            return false;
+        }
+
+        if (player.UtilityActionsRemaining <= 0)
+        {
+            return false;
+        }
+
+        // Remove both cards from the hand.
+        utilitySlot.CardInSlot = null;
+        targetSlot.CardInSlot = null;
+
+        // Both cards go to the discard pile.
+        player.DiscardPile.Add(utilityCard);
+        player.DiscardPile.Add(discardedCard);
+
+        player.UtilityActionsRemaining--;
+
+        int before =
+            player.Energy;
+
+        player.Energy =
+            Math.Min(
+                player.MaxEnergy,
+                player.Energy + discardedCard.Cost);
+
+        int gained =
+            player.Energy - before;
+
+        BattleLog.Write(
+            $"{player.Name} used Discard For Energy, " +
+            $"discarding {discardedCard.Name} " +
+            $"(+{gained} Energy, " +
+            $"{player.Energy} Total)");
+
+        return true;
+    }
+
     public static bool DiscardAndDraw(
-    Player player,
-    int slotNumber)
-{
-    if (slotNumber < 1 ||
-        slotNumber > Player.MAX_HAND_SIZE)
+        Player player,
+        int slotNumber)
     {
-        return false;
-    }
-
-    if (player.HandSlots[slotNumber - 1].IsEmpty)
-    {
-        return false;
-    }
-
-    HandManager.DiscardCard(
-        player,
-        slotNumber);
-
-    HandManager.DrawCard(player);
-
-    BattleLog.Write(
-        $"{player.Name} discarded a card and drew a replacement");
-
-    return true;
-}
-public static List<Card>? PeekDeck(Player player)
-{
-    if (player.Deck.Structure != DeckStructure.Queue &&
-        player.Deck.Structure != DeckStructure.Stack)
-    {
-        return null;
-    }
-
-    List<Card> cards =
-        player.Deck.RuntimeStorage!.GetCards();
-
-    if (cards.Count == 0)
-    {
-        return null;
-    }
-
-    bool freePeek =
-        CharacterManager.HasPassive(
-            player,
-            "FreePeek");
-
-    if (!freePeek)
-    {
-        if (player.UtilityActionsRemaining <= 0)
+        if (slotNumber < 1 ||
+            slotNumber > Player.MAX_HAND_SIZE)
         {
-            return null;
+            return false;
         }
 
-        player.UtilityActionsRemaining--;
-    }
-
-    List<Card> peekedCards =
-        cards
-            .Take(Math.Min(2, cards.Count))
-            .ToList();
-
-    BattleLog.Write(
-        $"{player.Name} peeked at the next cards");
-
-    return peekedCards;
-}
-
-public static List<Card>? ViewDrawPool(Player player)
-{
-    if (player.Deck.Structure != DeckStructure.RandomList)
-    {
-        return null;
-    }
-
-    List<Card> cards =
-        player.Deck.RuntimeStorage!.GetCards();
-
-    if (cards.Count == 0)
-    {
-        return null;
-    }
-
-    bool freePeek =
-        CharacterManager.HasPassive(
-            player,
-            "FreePeek");
-
-    if (!freePeek)
-    {
-        if (player.UtilityActionsRemaining <= 0)
+        if (player.HandSlots[slotNumber - 1].IsEmpty)
         {
-            return null;
+            return false;
         }
 
-        player.UtilityActionsRemaining--;
-    }
+        HandManager.DiscardCard(
+            player,
+            slotNumber);
 
-    BattleLog.Write(
-        $"{player.Name} viewed the Random draw pool");
+        HandManager.DrawCard(player);
 
-    return cards;
-}
+        BattleLog.Write(
+            $"{player.Name} discarded a card and drew a replacement");
 
-public static bool StartReorderNodes(Player player)
-{
-    if (player.Deck.Structure != DeckStructure.LinkedList)
-    {
-        return false;
-    }
-
-    if (player.IsReorderingNodes)
-    {
         return true;
     }
 
-    if (player.UtilityActionsRemaining <= 0)
+    public static List<Card>? PeekDeck(Player player)
     {
-        return false;
+        if (player.Deck.Structure != DeckStructure.Queue &&
+            player.Deck.Structure != DeckStructure.Stack)
+        {
+            return null;
+        }
+
+        List<Card> cards =
+            player.Deck.RuntimeStorage!.GetCards();
+
+        if (cards.Count == 0)
+        {
+            return null;
+        }
+
+        bool freePeek =
+            CharacterManager.HasPassive(
+                player,
+                "FreePeek");
+
+        if (!freePeek)
+        {
+            if (player.UtilityActionsRemaining <= 0)
+            {
+                return null;
+            }
+
+            player.UtilityActionsRemaining--;
+        }
+
+        List<Card> peekedCards =
+            cards
+                .Take(Math.Min(2, cards.Count))
+                .ToList();
+
+        BattleLog.Write(
+            $"{player.Name} peeked at the next cards");
+
+        return peekedCards;
     }
 
-    if (player.Deck.RuntimeStorage == null ||
-        player.Deck.RuntimeStorage.Count == 0)
+    public static List<Card>? ViewDrawPool(Player player)
     {
-        return false;
+        if (player.Deck.Structure != DeckStructure.RandomList)
+        {
+            return null;
+        }
+
+        List<Card> cards =
+            player.Deck.RuntimeStorage!.GetCards();
+
+        if (cards.Count == 0)
+        {
+            return null;
+        }
+
+        bool freePeek =
+            CharacterManager.HasPassive(
+                player,
+                "FreePeek");
+
+        if (!freePeek)
+        {
+            if (player.UtilityActionsRemaining <= 0)
+            {
+                return null;
+            }
+
+            player.UtilityActionsRemaining--;
+        }
+
+        BattleLog.Write(
+            $"{player.Name} viewed the Random draw pool");
+
+        return cards;
     }
 
-    player.UtilityActionsRemaining--;
-    player.ReorderMovesThisPhase = 0;
-    player.IsReorderingNodes = true;
-
-    BattleLog.Write(
-        $"{player.Name} started Reorder Nodes");
-
-    return true;
-}
-
-public static bool ReorderNodes(
-    Player player,
-    int fromPosition,
-    int toPosition)
-{
-    if (!player.IsReorderingNodes)
+    public static bool StartReorderNodes(Player player)
     {
-        return false;
+        if (player.Deck.Structure != DeckStructure.LinkedList)
+        {
+            return false;
+        }
+
+        if (player.IsReorderingNodes)
+        {
+            return true;
+        }
+
+        if (player.UtilityActionsRemaining <= 0)
+        {
+            return false;
+        }
+
+        if (player.Deck.RuntimeStorage == null ||
+            player.Deck.RuntimeStorage.Count == 0)
+        {
+            return false;
+        }
+
+        player.UtilityActionsRemaining--;
+        player.ReorderMovesThisPhase = 0;
+        player.IsReorderingNodes = true;
+
+        BattleLog.Write(
+            $"{player.Name} started Reorder Nodes");
+
+        return true;
     }
 
-    if (player.Deck.Structure != DeckStructure.LinkedList)
+    public static bool ReorderNodes(
+        Player player,
+        int fromPosition,
+        int toPosition)
     {
-        return false;
+        if (!player.IsReorderingNodes)
+        {
+            return false;
+        }
+
+        if (player.Deck.Structure != DeckStructure.LinkedList)
+        {
+            return false;
+        }
+
+        List<Card> currentCards =
+            player.Deck.RuntimeStorage!.GetCards();
+
+        int visibleCount =
+            Math.Min(6, currentCards.Count);
+
+        if (fromPosition < 1 ||
+            fromPosition > visibleCount ||
+            toPosition < 1 ||
+            toPosition > visibleCount)
+        {
+            return false;
+        }
+
+        int moveCost =
+            player.ReorderMovesThisPhase + 1;
+
+        if (player.Energy < moveCost)
+        {
+            return false;
+        }
+
+        string movedCard =
+            currentCards[fromPosition - 1].Name;
+
+        bool moved =
+            DeckStructureManager.MoveNode(
+                player,
+                fromPosition - 1,
+                toPosition - 1);
+
+        if (!moved)
+        {
+            return false;
+        }
+
+        player.Energy -= moveCost;
+        player.ReorderMovesThisPhase++;
+
+        BattleLog.Write(
+            $"Moved {movedCard} from Position {fromPosition} " +
+            $"to Position {toPosition} (-{moveCost} Energy)");
+
+        return true;
     }
 
-    List<Card> currentCards =
-        player.Deck.RuntimeStorage!.GetCards();
-
-    int visibleCount =
-        Math.Min(6, currentCards.Count);
-
-    if (fromPosition < 1 ||
-        fromPosition > visibleCount ||
-        toPosition < 1 ||
-        toPosition > visibleCount)
+    public static void FinishReorderNodes(Player player)
     {
-        return false;
+        if (!player.IsReorderingNodes)
+        {
+            return;
+        }
+
+        player.IsReorderingNodes = false;
+
+        BattleLog.Write(
+            $"{player.Name} finished Reorder Nodes");
     }
 
-    int moveCost =
-        player.ReorderMovesThisPhase + 1;
-
-    if (player.Energy < moveCost)
+    public static bool BotPlayUtility(
+        Player player,
+        Player opponent,
+        int slotNumber)
     {
-        return false;
-    }
-
-    string movedCard =
-        currentCards[fromPosition - 1].Name;
-
-    bool moved =
-        DeckStructureManager.MoveNode(
+        return PlayUtility(
             player,
-            fromPosition - 1,
-            toPosition - 1);
-
-    if (!moved)
-    {
-        return false;
+            opponent,
+            slotNumber);
     }
-
-    player.Energy -= moveCost;
-    player.ReorderMovesThisPhase++;
-
-    BattleLog.Write(
-        $"Moved {movedCard} from Position {fromPosition} " +
-        $"to Position {toPosition} (-{moveCost} Energy)");
-
-    return true;
-}
-
-public static void FinishReorderNodes(Player player)
-{
-    if (!player.IsReorderingNodes)
-    {
-        return;
-    }
-
-    player.IsReorderingNodes = false;
-
-    BattleLog.Write(
-        $"{player.Name} finished Reorder Nodes");
-}
-public static bool BotPlayUtility(
-    Player player,
-    Player opponent,
-    int slotNumber)
-{
-    return PlayUtility(
-        player,
-        opponent,
-        slotNumber);
-}
 }
