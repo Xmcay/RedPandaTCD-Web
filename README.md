@@ -1,14 +1,13 @@
-Yes, let’s make the README before publishing. Create a file named README.md in the same root folder as RedPandaTCD-Web.csproj, then paste this:
-
-# Red Panda TCD
+Red Panda TCD
 
 Red Panda TCD is a browser-based tactical card game built with Blazor WebAssembly and C#. Players construct decks backed by different data structures, deploy Characters and Attacks, manage Energy, and compete across several game modes.
 
 The project combines card-game strategy with interactive demonstrations of common data structures.
 
-## Features
+Features
 
-### Tactical Card Battles
+
+Tactical Card Duel
 
 - Turn-based matches with four phases:
   - Utility
@@ -26,31 +25,31 @@ The project combines card-game strategy with interactive demonstrations of commo
 - Battle Log records actions and combat resolution.
 - Victory, defeat, draw, surrender, and board-observation states.
 
-### Data Structure Decks
+Data Structure Decks
 
 Each deck uses a real data structure that affects card storage, retrieval, recycling, and available actions.
 
-- **Queue**
+- Queue
   - First-In, First-Out retrieval
   - Peek at upcoming cards
 
-- **Priority Queue**
+- Priority Queue
   - Cards are retrieved according to priority
   - Characters and other card types use different priority rules
 
-- **Stack**
+- Stack
   - Last-In, First-Out retrieval
   - Automatic Placement behavior
 
-- **Random List**
+- Random List
   - Cards are selected from a randomized draw pool
   - Players can inspect the available pool
 
-- **Linked List**
+- Linked List
   - Cards are stored as linked nodes
   - Players can reorder upcoming nodes
 
-### Deck Builder
+Deck Builder
 
 - Create custom decks containing 10 to 15 cards.
 - Choose one of five data structures.
@@ -61,28 +60,28 @@ Each deck uses a real data structure that affects card storage, retrieval, recyc
 - Validate deck size and card-copy limits.
 - Save decks for use in other game modes.
 
-### Game Modes
+Game Modes
 
-- **Training**
+- Training
   - Play against a Bot using a selected deck.
 
-- **Pass and Play**
+- Pass and Play
   - Two players share one device.
   - Player hands remain hidden while the device is passed.
 
-- **Grand Tournament**
+- Grand Tournament
   - Face three opponents in succession.
   - One deck is locked for the entire run.
   - One defeat ends the run.
   - Completing the Tournament awards the Master Strategist title.
 
-- **Battle Simulator**
+- Battle Simulator
   - Run automated Bot-versus-Bot matches.
   - Run batches of 1, 10, 100, or 1,000 matches.
   - Compare wins, draws, average turns, and match lengths.
   - Inspect stalled matches, exceptions, and diagnostics.
 
-## Tutorials
+Tutorials
 
 Red Panda TCD contains nine tutorials:
 
@@ -98,7 +97,7 @@ Red Panda TCD contains nine tutorials:
 
 The guided tutorials highlight important controls, restrict incorrect actions where necessary, and track completion progress during the current session.
 
-## Technology
+Technology
 
 - C#
 - .NET 10
@@ -108,9 +107,8 @@ The guided tutorials highlight important controls, restrict incorrect actions wh
 - CSS
 - GitHub Pages deployment support
 
-## Project Structure
+Project Structure
 
-```text
 RedPandaTCD-Web/
 ├── Component/       Reusable Razor components
 ├── Game/            Game engine, state, managers, and data structures
@@ -191,5 +189,6 @@ Until a license is added, the source code remains under the repository owner's d
 Author
 
 Developed by Earth Rhoy O. Sanchez as a student software project.
+
 
 
