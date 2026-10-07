@@ -102,11 +102,10 @@ public static class HandManager
         if (playerIndex >= 1 &&
             turnNumber >= 1)
         {
-            BattleLog.WriteReplay(
+            BattleLog.WriteDraw(
                 $"{player.Name} drew {drawnCard.Name}.",
                 turnNumber,
                 playerIndex,
-                BattleLogEventType.Draw,
                 drawnCard.Name,
                 drawnCard.Type,
                 player.Deck.Structure);
@@ -185,11 +184,10 @@ public static class HandManager
                 {
                     slot.CardInSlot = character;
 
-                    BattleLog.WriteReplay(
+                    BattleLog.WriteDraw(
                         $"{player.Name} drew {character.Name}.",
                         openingTurnNumber,
                         playerIndex,
-                        BattleLogEventType.Draw,
                         character.Name,
                         character.Type,
                         player.Deck.Structure);
