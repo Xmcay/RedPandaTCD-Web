@@ -3,6 +3,7 @@
 @using Microsoft.AspNetCore.Components
 @using Microsoft.JSInterop
 @inject GameSessionState Session
+@inject NavigationManager Navigation
 @inject IJSRuntime JS
 
 <PageTitle>Battle Simulator - Red Panda TCD</PageTitle>
@@ -17,7 +18,8 @@
                 <h1>Battle Simulator</h1>
 
                 <p>
-                    Test automated battles or inspect recorded matches.
+                    Run automated Bot-vs-Bot matches through the real game engine,
+                    or load a recorded battle replay.
                 </p>
             </div>
 
@@ -28,23 +30,23 @@
 
         </div>
 
-        <div class="mode-switch">
+        <div class="mode-tabs">
 
-            <button class="mode-button @(activeMode == SimulatorMode.BotFighter ? "active" : "")"
-                    @onclick="() => SetMode(SimulatorMode.BotFighter)">
+            <button class="mode-tab @(simulatorMode == SimulatorMode.BotFighter ? "active" : "")"
+                    @onclick="() => SetSimulatorMode(SimulatorMode.BotFighter)">
                 Bot Fighter
             </button>
 
-            <button class="mode-button @(activeMode == SimulatorMode.Replay ? "active" : "")"
-                    @onclick="() => SetMode(SimulatorMode.Replay)">
-                Battle Log / Replay
+            <button class="mode-tab @(simulatorMode == SimulatorMode.Replay ? "active" : "")"
+                    @onclick="() => SetSimulatorMode(SimulatorMode.Replay)">
+                Battle Replay
             </button>
 
         </div>
 
-        @if (activeMode == SimulatorMode.BotFighter)
+        @if (simulatorMode == SimulatorMode.BotFighter)
         {
-            <div class="bot-fighter-content">
+            <section class="simulator-section">
 
                 <div class="deck-grid">
 
@@ -104,34 +106,23 @@
 
                 <div class="simulation-controls @GetPageTutorialClass("simulation-controls")">
 
-                    <button @onclick="() => RunSimulations(1)"
-                            disabled="@isRunning">
+                    <button @onclick="() => RunSimulations(1)">
                         Run 1 Match
                     </button>
 
-                    <button @onclick="() => RunSimulations(10)"
-                            disabled="@isRunning">
+                    <button @onclick="() => RunSimulations(10)">
                         Run 10
                     </button>
 
-                    <button @onclick="() => RunSimulations(100)"
-                            disabled="@isRunning">
+                    <button @onclick="() => RunSimulations(100)">
                         Run 100
                     </button>
 
-                    <button @onclick="() => RunSimulations(1000)"
-                            disabled="@isRunning">
+                    <button @onclick="() => RunSimulations(1000)">
                         Run 1000
                     </button>
 
                 </div>
-
-                @if (isRunning)
-                {
-                    <div class="running-message">
-                        Running simulation...
-                    </div>
-                }
 
                 @if (results != null)
                 {
@@ -228,15 +219,17 @@
                         {
                             <div class="single-log">
 
-                                <div class="log-header">
+                                <div class="single-log-header">
 
                                     <h3>
                                         Last Single-Match Log
                                     </h3>
 
-                                    <button class="copy-button"
-                                            @onclick="CopyReplay">
-                                        Copy Battle Log
+                                    <button class="copy-replay-button"
+                                            @onclick="CopyLastReplay">
+                                        @(replayCopied
+                                            ? "Copied!"
+                                            : "Copy Replay")
                                     </button>
 
                                 </div>
@@ -254,20 +247,13 @@
                                     </div>
                                 }
 
-                                @if (copyMessageVisible)
-                                {
-                                    <div class="copy-status">
-                                        Battle Log copied.
-                                    </div>
-                                }
-
                             </div>
                         }
 
                     </section>
                 }
 
-            </div>
+            </section>
         }
         else
         {
@@ -277,41 +263,97 @@
 
                     <div>
                         <h2>
-                            Battle Log / Replay
+                            Battle Replay
                         </h2>
 
                         <p>
-                            Paste structured Battle Log data exported from
-                            a completed match.
+                            Paste a structured Red Panda replay to inspect
+                            the recorded match.
                         </p>
                     </div>
 
                 </div>
 
-                <div class="replay-input-group">
+                <div class="replay-deck-grid">
 
-                    <label for="replay-input">
-                        REPLAY DATA
-                    </label>
+                    <div class="deck-select-group">
 
-                    <textarea id="replay-input"
-                              @bind="replayInput"
-                              placeholder="Paste REDPANDA_REPLAY_V1 data here...">
-                    </textarea>
+                        <label>
+                            PLAYER 1 DECK
+                        </label>
+
+                        <select @bind="replayPlayer1DeckIndex">
+
+                            @for (int i = 0;
+                                  i < DeckManager.Decks.Count;
+                                  i++)
+                            {
+                                int index = i;
+
+                                Deck deck =
+                                    DeckManager.Decks[index];
+
+                                <option value="@index">
+                                    @deck.Name (@GetStructureName(deck.Structure))
+                                </option>
+                            }
+
+                        </select>
+
+                    </div>
+
+                    <div class="deck-select-group">
+
+                        <label>
+                            PLAYER 2 DECK
+                        </label>
+
+                        <select @bind="replayPlayer2DeckIndex">
+
+                            @for (int i = 0;
+                                  i < DeckManager.Decks.Count;
+                                  i++)
+                            {
+                                int index = i;
+
+                                Deck deck =
+                                    DeckManager.Decks[index];
+
+                                <option value="@index">
+                                    @deck.Name (@GetStructureName(deck.Structure))
+                                </option>
+                            }
+
+                        </select>
+
+                    </div>
 
                 </div>
 
-                <div class="replay-controls">
+                <div class="replay-input-panel">
 
-                    <button @onclick="LoadReplay"
-                            disabled="@string.IsNullOrWhiteSpace(replayInput)">
-                        Load Replay
-                    </button>
+                    <label for="replay-data">
+                        REPLAY DATA
+                    </label>
 
-                    <button class="secondary-button"
-                            @onclick="ClearReplay">
-                        Clear
-                    </button>
+                    <textarea id="replay-data"
+                              @bind="replayInput"
+                              placeholder="Paste REDPANDA_REPLAY_V1 data here..."
+                              spellcheck="false"></textarea>
+
+                    <div class="replay-actions">
+
+                        <button class="primary-replay-button"
+                                @onclick="LoadReplay">
+                            Load Replay
+                        </button>
+
+                        <button class="secondary-replay-button"
+                                @onclick="ClearReplay">
+                            Clear
+                        </button>
+
+                    </div>
 
                 </div>
 
@@ -324,9 +366,28 @@
 
                 @if (replayLoaded)
                 {
-                    <div class="replay-results">
+                    <div class="replay-summary">
 
-                        <div class="replay-summary">
+                        <div class="replay-summary-header">
+
+                            <div>
+                                <h3>
+                                    Replay Loaded
+                                </h3>
+
+                                <p>
+                                    The replay data passed the current
+                                    replay validation checks.
+                                </p>
+                            </div>
+
+                            <span class="replay-valid">
+                                VALID
+                            </span>
+
+                        </div>
+
+                        <div class="replay-stat-grid">
 
                             <div class="replay-stat">
                                 <span>EVENTS</span>
@@ -340,46 +401,104 @@
 
                             <div class="replay-stat">
                                 <span>DRAWS</span>
-                                <strong>@GetReplayEventCount(BattleLogEventType.Draw)</strong>
+                                <strong>
+                                    @GetReplayEventCount(
+                                        BattleLogEventType.Draw)
+                                </strong>
                             </div>
 
                             <div class="replay-stat">
-                                <span>ATTACKS</span>
-                                <strong>@GetReplayEventCount(BattleLogEventType.Attack)</strong>
-                            </div>
-
-                            <div class="replay-stat">
-                                <span>ABILITIES</span>
-                                <strong>@GetReplayEventCount(BattleLogEventType.Ability)</strong>
-                            </div>
-
-                            <div class="replay-stat">
-                                <span>DAMAGE EVENTS</span>
-                                <strong>@GetReplayEventCount(BattleLogEventType.Damage)</strong>
+                                <span>ACTIONS</span>
+                                <strong>@GetVisibleReplayEventCount()</strong>
                             </div>
 
                         </div>
 
-                        <div class="replay-log">
+                        <div class="replay-deck-summary">
 
-                            <div class="replay-log-header">
-                                <h3>
-                                    Recorded Events
-                                </h3>
+                            <div>
+                                <span>
+                                    PLAYER 1
+                                </span>
+
+                                <strong>
+                                    @GetReplayDeckName(
+                                        replayPlayer1DeckIndex)
+                                </strong>
+
+                                <small>
+                                    @GetStructureName(
+                                        DeckManager.Decks[
+                                            replayPlayer1DeckIndex].Structure)
+                                </small>
                             </div>
 
-                            @foreach (BattleLogEntry entry in replayEvents)
+                            <div>
+                                <span>
+                                    PLAYER 2
+                                </span>
+
+                                <strong>
+                                    @GetReplayDeckName(
+                                        replayPlayer2DeckIndex)
+                                </strong>
+
+                                <small>
+                                    @GetStructureName(
+                                        DeckManager.Decks[
+                                            replayPlayer2DeckIndex].Structure)
+                                </small>
+                            </div>
+
+                        </div>
+
+                        <div class="replay-event-preview">
+
+                            <h3>
+                                Recorded Events
+                            </h3>
+
+                            @foreach (BattleLogEntry entry
+                                      in replayEvents.Take(12))
                             {
-                                <div class="log-line">
+                                <div class="replay-event-line">
 
-                                    <strong>
-                                        [@GetReplayLabel(entry)]
-                                    </strong>
+                                    <span class="replay-event-turn">
+                                        T@entry.TurnNumber
+                                    </span>
 
-                                    @entry.Message
+                                    <span class="replay-event-type">
+                                        @entry.EventType
+                                    </span>
+
+                                    <span class="replay-event-message">
+                                        @entry.Message
+                                    </span>
 
                                 </div>
                             }
+
+                            @if (replayEvents.Count > 12)
+                            {
+                                <div class="replay-more">
+                                    + @(replayEvents.Count - 12)
+                                    more recorded events
+                                </div>
+                            }
+
+                        </div>
+
+                        <div class="replay-ready-box">
+
+                            <strong>
+                                Replay data is ready.
+                            </strong>
+
+                            <span>
+                                The next step is to open this recording in
+                                the actual Battle screen and reconstruct
+                                the recorded board state.
+                            </span>
 
                         </div>
 
@@ -403,7 +522,6 @@
     OnFinished="FinishPageTutorial" />
 
 <style>
-
 * {
     box-sizing: border-box;
 }
@@ -462,35 +580,45 @@
     background: #e5ddcc;
 }
 
-.mode-switch {
+.mode-tabs {
     display: grid;
     grid-template-columns: 1fr 1fr;
     gap: 10px;
 }
 
-.mode-button {
-    padding: 13px 10px;
-    border: 2px solid #596674;
+.mode-tab {
+    padding: 13px 16px;
+    border: 1px solid #596674;
     border-radius: 7px;
-    background: rgba(17, 24, 32, .9);
+    background: #111820;
     color: #c8d0d8;
     cursor: pointer;
     font-size: 11px;
     font-weight: 900;
-    letter-spacing: .4px;
+    letter-spacing: .7px;
+    text-transform: uppercase;
 }
 
-.mode-button:hover {
+.mode-tab:hover {
     border-color: #e5cc67;
+    color: #f4efe3;
 }
 
-.mode-button.active {
+.mode-tab.active {
     border-color: #e5cc67;
-    background: #2b3440;
+    background: #2a3035;
     color: #e5cc67;
 }
 
-.deck-grid {
+.simulator-section,
+.replay-section {
+    display: flex;
+    flex-direction: column;
+    gap: 24px;
+}
+
+.deck-grid,
+.replay-deck-grid {
     display: grid;
     grid-template-columns: 1fr 1fr;
     gap: 18px;
@@ -507,7 +635,7 @@
 }
 
 .deck-select-group label,
-.replay-input-group label {
+.replay-input-panel > label {
     color: #e5cc67;
     font-size: 10px;
     font-weight: 900;
@@ -537,8 +665,7 @@
     gap: 10px;
 }
 
-.simulation-controls button,
-.replay-controls button {
+.simulation-controls button {
     padding: 13px 9px;
     border: 2px solid #9b9383;
     border-radius: 7px;
@@ -549,47 +676,27 @@
     font-weight: bold;
 }
 
-.simulation-controls button:hover,
-.replay-controls button:hover,
-.copy-button:hover {
+.simulation-controls button:hover {
     border-color: #e5cc67;
     background: #fff9e9;
     transform: translateY(-2px);
 }
 
-button:disabled {
-    opacity: .5;
-    cursor: not-allowed;
-    transform: none !important;
-}
-
-.running-message {
-    padding: 11px 12px;
-    border: 1px solid #596674;
-    border-radius: 6px;
-    background: rgba(17, 24, 32, .9);
-    color: #c8d0d8;
-    font-size: 11px;
-}
-
-.results,
-.replay-section {
+.results {
     padding: 20px;
     border: 1px solid #596674;
     border-radius: 10px;
     background: rgba(17, 24, 32, .93);
 }
 
-.results h2,
-.replay-section h2 {
+.results h2 {
     margin: 0 0 16px;
     color: #f4efe3;
 }
 
 .result-grid {
     display: grid;
-    grid-template-columns:
-        repeat(5, minmax(0, 1fr));
+    grid-template-columns: repeat(5, minmax(0, 1fr));
     gap: 9px;
 }
 
@@ -606,8 +713,7 @@ button:disabled {
     text-align: center;
 }
 
-.result-card span,
-.replay-stat span {
+.result-card span {
     color: #919ca6;
     font-size: 7px;
     font-weight: 900;
@@ -659,7 +765,8 @@ button:disabled {
     color: #e5cc67;
 }
 
-.warning-box {
+.warning-box,
+.replay-error {
     margin-top: 14px;
     padding: 11px 12px;
     border: 1px solid #985a5a;
@@ -672,24 +779,25 @@ button:disabled {
 
 .diagnostics,
 .single-log,
-.replay-log {
-    margin-top: 16px;
-    padding: 13px;
-    border: 1px solid #46515d;
-    border-radius: 7px;
-    background: #111820;
+.replay-header,
+.replay-input-panel,
+.replay-summary {
+    padding: 18px;
+    border: 1px solid #596674;
+    border-radius: 9px;
+    background: rgba(17, 24, 32, .9);
 }
 
 .diagnostics h3,
 .single-log h3,
-.replay-log h3 {
-    margin: 0;
+.replay-event-preview h3 {
+    margin: 0 0 11px;
     color: #e5cc67;
     font-size: 14px;
 }
 
 .diagnostic-entry {
-    margin-top: 6px;
+    margin-bottom: 6px;
     padding: 7px 8px;
     border-left: 3px solid #ef9a9a;
     background: rgba(255, 255, 255, .04);
@@ -698,33 +806,35 @@ button:disabled {
     line-height: 1.4;
 }
 
-.log-header,
-.replay-log-header {
+.single-log-header {
     display: flex;
     align-items: center;
     justify-content: space-between;
     gap: 12px;
 }
 
-.copy-button {
-    padding: 7px 10px;
-    border: 1px solid #9b9383;
-    border-radius: 6px;
-    background: #f4efe3;
-    color: #222;
+.single-log-header h3 {
+    margin-bottom: 0;
+}
+
+.copy-replay-button {
+    padding: 7px 11px;
+    border: 1px solid #71808e;
+    border-radius: 5px;
+    background: #1c2731;
+    color: #d8dee3;
     cursor: pointer;
     font-size: 9px;
     font-weight: bold;
 }
 
-.copy-status {
-    margin-top: 9px;
-    color: #81c784;
-    font-size: 9px;
+.copy-replay-button:hover {
+    border-color: #e5cc67;
+    color: #e5cc67;
 }
 
 .log-line {
-    margin-top: 5px;
+    margin-bottom: 5px;
     padding: 6px 7px;
     border-bottom: 1px solid #35414c;
     color: #c8d0d8;
@@ -738,93 +848,235 @@ button:disabled {
 }
 
 .replay-header h2 {
-    margin-bottom: 5px;
+    margin: 0;
+    color: #f4efe3;
 }
 
 .replay-header p {
-    margin: 0;
-    color: #c8d0d8;
+    margin: 7px 0 0;
+    color: #aeb8c0;
     font-size: 11px;
 }
 
-.replay-input-group {
-    margin-top: 18px;
+.replay-input-panel > label {
+    display: block;
+    margin-bottom: 9px;
 }
 
-.replay-input-group textarea {
+.replay-input-panel textarea {
     width: 100%;
     min-height: 260px;
-    margin-top: 9px;
-    padding: 11px;
     resize: vertical;
+    padding: 13px;
     border: 1px solid #596674;
     border-radius: 7px;
-    background: #111820;
-    color: #dfe5ea;
-    font-family: monospace;
-    font-size: 10px;
-    line-height: 1.5;
-}
-
-.replay-input-group textarea:focus {
-    border-color: #e5cc67;
     outline: none;
+    background: #0c1218;
+    color: #d8dee3;
+    font-family: Consolas, "Courier New", monospace;
+    font-size: 10px;
+    line-height: 1.45;
 }
 
-.replay-controls {
-    display: flex;
-    gap: 10px;
+.replay-input-panel textarea:focus {
+    border-color: #e5cc67;
+    box-shadow:
+        0 0 0 2px rgba(229, 204, 103, .12);
+}
+
+.replay-actions {
     margin-top: 12px;
+    display: flex;
+    gap: 9px;
 }
 
-.replay-controls .secondary-button {
-    border-color: #596674;
+.primary-replay-button,
+.secondary-replay-button {
+    padding: 10px 17px;
+    border-radius: 6px;
+    cursor: pointer;
+    font-size: 10px;
+    font-weight: 900;
+}
+
+.primary-replay-button {
+    border: 2px solid #9b9383;
+    background: #f4efe3;
+    color: #222;
+}
+
+.primary-replay-button:hover {
+    border-color: #e5cc67;
+    background: #fff9e9;
+}
+
+.secondary-replay-button {
+    border: 1px solid #596674;
     background: #1a252f;
     color: #c8d0d8;
 }
 
-.replay-error {
-    margin-top: 12px;
-    padding: 10px 12px;
-    border: 1px solid #985a5a;
-    border-left: 4px solid #ef9a9a;
-    border-radius: 6px;
-    background: rgba(152, 70, 70, .12);
-    color: #efb0b0;
+.secondary-replay-button:hover {
+    border-color: #e5cc67;
+    color: #e5cc67;
+}
+
+.replay-summary-header {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 16px;
+}
+
+.replay-summary-header h3 {
+    margin: 0;
+    color: #f4efe3;
+}
+
+.replay-summary-header p {
+    margin: 6px 0 0;
+    color: #aeb8c0;
     font-size: 10px;
 }
 
-.replay-results {
-    margin-top: 18px;
+.replay-valid {
+    padding: 6px 9px;
+    border: 1px solid #4e8d61;
+    border-radius: 5px;
+    color: #81c784;
+    font-size: 8px;
+    font-weight: 900;
+    letter-spacing: .8px;
 }
 
-.replay-summary {
+.replay-stat-grid {
+    margin-top: 18px;
     display: grid;
-    grid-template-columns:
-        repeat(6, minmax(0, 1fr));
-    gap: 8px;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 9px;
 }
 
 .replay-stat {
-    padding: 11px 7px;
+    padding: 12px 8px;
     display: flex;
     flex-direction: column;
     align-items: center;
     gap: 5px;
-    border: 1px solid #52606c;
+    border: 1px solid #46515d;
     border-radius: 7px;
     background: #1a252f;
-    text-align: center;
+}
+
+.replay-stat span {
+    color: #919ca6;
+    font-size: 7px;
+    font-weight: 900;
+    letter-spacing: .6px;
 }
 
 .replay-stat strong {
-    color: #f4efe3;
-    font-size: 17px;
+    color: #e5cc67;
+    font-size: 18px;
 }
 
-.replay-log {
-    max-height: 550px;
-    overflow-y: auto;
+.replay-deck-summary {
+    margin-top: 18px;
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 9px;
+}
+
+.replay-deck-summary > div {
+    padding: 12px;
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    border: 1px solid #46515d;
+    border-radius: 7px;
+    background: #111820;
+}
+
+.replay-deck-summary span {
+    color: #919ca6;
+    font-size: 7px;
+    font-weight: 900;
+    letter-spacing: .6px;
+}
+
+.replay-deck-summary strong {
+    color: #f4efe3;
+    font-size: 13px;
+}
+
+.replay-deck-summary small {
+    color: #8faee0;
+    font-size: 9px;
+}
+
+.replay-event-preview {
+    margin-top: 18px;
+    padding: 13px;
+    border: 1px solid #46515d;
+    border-radius: 7px;
+    background: #111820;
+}
+
+.replay-event-line {
+    display: grid;
+    grid-template-columns: 42px 115px minmax(0, 1fr);
+    gap: 8px;
+    padding: 7px 0;
+    border-bottom: 1px solid #35414c;
+    align-items: start;
+}
+
+.replay-event-turn {
+    color: #8faee0;
+    font-size: 9px;
+    font-weight: bold;
+}
+
+.replay-event-type {
+    color: #e5cc67;
+    font-size: 8px;
+    font-weight: 900;
+    text-transform: uppercase;
+}
+
+.replay-event-message {
+    min-width: 0;
+    color: #c8d0d8;
+    font-size: 9px;
+    line-height: 1.35;
+}
+
+.replay-more {
+    padding-top: 10px;
+    color: #8d99a3;
+    font-size: 9px;
+    text-align: center;
+}
+
+.replay-ready-box {
+    margin-top: 16px;
+    padding: 12px;
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    border: 1px solid #4e8d61;
+    border-left: 4px solid #81c784;
+    border-radius: 6px;
+    background: rgba(78, 141, 97, .08);
+}
+
+.replay-ready-box strong {
+    color: #81c784;
+    font-size: 10px;
+}
+
+.replay-ready-box span {
+    color: #aeb8c0;
+    font-size: 9px;
 }
 
 .page-tutorial-target {
@@ -835,41 +1087,14 @@ button:disabled {
     border-radius: 8px;
     box-shadow:
         0 0 0 3px rgba(0, 0, 0, .5),
-        0 0 20px rgba(255, 224, 120, .72),
-        0 0 42px rgba(229, 204, 103, .4);
-    animation:
-        pageTutorialTargetPulse
-        1s
-        ease-in-out
-        infinite alternate;
-}
-
-@@keyframes pageTutorialTargetPulse {
-    from {
-        outline-color:
-            rgba(255, 224, 120, .65);
-
-        box-shadow:
-            0 0 0 3px rgba(0, 0, 0, .45),
-            0 0 10px rgba(255, 224, 120, .4);
-    }
-
-    to {
-        outline-color:
-            #ffe078;
-
-        box-shadow:
-            0 0 0 3px rgba(0, 0, 0, .55),
-            0 0 24px rgba(255, 224, 120, .85),
-            0 0 48px rgba(229, 204, 103, .45);
-    }
+        0 0 20px rgba(255, 224, 120, .72);
 }
 
 @@media (max-width: 700px) {
 
     .deck-grid,
-    .result-grid,
-    .replay-summary {
+    .replay-deck-grid,
+    .replay-deck-summary {
         grid-template-columns: 1fr;
     }
 
@@ -877,8 +1102,12 @@ button:disabled {
         grid-template-columns: 1fr 1fr;
     }
 
-    .mode-switch {
-        grid-template-columns: 1fr;
+    .replay-stat-grid {
+        grid-template-columns: 1fr 1fr;
+    }
+
+    .replay-event-line {
+        grid-template-columns: 38px 95px minmax(0, 1fr);
     }
 
     .simulator-header {
@@ -886,15 +1115,24 @@ button:disabled {
         flex-direction: column;
     }
 
-    .log-header {
-        align-items: flex-start;
+    .replay-actions {
+        flex-direction: column;
+    }
+
+    .replay-summary-header {
         flex-direction: column;
     }
 }
-
 </style>
 
 @code {
+
+    [SupplyParameterFromQuery(Name = "tutorial")]
+    public bool PageTutorialRequested
+    {
+        get;
+        set;
+    }
 
     private enum SimulatorMode
     {
@@ -902,36 +1140,8 @@ button:disabled {
         Replay
     }
 
-    private SimulatorMode activeMode =
+    private SimulatorMode simulatorMode =
         SimulatorMode.BotFighter;
-
-    private bool isRunning;
-
-    private bool copyMessageVisible;
-
-    private string replayInput = "";
-
-    private string replayError = "";
-
-    private bool replayLoaded;
-
-    private List<BattleLogEntry> replayEvents =
-        new();
-
-    [Inject]
-    private NavigationManager Navigation
-    {
-        get;
-        set;
-    } = default!;
-
-    [SupplyParameterFromQuery(
-        Name = "tutorial")]
-    public bool PageTutorialRequested
-    {
-        get;
-        set;
-    }
 
     private bool showPageTutorial;
 
@@ -939,12 +1149,28 @@ button:disabled {
 
     private int player1DeckIndex;
 
-    private int player2DeckIndex =
-        1;
+    private int player2DeckIndex = 1;
+
+    private int replayPlayer1DeckIndex;
+
+    private int replayPlayer2DeckIndex = 1;
 
     private SimulationResults? results;
 
     private List<BattleLogEntry> singleMatchLog =
+        new();
+
+    private string replayInput =
+        "";
+
+    private string replayError =
+        "";
+
+    private bool replayLoaded;
+
+    private bool replayCopied;
+
+    private List<BattleLogEntry> replayEvents =
         new();
 
     private static readonly IReadOnlyList<PageTutorialStep>
@@ -1015,20 +1241,6 @@ button:disabled {
 
                 Target =
                     "simulation-results"
-            },
-
-            new()
-            {
-                Title =
-                    "Battle Log / Replay",
-
-                Message =
-                    "The Battle Log can be copied as structured replay data. " +
-                    "Switch to Battle Log / Replay to load that data later " +
-                    "without relying on the visible log text.",
-
-                Target =
-                    "simulator-page"
             }
         };
 
@@ -1043,17 +1255,23 @@ button:disabled {
             0;
     }
 
-    private void SetMode(
+    private void SetSimulatorMode(
         SimulatorMode mode)
     {
-        activeMode =
+        simulatorMode =
             mode;
 
         replayError =
             "";
 
-        copyMessageVisible =
-            false;
+        if (mode ==
+            SimulatorMode.Replay)
+        {
+            replayLoaded =
+                false;
+
+            replayEvents.Clear();
+        }
     }
 
     private string GetPageTutorialClass(
@@ -1109,17 +1327,13 @@ button:disabled {
             "/tutorial");
     }
 
-    private async Task RunSimulations(
+    // ==========================
+    // BOT SIMULATOR
+    // ==========================
+
+    private void RunSimulations(
         int matchCount)
     {
-        if (isRunning)
-        {
-            return;
-        }
-
-        isRunning =
-            true;
-
         results =
             new SimulationResults
             {
@@ -1129,69 +1343,56 @@ button:disabled {
 
         singleMatchLog.Clear();
 
-        copyMessageVisible =
-            false;
-
-        try
+        if (DeckManager.Decks.Count < 2)
         {
-            if (DeckManager.Decks.Count < 2)
+            results.Exceptions++;
+
+            results.Diagnostics.Add(
+                "At least two decks are required.");
+
+            return;
+        }
+
+        player1DeckIndex =
+            Math.Clamp(
+                player1DeckIndex,
+                0,
+                DeckManager.Decks.Count - 1);
+
+        player2DeckIndex =
+            Math.Clamp(
+                player2DeckIndex,
+                0,
+                DeckManager.Decks.Count - 1);
+
+        for (int matchNumber = 1;
+             matchNumber <= matchCount;
+             matchNumber++)
+        {
+            try
+            {
+                RunSingleSimulation(
+                    matchNumber,
+                    matchCount);
+            }
+            catch (Exception exception)
             {
                 results.Exceptions++;
 
-                results.Diagnostics.Add(
-                    "At least two decks are required.");
-
-                return;
-            }
-
-            player1DeckIndex =
-                Math.Clamp(
-                    player1DeckIndex,
-                    0,
-                    DeckManager.Decks.Count - 1);
-
-            player2DeckIndex =
-                Math.Clamp(
-                    player2DeckIndex,
-                    0,
-                    DeckManager.Decks.Count - 1);
-
-            for (int matchNumber = 1;
-                 matchNumber <= matchCount;
-                 matchNumber++)
-            {
-                try
+                if (results.Diagnostics.Count < 20)
                 {
-                    RunSingleSimulation(
-                        matchNumber,
-                        matchCount);
+                    results.Diagnostics.Add(
+                        $"Match {matchNumber}: " +
+                        exception.Message);
                 }
-                catch (Exception exception)
-                {
-                    results.Exceptions++;
-
-                    if (results.Diagnostics.Count < 20)
-                    {
-                        results.Diagnostics.Add(
-                            $"Match {matchNumber}: " +
-                            exception.Message);
-                    }
-                }
-
-                await Task.Yield();
-            }
-
-            if (results.CompletedMatches > 0)
-            {
-                results.AverageTurns =
-                    (double)results.TotalTurns /
-                    results.CompletedMatches;
             }
         }
-        finally
+
+        if (results.CompletedMatches > 0)
         {
-            isRunning =
-                false;
+            results.AverageTurns =
+                (double)results.TotalTurns /
+                results.CompletedMatches;
         }
     }
 
@@ -1283,9 +1484,8 @@ button:disabled {
             {
                 string reason =
                     stopReason ??
-                    $"Reached the " +
-                    $"{maxSimulationSteps}-step " +
-                    $"Simulator safety limit.";
+                    $"Reached the {maxSimulationSteps}-step " +
+                    "Simulator safety limit.";
 
                 Player actingPlayer =
                     match.GetActingPlayer();
@@ -1317,8 +1517,62 @@ button:disabled {
             return;
         }
 
-        BattleEngine.CompleteMatch(
-            match);
+        bool isDraw =
+            MatchManager.IsDraw(
+                match.Player1,
+                match.Player2);
+
+        Player? winner =
+            BattleEngine.CompleteMatch(
+                match);
+
+        if (isDraw ||
+            match.IsDraw)
+        {
+            RecordCompletedMatch(
+                match);
+
+            if (requestedMatches == 1)
+            {
+                singleMatchLog =
+                    BattleLog
+                        .GetPhaseActions()
+                        .ToList();
+            }
+
+            return;
+        }
+
+        if (winner == null)
+        {
+            results!.StalledMatches++;
+
+            if (results.Diagnostics.Count < 20)
+            {
+                results.Diagnostics.Add(
+                    $"Match {matchNumber}: " +
+                    "terminal state returned no winner " +
+                    "and was not a draw. " +
+                    $"Turn={match.TurnNumber}, " +
+                    $"Phase={match.CurrentPhase}, " +
+                    $"Bot1Energy={match.Player1.Energy}, " +
+                    $"Bot2Energy={match.Player2.Energy}, " +
+                    $"Bot1Surrendered=" +
+                    $"{match.Player1.HasSurrendered}, " +
+                    $"Bot2Surrendered=" +
+                    $"{match.Player2.HasSurrendered}.");
+            }
+
+            if (requestedMatches == 1)
+            {
+                singleMatchLog =
+                    BattleLog
+                        .GetPhaseActions()
+                        .ToList();
+            }
+
+            return;
+        }
 
         RecordCompletedMatch(
             match);
@@ -1360,10 +1614,7 @@ button:disabled {
                 match.TurnNumber;
         }
 
-        if (match.IsDraw ||
-            MatchManager.IsDraw(
-                match.Player1,
-                match.Player2))
+        if (match.IsDraw)
         {
             results.Draws++;
             return;
@@ -1388,80 +1639,141 @@ button:disabled {
         }
     }
 
-    private async Task CopyReplay()
-    {
-        try
-        {
-            string replay =
-                BattleLog.ExportReplay();
-
-            await JS.InvokeVoidAsync(
-                "navigator.clipboard.writeText",
-                replay);
-
-            copyMessageVisible =
-                true;
-        }
-        catch
-        {
-            copyMessageVisible =
-                false;
-        }
-    }
+    // ==========================
+    // REPLAY
+    // ==========================
 
     private void LoadReplay()
     {
         replayError =
             "";
 
-        replayEvents.Clear();
-
         replayLoaded =
             false;
+
+        replayEvents.Clear();
 
         if (string.IsNullOrWhiteSpace(
                 replayInput))
         {
             replayError =
-                "Paste Battle Log replay data first.";
+                "Paste a replay before loading it.";
 
             return;
         }
 
-        try
-        {
-            List<BattleLogEntry> imported =
-                BattleLog.ImportReplay(
-                    replayInput);
+        List<BattleLogEntry> imported =
+            BattleLog.ImportReplay(
+                replayInput);
 
-            replayEvents =
-                imported
-                    .Where(entry =>
-                        entry.TurnNumber > 0 ||
-                        entry.EventType ==
-                            BattleLogEventType.MatchStart ||
-                        entry.EventType ==
-                            BattleLogEventType.MatchEnd)
-                    .ToList();
-
-            if (replayEvents.Count == 0)
-            {
-                replayError =
-                    "The replay was imported, but " +
-                    "no replay events were found.";
-
-                return;
-            }
-
-            replayLoaded =
-                true;
-        }
-        catch (Exception exception)
+        if (imported.Count == 0)
         {
             replayError =
-                $"Could not load replay: " +
-                exception.Message;
+                "The replay could not be loaded. " +
+                "Make sure it starts with REDPANDA_REPLAY_V1 " +
+                "and contains valid replay events.";
+
+            return;
         }
+
+        if (DeckManager.Decks.Count < 2)
+        {
+            replayError =
+                "At least two decks are required " +
+                "to load a replay.";
+
+            return;
+        }
+
+        replayPlayer1DeckIndex =
+            Math.Clamp(
+                replayPlayer1DeckIndex,
+                0,
+                DeckManager.Decks.Count - 1);
+
+        replayPlayer2DeckIndex =
+            Math.Clamp(
+                replayPlayer2DeckIndex,
+                0,
+                DeckManager.Decks.Count - 1);
+
+        /*
+            The current BattleLog replay format records the
+            deck structure for individual replay events.
+
+            We validate that all recorded deck structures are
+            compatible with the selected decks before accepting
+            the replay.
+
+            Exact deck identity will be enforced once the replay
+            header carries the deck identity/fingerprint.
+        */
+
+        DeckStructure? player1Structure =
+            GetRecordedDeckStructure(
+                imported,
+                1);
+
+        DeckStructure? player2Structure =
+            GetRecordedDeckStructure(
+                imported,
+                2);
+
+        Deck selectedPlayer1Deck =
+            DeckManager.Decks[
+                replayPlayer1DeckIndex];
+
+        Deck selectedPlayer2Deck =
+            DeckManager.Decks[
+                replayPlayer2DeckIndex];
+
+        if (player1Structure.HasValue &&
+            player1Structure.Value !=
+                selectedPlayer1Deck.Structure)
+        {
+            replayError =
+                $"Replay mismatch: Player 1 recorded " +
+                $"deck structure is " +
+                $"{GetStructureName(player1Structure.Value)}, " +
+                $"but the selected deck uses " +
+                $"{GetStructureName(selectedPlayer1Deck.Structure)}.";
+
+            return;
+        }
+
+        if (player2Structure.HasValue &&
+            player2Structure.Value !=
+                selectedPlayer2Deck.Structure)
+        {
+            replayError =
+                $"Replay mismatch: Player 2 recorded " +
+                $"deck structure is " +
+                $"{GetStructureName(player2Structure.Value)}, " +
+                $"but the selected deck uses " +
+                $"{GetStructureName(selectedPlayer2Deck.Structure)}.";
+
+            return;
+        }
+
+        replayEvents =
+            imported;
+
+        replayLoaded =
+            true;
+    }
+
+    private static DeckStructure? GetRecordedDeckStructure(
+        IEnumerable<BattleLogEntry> events,
+        int playerIndex)
+    {
+        return events
+            .Where(entry =>
+                entry.PlayerIndex ==
+                playerIndex &&
+                entry.DeckStructure.HasValue)
+            .Select(entry =>
+                entry.DeckStructure)
+            .FirstOrDefault();
     }
 
     private void ClearReplay()
@@ -1472,10 +1784,10 @@ button:disabled {
         replayError =
             "";
 
-        replayEvents.Clear();
-
         replayLoaded =
             false;
+
+        replayEvents.Clear();
     }
 
     private int GetReplayTurnCount()
@@ -1485,32 +1797,75 @@ button:disabled {
                 entry.TurnNumber > 0)
             .Select(entry =>
                 entry.TurnNumber)
-            .DefaultIfEmpty()
-            .Max();
+            .Distinct()
+            .Count();
     }
 
     private int GetReplayEventCount(
         BattleLogEventType eventType)
     {
-        return replayEvents.Count(
-            entry =>
+        return replayEvents
+            .Count(entry =>
                 entry.EventType ==
                 eventType);
     }
 
-    private static string GetReplayLabel(
-        BattleLogEntry entry)
+    private int GetVisibleReplayEventCount()
     {
-        if (entry.TurnNumber > 0 &&
-            entry.PlayerIndex > 0)
+        return replayEvents
+            .Count(entry =>
+                entry.ShowInLog);
+    }
+
+    private string GetReplayDeckName(
+        int index)
+    {
+        if (DeckManager.Decks.Count == 0)
         {
-            return
-                $"T{entry.TurnNumber} P{entry.PlayerIndex}";
+            return "No deck";
         }
 
-        return entry.Label
-            .ToUpperInvariant();
+        index =
+            Math.Clamp(
+                index,
+                0,
+                DeckManager.Decks.Count - 1);
+
+        return DeckManager.Decks[index].Name;
     }
+
+    private async Task CopyLastReplay()
+    {
+        if (singleMatchLog.Count == 0)
+        {
+            return;
+        }
+
+        string replay =
+            BattleLog.ExportReplay();
+
+        await JS.InvokeVoidAsync(
+            "navigator.clipboard.writeText",
+            replay);
+
+        replayCopied =
+            true;
+
+        await InvokeAsync(
+            StateHasChanged);
+
+        await Task.Delay(1200);
+
+        replayCopied =
+            false;
+
+        await InvokeAsync(
+            StateHasChanged);
+    }
+
+    // ==========================
+    // HELPERS
+    // ==========================
 
     private static string GetStructureName(
         DeckStructure structure)
@@ -1614,7 +1969,6 @@ button:disabled {
         public List<string> Diagnostics
         {
             get;
-        } =
-            new();
+        } = new();
     }
 }
