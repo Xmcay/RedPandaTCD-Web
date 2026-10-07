@@ -24,7 +24,8 @@ public static class PhaseManager
         {
             EndPhaseManager.Resolve(
                 acting,
-                state.TurnNumber);
+                state.TurnNumber,
+                state.ActingPlayerIndex);
 
             if (MatchManager.IsMatchOver(
                     state.Player1,

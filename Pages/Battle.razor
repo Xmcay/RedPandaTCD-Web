@@ -1858,1759 +1858,3212 @@ else
     }
 }
 </style>
-@code {
-private bool logCollapsed, botIsActing, coinFlipAcknowledged, showLeaveMatchDialog;
-private bool showCoinFlipDialog = true;
-private bool showPassDeviceDialog, allowNavigation, showZeroEnergyDialog;
-private bool showZeroEnergyWarning, logCopied, surrendered, observingFinishedMatch;
-private bool finishedTournamentMatch, showDeckAction, showCharacterPicker;
-private bool showFatiguedAttackActions, awaitingWandererEntry;
-private bool dsaRecyclePrepared;
-private bool dsaRecycleResolved;
-private bool linkedNodeMoved;
-private int dsaRecycleCardCount;
-private const int DsaRecycleSampleSize =4;
-private string? pendingNavigationUrl;
-private Func<bool>? pendingZeroEnergyAction;
-private ElementReference battleLogElement;
-private int lastBattleLogCount;
-private HandSlot? selectedHandSlot;
-private int? selectedPlacementAttackSlot;
-private List<Card>? peekedCards, drawPoolCards, reorderCards;
-private bool showDiscardForEnergyPicker;
-private int? discardForEnergyUtilitySlot;
-
-private bool IsGuidedTutorialBattle =>
-    Session.Tutorial.IsActive &&
-    Session.Tutorial.IsBattleTutorial &&
-    Session.CurrentMatch != null;
-
-private bool IsLearnToPlayBattle =>
-    IsGuidedTutorialBattle &&
-    Session.Tutorial.CurrentTutorial == TutorialType.LearnToPlay;
-
-private bool IsDsaTutorialBattle =>
-    IsGuidedTutorialBattle &&
-    Session.Tutorial.CurrentTutorial is
-        TutorialType.Queue or
-        TutorialType.PriorityQueue or
-        TutorialType.Stack or
-        TutorialType.RandomList or
-        TutorialType.LinkedList;
-
-private TutorialAction RequiredTutorialAction =>
-    TutorialManager.GetRequiredAction(Session.Tutorial);
-
-private string TutorialTarget =>
-    TutorialManager.GetHighlightTarget(Session.Tutorial);
-
-private bool ShowTutorialOverlay =>
-    IsGuidedTutorialBattle &&
-    coinFlipAcknowledged &&
-    !showCoinFlipDialog &&
-    !showPassDeviceDialog;
-
-private bool IsSurrenderDisabled =>
-    IsGuidedTutorialBattle &&
-    RequiredTutorialAction != TutorialAction.Surrender;
-
-private bool IsObserveBoardDisabled =>
-    IsGuidedTutorialBattle &&
-    RequiredTutorialAction != TutorialAction.ObserveBoard;
-
-private bool CanPlaySelectedUtility =>
-    !IsGuidedTutorialBattle ||
-    RequiredTutorialAction == TutorialAction.PlayUtility;
-
-private bool CanDiscardSelectedCard =>
-    !IsGuidedTutorialBattle ||
-    RequiredTutorialAction == TutorialAction.DiscardAndDraw;
-
-private bool CanResolveFatigueWithRest =>
-    !IsGuidedTutorialBattle ||
-    RequiredTutorialAction == TutorialAction.RestAttack;
-
-private bool CanResolveFatigueWithReplace =>
-    !IsGuidedTutorialBattle ||
-    RequiredTutorialAction == TutorialAction.ReplaceAttack;
-
-private void RefreshTutorialState() => StateHasChanged();
-
-private bool TutorialAllows(TutorialAction action) =>
-    !IsGuidedTutorialBattle ||
-    TutorialManager.CanPerformAction(Session.Tutorial, action);
-
-private bool NotifyTutorialAction(TutorialAction action)
+@code
 {
-    if (!IsGuidedTutorialBattle) return false;
-    bool advanced = TutorialManager.NotifyAction(Session.Tutorial, action);
-    if (advanced) StateHasChanged();
-    return advanced;
-}
+    // ============================================================
+    // 1. STATE / UI FIELDS
+    // ============================================================
 
-private async Task HandleTutorialOverlayAdvanced()
-{
-    if (!IsGuidedTutorialBattle)
+    private bool logCollapsed, botIsActing, coinFlipAcknowledged, showLeaveMatchDialog;
+    private bool showCoinFlipDialog = true;
+    private bool showPassDeviceDialog, allowNavigation, showZeroEnergyDialog;
+    private bool showZeroEnergyWarning, logCopied, surrendered, observingFinishedMatch;
+    private bool finishedTournamentMatch, showDeckAction, showCharacterPicker;
+    private bool showFatiguedAttackActions, awaitingWandererEntry;
+
+    private bool dsaRecyclePrepared;
+    private bool dsaRecycleResolved;
+    private bool linkedNodeMoved;
+
+    private int dsaRecycleCardCount;
+    private const int DsaRecycleSampleSize = 4;
+
+    private string? pendingNavigationUrl;
+    private Func<bool>? pendingZeroEnergyAction;
+
+    private ElementReference battleLogElement;
+    private int lastBattleLogCount;
+
+    private HandSlot? selectedHandSlot;
+    private int? selectedPlacementAttackSlot;
+
+    private List<Card>? peekedCards, drawPoolCards, reorderCards;
+
+    private bool showDiscardForEnergyPicker;
+    private int? discardForEnergyUtilitySlot;
+
+
+    // ============================================================
+    // 2. LIFECYCLE / INITIALIZATION
+    // ============================================================
+
+    protected override void OnInitialized()
     {
-        StateHasChanged();
-        return;
-    }
-
-    if (IsDsaTutorialBattle)
-        await HandleDsaInformationalAdvance();
-
-    StateHasChanged();
-}
-
-private void FinishCurrentTutorial()
-{
-    if (!IsGuidedTutorialBattle) return;
-
-    TutorialManager.CompleteTutorial(Session.Tutorial);
-    Session.CurrentMatch = null;
-    allowNavigation = true;
-    Navigation.NavigateTo("/tutorial");
-}
-
-private string RequiredTutorialCardId => TutorialTarget switch
-{
-    "tutorial-utility" => "UM1",
-    "sorcerer" => "CM2",
-    "fireball" => "AM6",
-    "piercing-attack" => "AP4",
-    "piercing-slot" => "AP4",
-    "multi-hit-attack" => "AM3",
-    "wanderer" => "CN1",
-    _ => ""
-};
-
-private bool TutorialAllowsCard(Card card)
-{
-    if (!IsLearnToPlayBattle) return true;
-    string required = RequiredTutorialCardId;
-    return string.IsNullOrWhiteSpace(required) ||
-           string.Equals(card.Id, required, StringComparison.OrdinalIgnoreCase);
-}
-
-private bool CanChoosePlacementAttack(
-    HandSlot slot)
-{
-    if (slot.IsEmpty ||
-        slot.CardInSlot?.Type !=
-            CardType.Attack)
-    {
-        return false;
-    }
-
-    if (IsDsaTutorialBattle)
-    {
-        return true;
-    }
-
-    if (!IsLearnToPlayBattle)
-    {
-        return true;
-    }
-
-    Card card =
-        slot.CardInSlot;
-
-    if (RequiredTutorialAction ==
-        TutorialAction.DeployAttack)
-    {
-        return TutorialAllowsCard(
-            card);
-    }
-
-    if (RequiredTutorialAction ==
-        TutorialAction.ReplaceAttack)
-    {
-        return string.Equals(
-            card.Id,
-            "AM3",
-            StringComparison.OrdinalIgnoreCase);
-    }
-
-    return false;
-}
-private bool CanChoosePlacementCharacter(Card card)
-{
-    if (!IsLearnToPlayBattle) return true;
-
-    return RequiredTutorialAction == TutorialAction.DeployCharacter &&
-           TutorialAllowsCard(card);
-}
-
-private bool CanPerformDeckTutorialAction(TutorialAction action) =>
-    !IsGuidedTutorialBattle || RequiredTutorialAction == action;
-
-private bool CanContinuePhase(
-    Player player)
-{
-    MatchState? match =
-        Session.CurrentMatch;
-
-    if (match == null ||
-        IsBattleFinished ||
-        botIsActing ||
-        showPassDeviceDialog ||
-        awaitingWandererEntry ||
-        !coinFlipAcknowledged ||
-        match.GetActingPlayer() != player)
-    {
-        return false;
-    }
-
-    if (IsGuidedTutorialBattle &&
-        RequiredTutorialAction !=
-            TutorialAction.ContinuePhase)
-    {
-        return false;
-    }
-
-    /*
-        DSA tutorials require at least one deployed
-        Attack before leaving the Placement Phase.
-
-        This creates an empty hand slot so the later
-        recycle and End Phase draw remain visible.
-    */
-    if (IsDsaTutorialBattle &&
-        match.CurrentPhase ==
-            MatchPhase.Placement &&
-        !HasDeployedAttack(
-            player))
-    {
-        return false;
-    }
-
-    if (match.CurrentPhase ==
-            MatchPhase.Placement &&
-        HasUnresolvedFatigue(
-            player))
-    {
-        return false;
-    }
-
-    return true;
-}
-
-private bool IsContinueDisabled(
-    Player player) =>
-    !CanContinuePhase(player);
-
-private async Task ToggleLog()
-{
-    logCollapsed = !logCollapsed;
-    if (logCollapsed) return;
-
-    StateHasChanged();
-    await Task.Yield();
-    await JS.InvokeVoidAsync(
-        "redPandaBattle.scrollLogToBottom",
-        battleLogElement);
-}
-
-private void HandleNavigationAway(LocationChangingContext context)
-{
-    if (allowNavigation) return;
-
-    if (Session.CurrentMatch == null)
-    {
-        allowNavigation = true;
-        return;
-    }
-
-    if (IsBattleFinished)
-    {
-        Session.CurrentMatch = null;
-        allowNavigation = true;
-        return;
-    }
-
-    context.PreventNavigation();
-    pendingNavigationUrl = context.TargetLocation;
-    showLeaveMatchDialog = true;
-}
-
-private RenderFragment PhaseBox(
-    string name,
-    MatchPhase phase,
-    string cssClass) =>
-    @<div class="phase @cssClass @(Session.CurrentMatch!.CurrentPhase == phase ? "active" : "")">
-        @name
-    </div>;
-
-private string GetLogPhaseClass(BattleLogEntry entry)
-{
-    if (entry.IsSystem) return "log-system";
-
-    return entry.Phase switch
-    {
-        MatchPhase.Utility => "log-utility",
-        MatchPhase.Placement => "log-placement",
-        MatchPhase.Attack => "log-attack",
-        MatchPhase.End => "log-end",
-        _ => ""
-    };
-}
-
-private bool CanUseDeckAction(Player player)
-{
-    MatchState? match =
-        Session.CurrentMatch;
-
-    if (match == null ||
-        IsBattleFinished ||
-        botIsActing ||
-        match.CurrentPhase != MatchPhase.Utility ||
-        match.GetActingPlayer() != player ||
-        player.Deck.RuntimeStorage == null ||
-        player.Deck.RuntimeStorage.Count == 0 ||
-        player.Deck.Structure ==
-            DeckStructure.PriorityQueue)
-    {
-        return false;
-    }
-
-    if (IsGuidedTutorialBattle)
-    {
-        TutorialAction required =
-            RequiredTutorialAction;
-
-        bool correctAction =
-            (
-                required ==
-                    TutorialAction.PeekDeck &&
-                player.Deck.Structure is
-                    (DeckStructure.Queue or
-                     DeckStructure.Stack)
-            ) ||
-            (
-                required ==
-                    TutorialAction.ViewDrawPool &&
-                player.Deck.Structure ==
-                    DeckStructure.RandomList
-            ) ||
-            (
-                required ==
-                    TutorialAction.StartReorderNodes &&
-                player.Deck.Structure ==
-                    DeckStructure.LinkedList
-            );
-
-        if (!correctAction)
+        if (Session.CurrentMatch == null)
         {
-            return false;
+            allowNavigation = true;
+
+            Navigation.NavigateTo("/");
+
+            return;
+        }
+
+        showCoinFlipDialog = true;
+        coinFlipAcknowledged = false;
+
+        if (IsDsaTutorialBattle)
+        {
+            PrepareDsaTutorialBattle();
         }
     }
 
-    bool freePeek =
-        CharacterManager.HasPassive(
-            player,
-            "FreePeek");
-
-    bool peekStructure =
-        player.Deck.Structure is
-            DeckStructure.Queue or
-            DeckStructure.Stack or
-            DeckStructure.RandomList;
-
-    if (peekStructure &&
-        !freePeek &&
-        player.UtilityActionsRemaining <= 0)
+    protected override async Task OnAfterRenderAsync(
+        bool firstRender)
     {
-        return false;
-    }
+        int currentCount =
+            BattleLog.GetPhaseActions().Count;
 
-    if (player.Deck.Structure ==
-            DeckStructure.LinkedList &&
-        player.UtilityActionsRemaining <= 0)
-    {
-        return false;
-    }
-
-    return true;
-}
-
-private void SelectDeckAction(Player player)
-{
-    if (CanUseDeckAction(player)) showDeckAction = true;
-}
-
-private void CloseDeckAction() => showDeckAction = false;
-
-private void PeekSelectedDeck()
-{
-    if (Session.CurrentMatch == null)
-    {
-        return;
-    }
-
-    Player player =
-        GetPresentedPlayer();
-
-    if (!CanUseDeckAction(player) ||
-        player.Deck.Structure is not
-            (DeckStructure.Queue or
-             DeckStructure.Stack))
-    {
-        return;
-    }
-
-    List<Card>? result =
-        UtilityManager.PeekDeck(
-            player);
-
-    if (result == null)
-    {
-        return;
-    }
-
-    peekedCards = result;
-    showDeckAction = false;
-
-    NotifyTutorialAction(
-        TutorialAction.PeekDeck);
-
-    StateHasChanged();
-}
-
-private void ClosePeek()
-{
-    peekedCards = null;
-    StateHasChanged();
-}
-
-private void ViewSelectedDrawPool()
-{
-    if (Session.CurrentMatch == null)
-    {
-        return;
-    }
-
-    Player player =
-        GetPresentedPlayer();
-
-    TutorialAction actionBeforeView =
-        RequiredTutorialAction;
-
-    if (!CanUseDeckAction(player) ||
-        player.Deck.Structure !=
-            DeckStructure.RandomList)
-    {
-        return;
-    }
-
-    List<Card>? result =
-        UtilityManager.ViewDrawPool(
-            player);
-
-    if (result == null)
-    {
-        return;
-    }
-
-    drawPoolCards = result;
-    showDeckAction = false;
-
-    if (IsGuidedTutorialBattle &&
-        actionBeforeView ==
-            TutorialAction.ViewDrawPool)
-    {
-        TutorialManager.NotifyAction(
-            Session.Tutorial,
-            TutorialAction.ViewDrawPool);
-    }
-
-    StateHasChanged();
-}
-
-private void CloseDrawPool()
-{
-    drawPoolCards = null;
-    StateHasChanged();
-}
-
-private void StartReorderNodes()
-{
-    if (Session.CurrentMatch == null) return;
-
-    Player player = GetPresentedPlayer();
-
-    if (!CanUseDeckAction(player) ||
-        player.Deck.Structure != DeckStructure.LinkedList ||
-        !UtilityManager.StartReorderNodes(player))
-        return;
-
-    reorderCards = player.Deck.RuntimeStorage!
-        .GetCards()
-        .Take(6)
-        .ToList();
-
-    linkedNodeMoved = false;
-    NotifyTutorialAction(TutorialAction.StartReorderNodes);
-    showDeckAction = false;
-    StateHasChanged();
-}
-
-private void MoveReorderNode((int From, int To) move)
-{
-    if (Session.CurrentMatch == null) return;
-
-    Player player = GetPresentedPlayer();
-
-    if (player.Deck.Structure != DeckStructure.LinkedList ||
-        reorderCards == null ||
-        !TutorialAllows(TutorialAction.MoveReorderNode) ||
-        !UtilityManager.ReorderNodes(player, move.From, move.To))
-        return;
-
-    linkedNodeMoved = true;
-
-    reorderCards = player.Deck.RuntimeStorage!
-        .GetCards()
-        .Take(6)
-        .ToList();
-
-    NotifyTutorialAction(TutorialAction.MoveReorderNode);
-    StateHasChanged();
-}
-
-private void CloseReorderPreview()
-{
-    if (Session.CurrentMatch == null ||
-        reorderCards == null)
-    {
-        return;
-    }
-
-    Player player =
-        GetPresentedPlayer();
-
-    if (player.Deck.Structure !=
-        DeckStructure.LinkedList)
-    {
-        return;
-    }
-
-    UtilityManager.FinishReorderNodes(
-        player);
-
-    reorderCards = null;
-
-    if (linkedNodeMoved &&
-        RequiredTutorialAction ==
-            TutorialAction.FinishReorderNodes)
-    {
-        NotifyTutorialAction(
-            TutorialAction.FinishReorderNodes);
-    }
-
-    StateHasChanged();
-}
-
-private string GetDeckActionMessage(Player player) =>
-    player.Deck.Structure switch
-    {
-        DeckStructure.Queue =>
-            "Peek at up to the next two cards.",
-        DeckStructure.Stack =>
-            "Peek at up to the top two cards.",
-        DeckStructure.RandomList =>
-            "View the cards currently available in the random draw pool.",
-        DeckStructure.LinkedList =>
-            "Reorder the upcoming linked nodes.",
-        DeckStructure.PriorityQueue =>
-            "Priority Queue retrieval is automatic.",
-        _ => "No deck action available."
-    };
-private bool CanSelectHandCard(
-    Player player,
-    HandSlot slot)
-{
-    MatchState? match =
-        Session.CurrentMatch;
-
-    if (match == null ||
-        IsBattleFinished ||
-        botIsActing ||
-        match.GetActingPlayer() != player ||
-        match.CurrentPhase != MatchPhase.Utility ||
-        player.UtilityActionsRemaining <= 0 ||
-        slot.IsEmpty ||
-        slot.CardInSlot == null)
-    {
-        return false;
-    }
-
-    if (!IsGuidedTutorialBattle)
-    {
-        return true;
-    }
-
-    return RequiredTutorialAction switch
-    {
-        TutorialAction.SelectUtility =>
-            !IsLearnToPlayBattle ||
-            string.Equals(
-                slot.CardInSlot.Id,
-                "UM1",
-                StringComparison.OrdinalIgnoreCase),
-
-        TutorialAction.DiscardAndDraw =>
-            !IsLearnToPlayBattle ||
-            string.Equals(
-                slot.CardInSlot.Id,
-                "AN1",
-                StringComparison.OrdinalIgnoreCase),
-
-        _ =>
-            false
-    };
-}
-
-private void SelectHandCard(HandSlot slot)
-{
-    if (Session.CurrentMatch == null)
-        return;
-
-    Player player = GetPresentedPlayer();
-
-    if (!CanSelectHandCard(player, slot))
-        return;
-
-    selectedHandSlot = slot;
-
-    if (RequiredTutorialAction == TutorialAction.SelectUtility)
-        NotifyTutorialAction(TutorialAction.SelectUtility);
-}
-private void CloseHandCard()
-{
-    selectedHandSlot = null;
-}
-
-private bool CanCloseSelectedHandCard =>
-    !IsLearnToPlayBattle ||
-    RequiredTutorialAction !=
-        TutorialAction.PlayUtility;
-
-private void RequestCloseHandCard()
-{
-    if (!CanCloseSelectedHandCard)
-    {
-        return;
-    }
-
-    selectedHandSlot = null;
-}
-
-private void DiscardSelectedCard()
-{
-    if (Session.CurrentMatch == null ||
-        selectedHandSlot?.CardInSlot == null ||
-        !TutorialAllows(
-            TutorialAction.DiscardAndDraw))
-    {
-        return;
-    }
-
-    if (IsLearnToPlayBattle &&
-        RequiredTutorialAction ==
-            TutorialAction.DiscardAndDraw &&
-        !string.Equals(
-            selectedHandSlot.CardInSlot.Id,
-            "AN1",
-            StringComparison.OrdinalIgnoreCase))
-    {
-        return;
-    }
-
-    MatchState match =
-        Session.CurrentMatch;
-
-    Player player =
-        GetPresentedPlayer();
-
-    if (match.CurrentPhase !=
-            MatchPhase.Utility ||
-        match.GetActingPlayer() != player ||
-        player.UtilityActionsRemaining <= 0)
-    {
-        return;
-    }
-
-    bool success =
-        UtilityManager.DiscardAndDraw(
-            player,
-            selectedHandSlot.SlotNumber);
-
-    if (!success)
-    {
-        return;
-    }
-
-    player.UtilityActionsRemaining--;
-
-    selectedHandSlot =
-        null;
-
-    NotifyTutorialAction(
-        TutorialAction.DiscardAndDraw);
-
-    StateHasChanged();
-}
-
-private void PlaySelectedUtility()
-{
-    if (Session.CurrentMatch == null ||
-        selectedHandSlot?.CardInSlot == null ||
-        !TutorialAllows(TutorialAction.PlayUtility))
-    {
-        return;
-    }
-
-    MatchState match =
-        Session.CurrentMatch;
-
-    Player player =
-        GetPresentedPlayer();
-
-    Card card =
-        selectedHandSlot.CardInSlot;
-
-    if (match.CurrentPhase != MatchPhase.Utility ||
-        match.GetActingPlayer() != player ||
-        player.UtilityActionsRemaining <= 0 ||
-        card.Type != CardType.Utility ||
-        player.Energy < card.Cost)
-    {
-        return;
-    }
-
-    if (IsLearnToPlayBattle &&
-        card.Id != "UM1")
-    {
-        return;
-    }
-
-    // Discard For Energy requires the player
-    // to choose another card from their hand first.
-    if (card.Name == "Discard For Energy")
-    {
-        discardForEnergyUtilitySlot =
-            selectedHandSlot.SlotNumber;
-
-        selectedHandSlot = null;
-        showDiscardForEnergyPicker = true;
-
-        StateHasChanged();
-        return;
-    }
-
-    bool success =
-        UtilityManager.PlayUtility(
-            player,
-            GetPresentedOpponent(),
-            selectedHandSlot.SlotNumber);
-
-    if (!success)
-    {
-        return;
-    }
-
-    selectedHandSlot = null;
-
-    NotifyTutorialAction(
-        TutorialAction.PlayUtility);
-
-    StateHasChanged();
-}
-
-private string GetDeckStructureName(DeckStructure structure) =>
-    structure switch
-    {
-        DeckStructure.RandomList => "Random List",
-        DeckStructure.LinkedList => "Linked List",
-        DeckStructure.PriorityQueue => "Priority Queue",
-        _ => structure.ToString()
-    };
-
-private void CancelLeaveMatch()
-{
-    showLeaveMatchDialog = false;
-    pendingNavigationUrl = null;
-}
-
-private void RequestSurrender()
-{
-    if (IsBattleFinished || IsSurrenderDisabled) return;
-
-    pendingNavigationUrl = null;
-    showLeaveMatchDialog = true;
-}
-
-private void ConfirmLeaveMatch()
-{
-    if (Session.CurrentMatch == null || IsBattleFinished)
-    {
-        showLeaveMatchDialog = false;
-        pendingNavigationUrl = null;
-        return;
-    }
-
-    string? destination = pendingNavigationUrl;
-    bool tournamentMatch = IsTournamentMatch;
-    bool tutorialSurrender =
-        IsLearnToPlayBattle &&
-        RequiredTutorialAction == TutorialAction.Surrender;
-
-    showLeaveMatchDialog = false;
-    pendingNavigationUrl = null;
-    surrendered = true;
-    observingFinishedMatch = false;
-
-    MatchState match = Session.CurrentMatch;
-
-    Player losingPlayer = GetPresentedPlayer();
-    Player winningPlayer = GetPresentedOpponent();
-
-    // Record the surrender in the actual game state.
-    losingPlayer.HasSurrendered = true;
-
-    BattleLog.WriteSystem($"{losingPlayer.Name} surrendered.");
-    BattleLog.WriteSystem($"Match ended. {winningPlayer.Name} wins.");
-
-    // Complete the match through the normal engine pathway.
-    BattleEngine.CompleteMatch(match);
-
-    if (tournamentMatch)
-    {
-        finishedTournamentMatch = true;
-        TournamentManager.EndAfterLoss(Session.Tournament);
-    }
-
-    botIsActing = false;
-    CloseGameplayPopups();
-    showZeroEnergyWarning = false;
-    pendingZeroEnergyAction = null;
-
-    if (tutorialSurrender)
-        NotifyTutorialAction(TutorialAction.Surrender);
-
-    if (!string.IsNullOrWhiteSpace(destination))
-    {
-        Session.CurrentMatch = null;
-        allowNavigation = true;
-        Navigation.NavigateTo(destination);
-        return;
-    }
-
-    showZeroEnergyDialog = true;
-    logCollapsed = false;
-    StateHasChanged();
-}
-
-private async Task ContinuePhase()
-{
-    if (Session.CurrentMatch == null)
-    {
-        return;
-    }
-
-    MatchState match =
-        Session.CurrentMatch;
-
-    Player player =
-        GetPresentedPlayer();
-
-    /*
-        Use the exact same condition as the button.
-
-        This prevents the UI from enabling Continue
-        while the handler silently rejects the click
-        through a different condition.
-    */
-    if (!CanContinuePhase(player))
-    {
-        return;
-    }
-
-    MatchPhase previousPhase =
-        match.CurrentPhase;
-
-    int previousTurn =
-        match.TurnNumber;
-
-    TutorialAction actionBeforePhaseChange =
-        RequiredTutorialAction;
-
-    CloseGameplayPopups();
-
-    PhaseManager.CompleteCurrentPlayerPhase(
-        match);
-
-    /*
-        Advance the Tutorial using the action captured
-        before the real phase changed.
-    */
-    if (IsGuidedTutorialBattle &&
-        actionBeforePhaseChange ==
-            TutorialAction.ContinuePhase)
-    {
-        NotifyTutorialAction(
-            TutorialAction.ContinuePhase);
-    }
-
-    if (MatchManager.IsMatchOver(
-            match.Player1,
-            match.Player2))
-    {
-        CheckForZeroEnergy();
-        return;
-    }
-
-    if (IsPassAndPlay())
-    {
-        showPassDeviceDialog = true;
-        StateHasChanged();
-        return;
-    }
-
-    /*
-        If Stack Placement begins immediately after the
-        human phase transition, resolve it before Bot
-        processing only when the human is now acting.
-    */
-    await RunAutomaticHumanPlacementIfNeeded();
-
-    await RunBotIfNeeded();
-
-    if (MatchManager.IsMatchOver(
-            match.Player1,
-            match.Player2))
-    {
-        CheckForZeroEnergy();
-        return;
-    }
-
-    /*
-        The Bot may have advanced the match to a new
-        human Stack Placement Phase.
-    */
-    await RunAutomaticHumanPlacementIfNeeded();
-
-    await HandleTutorialPhaseTransition(
-        previousPhase,
-        previousTurn);
-
-    StateHasChanged();
-}
-private async Task HandleTutorialPhaseTransition(
-    MatchPhase previousPhase,
-    int previousTurn)
-{
-    if (!IsGuidedTutorialBattle ||
-        Session.CurrentMatch == null)
-    {
-        return;
-    }
-
-    MatchState match =
-        Session.CurrentMatch;
-
-    if (previousPhase == MatchPhase.End &&
-        match.TurnNumber > previousTurn &&
-        IsDsaTutorialBattle)
-    {
-        await ResolveDsaRecycleDemonstration();
-    }
-}
-private async Task RunBotIfNeeded()
-{
-    if (Session.CurrentMatch == null || botIsActing)
-        return;
-
-    MatchState match = Session.CurrentMatch;
-    Player actingPlayer = match.GetActingPlayer();
-
-    if (!actingPlayer.IsBot) return;
-
-    Player bot = actingPlayer;
-    Player human = match.GetOpponent();
-
-    botIsActing = true;
-    logCollapsed = false;
-
-    CloseGameplayPopups();
-    StateHasChanged();
-
-    try
-    {
-        while (Session.CurrentMatch != null &&
-               !match.IsCompleted &&
-               !MatchManager.IsMatchOver(
-                   match.Player1,
-                   match.Player2) &&
-               match.GetActingPlayer() == bot)
-        {
-            MatchPhase phaseBefore = match.CurrentPhase;
-            int turnBefore = match.TurnNumber;
-
-            switch (match.CurrentPhase)
-            {
-                case MatchPhase.Utility:
-                    await RunBotUtilityPhase(bot, human);
-                    break;
-
-                case MatchPhase.Placement:
-                    await RunBotPlacementPhase(bot);
-                    break;
-
-                case MatchPhase.Attack:
-                    await RunBotAttackPhase(bot, human);
-                    break;
-
-                case MatchPhase.End:
-                    await BotThinkingDelay();
-                    break;
-            }
-
-            if (MatchManager.IsMatchOver(
-                    match.Player1,
-                    match.Player2))
-            {
-                CheckForZeroEnergy();
-                return;
-            }
-
-PhaseManager.CompleteCurrentPlayerPhase(
-    match);
-
-await HandleTutorialPhaseTransition(
-    phaseBefore,
-    turnBefore);
-
-/*
-    DSA tutorials demonstrate one complete turn.
-
-    After the Bot finishes Turn 1 End Phase,
-    Initiative swaps and Turn 2 begins. Stop the
-    Bot here so it cannot perform Turn 2 Utility.
-*/
-if (IsDsaTutorialBattle &&
-    match.TurnNumber > turnBefore)
-{
-    StateHasChanged();
-
-    break;
-}
-
-StateHasChanged();
-        }
-    }
-    finally
-    {
-        botIsActing = false;
-        StateHasChanged();
-    }
-}
-
-private async Task RunBotUtilityPhase(
-    Player bot,
-    Player human)
-{
-    await BotThinkingDelay();
-
-    int before =
-        BattleLog.GetPhaseActions().Count;
-
-    BotManager.RunUtility(
-        bot,
-        human);
-
-    if (BattleLog.GetPhaseActions().Count == before)
-        BattleLog.Write(
-            $"{bot.Name} took no Utility action.");
-
-    StateHasChanged();
-}
-
-private async Task RunBotPlacementPhase(Player bot)
-{
-    int before =
-        BattleLog.GetPhaseActions().Count;
-
-    for (int step = 0; step <= 4; step++)
-    {
-        await BotThinkingDelay();
-        BotManager.RunNextPlacementAction(bot, step);
-        StateHasChanged();
-    }
-
-    if (BattleLog.GetPhaseActions().Count == before)
-    {
-        BattleLog.Write(
-            $"{bot.Name} made no Placement changes.");
-
-        StateHasChanged();
-    }
-}
-
-private async Task RunBotAttackPhase(
-    Player bot,
-    Player human)
-{
-    int before =
-        BattleLog.GetPhaseActions().Count;
-
-    for (int step = 0; step <= 2; step++)
-    {
-        if (MatchManager.IsMatchOver(bot, human))
+        if (currentCount == lastBattleLogCount)
             return;
 
-        await BotThinkingDelay();
+        lastBattleLogCount = currentCount;
 
-        BotManager.RunNextAttackAction(
-            bot,
-            human,
-            step);
+        if (logCollapsed)
+            return;
 
-        if (CheckForZeroEnergy())
+        await JS.InvokeVoidAsync(
+            "redPandaBattle.scrollLogToBottom",
+            battleLogElement);
+    }
+
+
+    // ============================================================
+    // 3. TUTORIAL STATE / HELPERS
+    // ============================================================
+
+    private bool IsGuidedTutorialBattle =>
+        Session.Tutorial.IsActive &&
+        Session.Tutorial.IsBattleTutorial &&
+        Session.CurrentMatch != null;
+
+    private bool IsLearnToPlayBattle =>
+        IsGuidedTutorialBattle &&
+        Session.Tutorial.CurrentTutorial == TutorialType.LearnToPlay;
+
+    private bool IsDsaTutorialBattle =>
+        IsGuidedTutorialBattle &&
+        Session.Tutorial.CurrentTutorial is
+            TutorialType.Queue or
+            TutorialType.PriorityQueue or
+            TutorialType.Stack or
+            TutorialType.RandomList or
+            TutorialType.LinkedList;
+
+    private TutorialAction RequiredTutorialAction =>
+        TutorialManager.GetRequiredAction(Session.Tutorial);
+
+    private string TutorialTarget =>
+        TutorialManager.GetHighlightTarget(Session.Tutorial);
+
+    private bool ShowTutorialOverlay =>
+        IsGuidedTutorialBattle &&
+        coinFlipAcknowledged &&
+        !showCoinFlipDialog &&
+        !showPassDeviceDialog;
+
+    private bool IsSurrenderDisabled =>
+        IsGuidedTutorialBattle &&
+        RequiredTutorialAction != TutorialAction.Surrender;
+
+    private bool IsObserveBoardDisabled =>
+        IsGuidedTutorialBattle &&
+        RequiredTutorialAction != TutorialAction.ObserveBoard;
+
+    private bool CanPlaySelectedUtility =>
+        !IsGuidedTutorialBattle ||
+        RequiredTutorialAction == TutorialAction.PlayUtility;
+
+    private bool CanDiscardSelectedCard =>
+        !IsGuidedTutorialBattle ||
+        RequiredTutorialAction == TutorialAction.DiscardAndDraw;
+
+    private bool CanResolveFatigueWithRest =>
+        !IsGuidedTutorialBattle ||
+        RequiredTutorialAction == TutorialAction.RestAttack;
+
+    private bool CanResolveFatigueWithReplace =>
+        !IsGuidedTutorialBattle ||
+        RequiredTutorialAction == TutorialAction.ReplaceAttack;
+
+    private void RefreshTutorialState() =>
+        StateHasChanged();
+
+    private bool TutorialAllows(
+        TutorialAction action) =>
+        !IsGuidedTutorialBattle ||
+        TutorialManager.CanPerformAction(
+            Session.Tutorial,
+            action);
+
+    private bool NotifyTutorialAction(
+        TutorialAction action)
+    {
+        if (!IsGuidedTutorialBattle)
+            return false;
+
+        bool advanced =
+            TutorialManager.NotifyAction(
+                Session.Tutorial,
+                action);
+
+        if (advanced)
+            StateHasChanged();
+
+        return advanced;
+    }
+
+    private async Task HandleTutorialOverlayAdvanced()
+    {
+        if (!IsGuidedTutorialBattle)
         {
             StateHasChanged();
             return;
         }
 
-        StateHasChanged();
-    }
-
-    if (BattleLog.GetPhaseActions().Count == before)
-    {
-        BattleLog.Write(
-            $"{bot.Name} made no attacks.");
+        if (IsDsaTutorialBattle)
+            await HandleDsaInformationalAdvance();
 
         StateHasChanged();
     }
-}
 
-private async Task BotThinkingDelay()
-{
-    StateHasChanged();
-
-    await Task.Delay(
-        Random.Shared.Next(500, 1501));
-}
-
-private void CloseGameplayPopups()
-{
-    selectedHandSlot = null;
-    selectedPlacementAttackSlot = null;
-    showFatiguedAttackActions = false;
-    showDeckAction = false;
-    peekedCards = null;
-    drawPoolCards = null;
-    reorderCards = null;
-    showCharacterPicker = false;
-    showDiscardForEnergyPicker = false;
-    discardForEnergyUtilitySlot = null;
-}
-
-private async Task AcknowledgeCoinFlip()
-{
-    if (Session.CurrentMatch == null ||
-        coinFlipAcknowledged)
-        return;
-
-    coinFlipAcknowledged = true;
-    showCoinFlipDialog = false;
-
-    MatchState match = Session.CurrentMatch;
-
-    if (IsPassAndPlay())
+    private void FinishCurrentTutorial()
     {
-        showPassDeviceDialog = true;
-        StateHasChanged();
-        return;
+        if (!IsGuidedTutorialBattle)
+            return;
+
+        TutorialManager.CompleteTutorial(
+            Session.Tutorial);
+
+        Session.CurrentMatch = null;
+        allowNavigation = true;
+
+        Navigation.NavigateTo("/tutorial");
     }
 
-    if (match.GetActingPlayer().IsBot)
-        await RunBotIfNeeded();
-}
-
-protected override void OnInitialized()
-{
-    if (Session.CurrentMatch == null)
-    {
-        allowNavigation =
-            true;
-
-        Navigation.NavigateTo(
-            "/");
-
-        return;
-    }
-
-    showCoinFlipDialog =
-        true;
-
-    coinFlipAcknowledged =
-        false;
-
-    if (IsDsaTutorialBattle)
-    {
-        PrepareDsaTutorialBattle();
-    }
-}
-
-private void PrepareDsaTutorialBattle()
-{
-    if (Session.CurrentMatch == null ||
-        dsaRecyclePrepared)
-    {
-        return;
-    }
-
-    Player player =
-        GetPresentedPlayer();
-
-    dsaRecyclePrepared =
-        true;
-
-    dsaRecycleResolved =
-        false;
-
-    dsaRecycleCardCount =
-        0;
-
-    if (player.DiscardPile.Count == 0 &&
-        player.Deck.RuntimeStorage != null)
-    {
-        for (int i = 0;
-             i < DsaRecycleSampleSize &&
-             player.Deck.RuntimeStorage.Count > 0;
-             i++)
+    private string RequiredTutorialCardId =>
+        TutorialTarget switch
         {
-            Card? card =
-                player.Deck.RuntimeStorage.Draw();
+            "tutorial-utility" => "UM1",
+            "sorcerer" => "CM2",
+            "fireball" => "AM6",
+            "piercing-attack" => "AP4",
+            "piercing-slot" => "AP4",
+            "multi-hit-attack" => "AM3",
+            "wanderer" => "CN1",
+            _ => ""
+        };
 
-            if (card != null)
-            {
-                player.DiscardPile.Add(
-                    card);
-            }
-        }
+    private bool TutorialAllowsCard(Card card)
+    {
+        if (!IsLearnToPlayBattle)
+            return true;
+
+        string required =
+            RequiredTutorialCardId;
+
+        return string.IsNullOrWhiteSpace(required) ||
+               string.Equals(
+                   card.Id,
+                   required,
+                   StringComparison.OrdinalIgnoreCase);
     }
 
-    dsaRecycleCardCount =
-        player.DiscardPile.Count;
-}
+    private bool CanPerformDeckTutorialAction(
+        TutorialAction action) =>
+        !IsGuidedTutorialBattle ||
+        RequiredTutorialAction == action;
 
-private async Task HandleDsaInformationalAdvance()
-{
-    if (!IsDsaTutorialBattle ||
-        Session.CurrentMatch == null)
+    private bool CanChoosePlacementAttack(
+        HandSlot slot)
     {
-        return;
-    }
-
-    TutorialAction action =
-        RequiredTutorialAction;
-
-    if (action ==
-        TutorialAction.PrepareRecycle)
-    {
-        PrepareDsaRecycleState();
-
-        NotifyTutorialAction(
-            TutorialAction.PrepareRecycle);
-    }
-
-    await Task.CompletedTask;
-}
-
-private void PrepareDsaRecycleState()
-{
-    if (Session.CurrentMatch == null ||
-        dsaRecycleResolved)
-        return;
-
-    Player player = GetPresentedPlayer();
-
-    if (player.Deck.RuntimeStorage == null ||
-        player.DiscardPile.Count == 0)
-        return;
-
-    /*
-        Empty only runtime storage. The field and hand
-        remain visible, while the saved discard cards
-        demonstrate how this deck structure receives
-        recycled cards.
-    */
-    while (player.Deck.RuntimeStorage.Count > 0)
-        player.Deck.RuntimeStorage.Draw();
-}
-
-private async Task ResolveDsaRecycleDemonstration()
-{
-    if (Session.CurrentMatch == null ||
-        dsaRecycleResolved ||
-        RequiredTutorialAction !=
-            TutorialAction.ObserveRecycle)
-    {
-        return;
-    }
-
-    Player player =
-        GetPresentedPlayer();
-
-    if (player.Deck.RuntimeStorage == null)
-    {
-        return;
-    }
-
-    int recycledCount =
-        dsaRecycleCardCount;
-
-    /*
-        If cards remain in discard, the normal End
-        draw did not need them. Recycle them now
-        through the real structure's Add operation.
-    */
-    if (player.DiscardPile.Count > 0)
-    {
-        List<Card> recycled =
-            player.DiscardPile.ToList();
-
-        recycledCount =
-            recycled.Count;
-
-        player.DiscardPile.Clear();
-
-        foreach (Card card in recycled)
+        if (slot.IsEmpty ||
+            slot.CardInSlot?.Type != CardType.Attack)
         {
-            player.Deck.RuntimeStorage.Add(card);
+            return false;
         }
 
-        BattleLog.WriteSystem(
-            GetRecycleLogMessage(
-                player.Deck.Structure,
-                recycledCount));
-    }
-    else
-    {
-        /*
-            DrawUntilHandSize already recycled the
-            discard pile during the real End Phase.
-        */
-        BattleLog.WriteSystem(
-            GetRecycleLogMessage(
-                player.Deck.Structure,
-                recycledCount));
-    }
+        if (IsDsaTutorialBattle)
+            return true;
 
-    dsaRecycleResolved = true;
+        if (!IsLearnToPlayBattle)
+            return true;
 
-    NotifyTutorialAction(
-        TutorialAction.ObserveRecycle);
+        Card card =
+            slot.CardInSlot;
 
-    StateHasChanged();
+        if (RequiredTutorialAction ==
+            TutorialAction.DeployAttack)
+        {
+            return TutorialAllowsCard(card);
+        }
 
-    await Task.CompletedTask;
-}
+        if (RequiredTutorialAction ==
+            TutorialAction.ReplaceAttack)
+        {
+            return string.Equals(
+                card.Id,
+                "AM3",
+                StringComparison.OrdinalIgnoreCase);
+        }
 
-private string GetRecycleLogMessage(
-    DeckStructure structure,
-    int count)
-{
-    string destination = structure switch
-    {
-        DeckStructure.Queue =>
-            "the rear of the Queue",
-
-        DeckStructure.PriorityQueue =>
-            "the Priority Queue using each card's priority",
-
-        DeckStructure.Stack =>
-            "the top of the Stack",
-
-        DeckStructure.RandomList =>
-            "the Random List draw pool",
-
-        DeckStructure.LinkedList =>
-            "the tail of the Linked List",
-
-        _ => "the deck"
-    };
-
-    return
-        $"{count} discarded card(s) recycled into {destination}.";
-}
-
-private async Task AcknowledgePassDevice()
-{
-    showPassDeviceDialog = false;
-
-    CloseGameplayPopups();
-    StateHasChanged();
-
-    await RunAutomaticHumanPlacementIfNeeded();
-}
-
-private async Task RunAutomaticHumanPlacementIfNeeded()
-{
-    if (Session.CurrentMatch == null)
-        return;
-
-    MatchState match = Session.CurrentMatch;
-
-    if (match.CurrentPhase != MatchPhase.Placement)
-        return;
-
-    Player player = GetPresentedPlayer();
-
-    if (player.IsBot ||
-        player.Deck.Structure != DeckStructure.Stack)
-        return;
-
-    StateHasChanged();
-
-    await Task.Delay(
-        Random.Shared.Next(500, 1501));
-
-    if (Session.CurrentMatch == null ||
-        match.IsCompleted ||
-        match.CurrentPhase != MatchPhase.Placement ||
-        match.GetActingPlayer() != player)
-        return;
-
-    PlacementManager.AutoStackPlacement(player);
-
-    if (IsDsaTutorialBattle &&
-        Session.Tutorial.CurrentTutorial ==
-            TutorialType.Stack)
-    {
-        NotifyTutorialAction(
-            TutorialAction.ObserveAutomaticPlacement);
-    }
-
-    CheckForZeroEnergy();
-    StateHasChanged();
-}
-private bool CanSelectPlacementAttack(
-    Player player)
-{
-    MatchState? match =
-        Session.CurrentMatch;
-
-    if (match == null ||
-        IsBattleFinished ||
-        botIsActing ||
-        match.CurrentPhase !=
-            MatchPhase.Placement ||
-        match.GetActingPlayer() != player)
-    {
         return false;
     }
 
-    if (!IsGuidedTutorialBattle ||
-        IsDsaTutorialBattle)
+    private bool CanChoosePlacementCharacter(
+        Card card)
     {
+        if (!IsLearnToPlayBattle)
+            return true;
+
+        return RequiredTutorialAction ==
+                   TutorialAction.DeployCharacter &&
+               TutorialAllowsCard(card);
+    }
+
+
+    // ============================================================
+    // 4. MAIN TURN / PHASE FLOW
+    // ============================================================
+
+    private bool CanContinuePhase(
+        Player player)
+    {
+        MatchState? match =
+            Session.CurrentMatch;
+
+        if (match == null ||
+            IsBattleFinished ||
+            botIsActing ||
+            showPassDeviceDialog ||
+            awaitingWandererEntry ||
+            !coinFlipAcknowledged ||
+            match.GetActingPlayer() != player)
+        {
+            return false;
+        }
+
+        if (IsGuidedTutorialBattle &&
+            RequiredTutorialAction !=
+                TutorialAction.ContinuePhase)
+        {
+            return false;
+        }
+
+        /*
+            DSA tutorials require at least one deployed
+            Attack before leaving the Placement Phase.
+
+            This creates an empty hand slot so the later
+            recycle and End Phase draw remain visible.
+        */
+        if (IsDsaTutorialBattle &&
+            match.CurrentPhase == MatchPhase.Placement &&
+            !HasDeployedAttack(player))
+        {
+            return false;
+        }
+
+        if (match.CurrentPhase == MatchPhase.Placement &&
+            HasUnresolvedFatigue(player))
+        {
+            return false;
+        }
+
         return true;
     }
 
-    return RequiredTutorialAction is
-        TutorialAction.DeployAttack or
-        TutorialAction.ReplaceAttack or
-        TutorialAction.RestAttack or
-        TutorialAction.ResolveWandererEntry;
-}
+    private bool IsContinueDisabled(
+        Player player) =>
+        !CanContinuePhase(player);
 
-private void SelectPlacementAttack(int slot)
-{
-    if (Session.CurrentMatch == null ||
-        slot is not (1 or 2))
-        return;
-
-    Player player = GetPresentedPlayer();
-
-    if (!CanSelectPlacementAttack(player))
-        return;
-
-    if (awaitingWandererEntry)
+    private async Task ContinuePhase()
     {
-        ResolveWandererEntrySelection(player, slot);
-        return;
+        if (Session.CurrentMatch == null)
+            return;
+
+        MatchState match =
+            Session.CurrentMatch;
+
+        Player player =
+            GetPresentedPlayer();
+
+        /*
+            Use the exact same condition as the button.
+
+            This prevents the UI from enabling Continue
+            while the handler silently rejects the click
+            through a different condition.
+        */
+        if (!CanContinuePhase(player))
+            return;
+
+        MatchPhase previousPhase =
+            match.CurrentPhase;
+
+        int previousTurn =
+            match.TurnNumber;
+
+        TutorialAction actionBeforePhaseChange =
+            RequiredTutorialAction;
+
+        CloseGameplayPopups();
+
+        PhaseManager.CompleteCurrentPlayerPhase(
+            match);
+
+        /*
+            Advance the Tutorial using the action captured
+            before the real phase changed.
+        */
+        if (IsGuidedTutorialBattle &&
+            actionBeforePhaseChange ==
+                TutorialAction.ContinuePhase)
+        {
+            NotifyTutorialAction(
+                TutorialAction.ContinuePhase);
+        }
+
+        if (MatchManager.IsMatchOver(
+                match.Player1,
+                match.Player2))
+        {
+            CheckForZeroEnergy();
+            return;
+        }
+
+        if (IsPassAndPlay())
+        {
+            showPassDeviceDialog = true;
+            StateHasChanged();
+            return;
+        }
+
+        /*
+            If Stack Placement begins immediately after the
+            human phase transition, resolve it before Bot
+            processing only when the human is now acting.
+        */
+        await RunAutomaticHumanPlacementIfNeeded();
+
+        await RunBotIfNeeded();
+
+        if (MatchManager.IsMatchOver(
+                match.Player1,
+                match.Player2))
+        {
+            CheckForZeroEnergy();
+            return;
+        }
+
+        /*
+            The Bot may have advanced the match to a new
+            human Stack Placement Phase.
+        */
+        await RunAutomaticHumanPlacementIfNeeded();
+
+        await HandleTutorialPhaseTransition(
+            previousPhase,
+            previousTurn);
+
+        StateHasChanged();
     }
 
-    Card? deployed =
-        slot == 1
-            ? player.AttackSlot1
-            : player.AttackSlot2;
-
-    bool fatigued =
-        slot == 1
-            ? player.IsFatiguedSlot1
-            : player.IsFatiguedSlot2;
-
-if (IsLearnToPlayBattle &&
-    RequiredTutorialAction ==
-        TutorialAction.ReplaceAttack &&
-    (deployed == null ||
-     !string.Equals(
-         deployed.Id,
-         "AP4",
-         StringComparison.OrdinalIgnoreCase)))
-{
-    return;
-}
-
-if (IsLearnToPlayBattle &&
-    RequiredTutorialAction ==
-        TutorialAction.RestAttack &&
-    (deployed == null ||
-     !TutorialAllowsCard(deployed)))
-{
-    return;
-}
-
-    if (fatigued)
+    private async Task HandleTutorialPhaseTransition(
+        MatchPhase previousPhase,
+        int previousTurn)
     {
+        if (!IsGuidedTutorialBattle ||
+            Session.CurrentMatch == null)
+        {
+            return;
+        }
+
+        MatchState match =
+            Session.CurrentMatch;
+
+        if (previousPhase == MatchPhase.End &&
+            match.TurnNumber > previousTurn &&
+            IsDsaTutorialBattle)
+        {
+            await ResolveDsaRecycleDemonstration();
+        }
+    }
+
+
+    // ============================================================
+    // 5. BOT TURN HANDLING
+    // ============================================================
+
+    private async Task RunBotIfNeeded()
+    {
+        if (Session.CurrentMatch == null ||
+            botIsActing)
+        {
+            return;
+        }
+
+        MatchState match =
+            Session.CurrentMatch;
+
+        Player actingPlayer =
+            match.GetActingPlayer();
+
+        if (!actingPlayer.IsBot)
+            return;
+
+        Player bot =
+            actingPlayer;
+
+        Player human =
+            match.GetOpponent();
+
+        botIsActing = true;
+        logCollapsed = false;
+
+        CloseGameplayPopups();
+        StateHasChanged();
+
+        try
+        {
+            while (
+                Session.CurrentMatch != null &&
+                !match.IsCompleted &&
+                !MatchManager.IsMatchOver(
+                    match.Player1,
+                    match.Player2) &&
+                match.GetActingPlayer() == bot)
+            {
+                MatchPhase phaseBefore =
+                    match.CurrentPhase;
+
+                int turnBefore =
+                    match.TurnNumber;
+
+                switch (match.CurrentPhase)
+                {
+                    case MatchPhase.Utility:
+                        await RunBotUtilityPhase(
+                            bot,
+                            human);
+                        break;
+
+                    case MatchPhase.Placement:
+                        await RunBotPlacementPhase(
+                            bot);
+                        break;
+
+                    case MatchPhase.Attack:
+                        await RunBotAttackPhase(
+                            bot,
+                            human);
+                        break;
+
+                    case MatchPhase.End:
+                        await BotThinkingDelay();
+                        break;
+                }
+
+                if (MatchManager.IsMatchOver(
+                        match.Player1,
+                        match.Player2))
+                {
+                    CheckForZeroEnergy();
+                    return;
+                }
+
+                PhaseManager.CompleteCurrentPlayerPhase(
+                    match);
+
+                await HandleTutorialPhaseTransition(
+                    phaseBefore,
+                    turnBefore);
+
+                /*
+                    DSA tutorials demonstrate one complete turn.
+
+                    After the Bot finishes Turn 1 End Phase,
+                    Initiative swaps and Turn 2 begins. Stop the
+                    Bot here so it cannot perform Turn 2 Utility.
+                */
+                if (IsDsaTutorialBattle &&
+                    match.TurnNumber > turnBefore)
+                {
+                    StateHasChanged();
+                    break;
+                }
+
+                StateHasChanged();
+            }
+        }
+        finally
+        {
+            botIsActing = false;
+            StateHasChanged();
+        }
+    }
+
+    private async Task RunBotUtilityPhase(
+        Player bot,
+        Player human)
+    {
+        await BotThinkingDelay();
+
+        int before =
+            BattleLog.GetPhaseActions().Count;
+
+        BotManager.RunUtility(
+            bot,
+            human);
+
+        if (BattleLog.GetPhaseActions().Count == before)
+        {
+            BattleLog.Write(
+                $"{bot.Name} took no Utility action.");
+        }
+
+        StateHasChanged();
+    }
+
+    private async Task RunBotPlacementPhase(
+        Player bot)
+    {
+        int before =
+            BattleLog.GetPhaseActions().Count;
+
+        for (int step = 0; step <= 4; step++)
+        {
+            await BotThinkingDelay();
+
+            BotManager.RunNextPlacementAction(
+                bot,
+                step);
+
+            StateHasChanged();
+        }
+
+        if (BattleLog.GetPhaseActions().Count == before)
+        {
+            BattleLog.Write(
+                $"{bot.Name} made no Placement changes.");
+
+            StateHasChanged();
+        }
+    }
+
+    private async Task RunBotAttackPhase(
+        Player bot,
+        Player human)
+    {
+        int before =
+            BattleLog.GetPhaseActions().Count;
+
+        for (int step = 0; step <= 2; step++)
+        {
+            if (MatchManager.IsMatchOver(
+                    bot,
+                    human))
+            {
+                return;
+            }
+
+            await BotThinkingDelay();
+
+            BotManager.RunNextAttackAction(
+                bot,
+                human,
+                step);
+
+            if (CheckForZeroEnergy())
+            {
+                StateHasChanged();
+                return;
+            }
+
+            StateHasChanged();
+        }
+
+        if (BattleLog.GetPhaseActions().Count == before)
+        {
+            BattleLog.Write(
+                $"{bot.Name} made no attacks.");
+
+            StateHasChanged();
+        }
+    }
+
+    private async Task BotThinkingDelay()
+    {
+        StateHasChanged();
+
+        await Task.Delay(
+            Random.Shared.Next(500, 1501));
+    }
+
+    private async Task AcknowledgeCoinFlip()
+    {
+        if (Session.CurrentMatch == null ||
+            coinFlipAcknowledged)
+        {
+            return;
+        }
+
+        coinFlipAcknowledged = true;
+        showCoinFlipDialog = false;
+
+        MatchState match =
+            Session.CurrentMatch;
+
+        if (IsPassAndPlay())
+        {
+            showPassDeviceDialog = true;
+            StateHasChanged();
+            return;
+        }
+
+        if (match.GetActingPlayer().IsBot)
+            await RunBotIfNeeded();
+    }
+
+    private async Task AcknowledgePassDevice()
+    {
+        showPassDeviceDialog = false;
+
+        CloseGameplayPopups();
+        StateHasChanged();
+
+        await RunAutomaticHumanPlacementIfNeeded();
+    }
+
+    private async Task RunAutomaticHumanPlacementIfNeeded()
+    {
+        if (Session.CurrentMatch == null)
+            return;
+
+        MatchState match =
+            Session.CurrentMatch;
+
+        if (match.CurrentPhase !=
+            MatchPhase.Placement)
+        {
+            return;
+        }
+
+        Player player =
+            GetPresentedPlayer();
+
+        if (player.IsBot ||
+            player.Deck.Structure != DeckStructure.Stack)
+        {
+            return;
+        }
+
+        StateHasChanged();
+
+        await Task.Delay(
+            Random.Shared.Next(500, 1501));
+
+        if (Session.CurrentMatch == null ||
+            match.IsCompleted ||
+            match.CurrentPhase != MatchPhase.Placement ||
+            match.GetActingPlayer() != player)
+        {
+            return;
+        }
+
+        PlacementManager.AutoStackPlacement(
+            player);
+
+        if (IsDsaTutorialBattle &&
+            Session.Tutorial.CurrentTutorial ==
+                TutorialType.Stack)
+        {
+            NotifyTutorialAction(
+                TutorialAction.ObserveAutomaticPlacement);
+        }
+
+        CheckForZeroEnergy();
+        StateHasChanged();
+    }
+
+
+    // ============================================================
+    // 6. UTILITY PHASE
+    // ============================================================
+
+    private bool CanSelectHandCard(
+        Player player,
+        HandSlot slot)
+    {
+        MatchState? match =
+            Session.CurrentMatch;
+
+        if (match == null ||
+            IsBattleFinished ||
+            botIsActing ||
+            match.GetActingPlayer() != player ||
+            match.CurrentPhase != MatchPhase.Utility ||
+            player.UtilityActionsRemaining <= 0 ||
+            slot.IsEmpty ||
+            slot.CardInSlot == null)
+        {
+            return false;
+        }
+
+        if (!IsGuidedTutorialBattle)
+            return true;
+
+        return RequiredTutorialAction switch
+        {
+            TutorialAction.SelectUtility =>
+                !IsLearnToPlayBattle ||
+                string.Equals(
+                    slot.CardInSlot.Id,
+                    "UM1",
+                    StringComparison.OrdinalIgnoreCase),
+
+            TutorialAction.DiscardAndDraw =>
+                !IsLearnToPlayBattle ||
+                string.Equals(
+                    slot.CardInSlot.Id,
+                    "AN1",
+                    StringComparison.OrdinalIgnoreCase),
+
+            _ =>
+                false
+        };
+    }
+
+    private void SelectHandCard(
+        HandSlot slot)
+    {
+        if (Session.CurrentMatch == null)
+            return;
+
+        Player player =
+            GetPresentedPlayer();
+
+        if (!CanSelectHandCard(
+                player,
+                slot))
+        {
+            return;
+        }
+
+        selectedHandSlot = slot;
+
+        if (RequiredTutorialAction ==
+            TutorialAction.SelectUtility)
+        {
+            NotifyTutorialAction(
+                TutorialAction.SelectUtility);
+        }
+    }
+
+    private void CloseHandCard()
+    {
+        selectedHandSlot = null;
+    }
+
+    private bool CanCloseSelectedHandCard =>
+        !IsLearnToPlayBattle ||
+        RequiredTutorialAction !=
+            TutorialAction.PlayUtility;
+
+    private void RequestCloseHandCard()
+    {
+        if (!CanCloseSelectedHandCard)
+            return;
+
+        selectedHandSlot = null;
+    }
+
+    private void DiscardSelectedCard()
+    {
+        if (Session.CurrentMatch == null ||
+            selectedHandSlot?.CardInSlot == null ||
+            !TutorialAllows(
+                TutorialAction.DiscardAndDraw))
+        {
+            return;
+        }
+
+        if (IsLearnToPlayBattle &&
+            RequiredTutorialAction ==
+                TutorialAction.DiscardAndDraw &&
+            !string.Equals(
+                selectedHandSlot.CardInSlot.Id,
+                "AN1",
+                StringComparison.OrdinalIgnoreCase))
+        {
+            return;
+        }
+
+        MatchState match =
+            Session.CurrentMatch;
+
+        Player player =
+            GetPresentedPlayer();
+
+        if (match.CurrentPhase != MatchPhase.Utility ||
+            match.GetActingPlayer() != player ||
+            player.UtilityActionsRemaining <= 0)
+        {
+            return;
+        }
+
+        bool success =
+            UtilityManager.DiscardAndDraw(
+                player,
+                selectedHandSlot.SlotNumber,
+                match.ActingPlayerIndex,
+                match.TurnNumber);
+
+        if (!success)
+            return;
+
+        player.UtilityActionsRemaining--;
+
+        selectedHandSlot = null;
+
+        NotifyTutorialAction(
+            TutorialAction.DiscardAndDraw);
+
+        StateHasChanged();
+    }
+
+    private void PlaySelectedUtility()
+    {
+        if (Session.CurrentMatch == null ||
+            selectedHandSlot?.CardInSlot == null ||
+            !TutorialAllows(
+                TutorialAction.PlayUtility))
+        {
+            return;
+        }
+
+        MatchState match =
+            Session.CurrentMatch;
+
+        Player player =
+            GetPresentedPlayer();
+
+        Card card =
+            selectedHandSlot.CardInSlot;
+
+        if (match.CurrentPhase != MatchPhase.Utility ||
+            match.GetActingPlayer() != player ||
+            player.UtilityActionsRemaining <= 0 ||
+            card.Type != CardType.Utility ||
+            player.Energy < card.Cost)
+        {
+            return;
+        }
+
+        if (IsLearnToPlayBattle &&
+            card.Id != "UM1")
+        {
+            return;
+        }
+
+        /*
+            Discard For Energy requires the player
+            to choose another card from their hand first.
+        */
+        if (card.Name == "Discard For Energy")
+        {
+            discardForEnergyUtilitySlot =
+                selectedHandSlot.SlotNumber;
+
+            selectedHandSlot = null;
+            showDiscardForEnergyPicker = true;
+
+            StateHasChanged();
+            return;
+        }
+
+        bool success =
+            UtilityManager.PlayUtility(
+                player,
+                GetPresentedOpponent(),
+                selectedHandSlot.SlotNumber);
+
+        if (!success)
+            return;
+
+        selectedHandSlot = null;
+
+        NotifyTutorialAction(
+            TutorialAction.PlayUtility);
+
+        StateHasChanged();
+    }
+
+    private void CloseDiscardForEnergyPicker()
+    {
+        showDiscardForEnergyPicker = false;
+        discardForEnergyUtilitySlot = null;
+    }
+
+    private void SelectDiscardForEnergyCard(
+        HandSlot slot)
+    {
+        if (Session.CurrentMatch == null ||
+            !showDiscardForEnergyPicker ||
+            !discardForEnergyUtilitySlot.HasValue ||
+            slot.IsEmpty ||
+            slot.CardInSlot == null ||
+            slot.SlotNumber ==
+                discardForEnergyUtilitySlot.Value)
+        {
+            return;
+        }
+
+        MatchState match =
+            Session.CurrentMatch;
+
+        Player player =
+            GetPresentedPlayer();
+
+        if (match.CurrentPhase != MatchPhase.Utility ||
+            match.GetActingPlayer() != player ||
+            player.UtilityActionsRemaining <= 0)
+        {
+            return;
+        }
+
+        bool success =
+            UtilityManager.DiscardForEnergy(
+                player,
+                discardForEnergyUtilitySlot.Value,
+                slot.SlotNumber);
+
+        if (!success)
+            return;
+
+        showDiscardForEnergyPicker = false;
+        discardForEnergyUtilitySlot = null;
+
+        StateHasChanged();
+    }
+
+    private bool HasLegalUtilityAction(
+        Player player)
+    {
+        bool deckHasCards =
+            player.Deck.RuntimeStorage != null &&
+            player.Deck.RuntimeStorage.Count > 0;
+
+        bool freePeek =
+            CharacterManager.HasPassive(
+                player,
+                "FreePeek");
+
+        if (freePeek &&
+            deckHasCards &&
+            player.Deck.Structure is
+                DeckStructure.Queue or
+                DeckStructure.Stack or
+                DeckStructure.RandomList)
+        {
+            return true;
+        }
+
+        if (player.UtilityActionsRemaining <= 0)
+            return false;
+
+        if (player.HandSlots.Any(
+                slot => !slot.IsEmpty))
+        {
+            return true;
+        }
+
+        bool supportsDeckAction =
+            player.Deck.Structure is
+                DeckStructure.Queue or
+                DeckStructure.Stack or
+                DeckStructure.RandomList or
+                DeckStructure.LinkedList;
+
+        return
+            deckHasCards &&
+            supportsDeckAction;
+    }
+
+    private bool CanUseDeckAction(
+        Player player)
+    {
+        MatchState? match =
+            Session.CurrentMatch;
+
+        if (match == null ||
+            IsBattleFinished ||
+            botIsActing ||
+            match.CurrentPhase != MatchPhase.Utility ||
+            match.GetActingPlayer() != player ||
+            player.Deck.RuntimeStorage == null ||
+            player.Deck.RuntimeStorage.Count == 0 ||
+            player.Deck.Structure ==
+                DeckStructure.PriorityQueue)
+        {
+            return false;
+        }
+
+        if (IsGuidedTutorialBattle)
+        {
+            TutorialAction required =
+                RequiredTutorialAction;
+
+            bool correctAction =
+                (
+                    required ==
+                        TutorialAction.PeekDeck &&
+                    player.Deck.Structure is
+                        (DeckStructure.Queue or
+                         DeckStructure.Stack)
+                ) ||
+                (
+                    required ==
+                        TutorialAction.ViewDrawPool &&
+                    player.Deck.Structure ==
+                        DeckStructure.RandomList
+                ) ||
+                (
+                    required ==
+                        TutorialAction.StartReorderNodes &&
+                    player.Deck.Structure ==
+                        DeckStructure.LinkedList
+                );
+
+            if (!correctAction)
+                return false;
+        }
+
+        bool freePeek =
+            CharacterManager.HasPassive(
+                player,
+                "FreePeek");
+
+        bool peekStructure =
+            player.Deck.Structure is
+                DeckStructure.Queue or
+                DeckStructure.Stack or
+                DeckStructure.RandomList;
+
+        if (peekStructure &&
+            !freePeek &&
+            player.UtilityActionsRemaining <= 0)
+        {
+            return false;
+        }
+
+        if (player.Deck.Structure ==
+                DeckStructure.LinkedList &&
+            player.UtilityActionsRemaining <= 0)
+        {
+            return false;
+        }
+
+        return true;
+    }
+
+    private void SelectDeckAction(
+        Player player)
+    {
+        if (CanUseDeckAction(player))
+            showDeckAction = true;
+    }
+
+    private void CloseDeckAction() =>
+        showDeckAction = false;
+
+    private void PeekSelectedDeck()
+    {
+        if (Session.CurrentMatch == null)
+            return;
+
+        Player player =
+            GetPresentedPlayer();
+
+        if (!CanUseDeckAction(player) ||
+            player.Deck.Structure is not
+                (DeckStructure.Queue or
+                 DeckStructure.Stack))
+        {
+            return;
+        }
+
+        List<Card>? result =
+            UtilityManager.PeekDeck(
+                player);
+
+        if (result == null)
+            return;
+
+        peekedCards = result;
+        showDeckAction = false;
+
+        NotifyTutorialAction(
+            TutorialAction.PeekDeck);
+
+        StateHasChanged();
+    }
+
+    private void ClosePeek()
+    {
+        peekedCards = null;
+        StateHasChanged();
+    }
+
+    private void ViewSelectedDrawPool()
+    {
+        if (Session.CurrentMatch == null)
+            return;
+
+        Player player =
+            GetPresentedPlayer();
+
+        TutorialAction actionBeforeView =
+            RequiredTutorialAction;
+
+        if (!CanUseDeckAction(player) ||
+            player.Deck.Structure !=
+                DeckStructure.RandomList)
+        {
+            return;
+        }
+
+        List<Card>? result =
+            UtilityManager.ViewDrawPool(
+                player);
+
+        if (result == null)
+            return;
+
+        drawPoolCards = result;
+        showDeckAction = false;
+
+        if (IsGuidedTutorialBattle &&
+            actionBeforeView ==
+                TutorialAction.ViewDrawPool)
+        {
+            TutorialManager.NotifyAction(
+                Session.Tutorial,
+                TutorialAction.ViewDrawPool);
+        }
+
+        StateHasChanged();
+    }
+
+    private void CloseDrawPool()
+    {
+        drawPoolCards = null;
+        StateHasChanged();
+    }
+
+    private void StartReorderNodes()
+    {
+        if (Session.CurrentMatch == null)
+            return;
+
+        Player player =
+            GetPresentedPlayer();
+
+        if (!CanUseDeckAction(player) ||
+            player.Deck.Structure != DeckStructure.LinkedList ||
+            !UtilityManager.StartReorderNodes(player))
+        {
+            return;
+        }
+
+        reorderCards =
+            player.Deck.RuntimeStorage!
+                .GetCards()
+                .Take(6)
+                .ToList();
+
+        linkedNodeMoved = false;
+
+        NotifyTutorialAction(
+            TutorialAction.StartReorderNodes);
+
+        showDeckAction = false;
+
+        StateHasChanged();
+    }
+
+    private void MoveReorderNode(
+        (int From, int To) move)
+    {
+        if (Session.CurrentMatch == null)
+            return;
+
+        Player player =
+            GetPresentedPlayer();
+
+        if (player.Deck.Structure != DeckStructure.LinkedList ||
+            reorderCards == null ||
+            !TutorialAllows(
+                TutorialAction.MoveReorderNode) ||
+            !UtilityManager.ReorderNodes(
+                player,
+                move.From,
+                move.To))
+        {
+            return;
+        }
+
+        linkedNodeMoved = true;
+
+        reorderCards =
+            player.Deck.RuntimeStorage!
+                .GetCards()
+                .Take(6)
+                .ToList();
+
+        NotifyTutorialAction(
+            TutorialAction.MoveReorderNode);
+
+        StateHasChanged();
+    }
+
+    private void CloseReorderPreview()
+    {
+        if (Session.CurrentMatch == null ||
+            reorderCards == null)
+        {
+            return;
+        }
+
+        Player player =
+            GetPresentedPlayer();
+
+        if (player.Deck.Structure !=
+            DeckStructure.LinkedList)
+        {
+            return;
+        }
+
+        UtilityManager.FinishReorderNodes(
+            player);
+
+        reorderCards = null;
+
+        if (linkedNodeMoved &&
+            RequiredTutorialAction ==
+                TutorialAction.FinishReorderNodes)
+        {
+            NotifyTutorialAction(
+                TutorialAction.FinishReorderNodes);
+        }
+
+        StateHasChanged();
+    }
+
+    private string GetDeckActionMessage(
+        Player player) =>
+        player.Deck.Structure switch
+        {
+            DeckStructure.Queue =>
+                "Peek at up to the next two cards.",
+
+            DeckStructure.Stack =>
+                "Peek at up to the top two cards.",
+
+            DeckStructure.RandomList =>
+                "View the cards currently available in the random draw pool.",
+
+            DeckStructure.LinkedList =>
+                "Reorder the upcoming linked nodes.",
+
+            DeckStructure.PriorityQueue =>
+                "Priority Queue retrieval is automatic.",
+
+            _ =>
+                "No deck action available."
+        };
+
+
+    // ============================================================
+    // 7. PLACEMENT PHASE
+    // ============================================================
+
+    private bool CanSelectPlacementAttack(
+        Player player)
+    {
+        MatchState? match =
+            Session.CurrentMatch;
+
+        if (match == null ||
+            IsBattleFinished ||
+            botIsActing ||
+            match.CurrentPhase != MatchPhase.Placement ||
+            match.GetActingPlayer() != player)
+        {
+            return false;
+        }
+
+        if (!IsGuidedTutorialBattle ||
+            IsDsaTutorialBattle)
+        {
+            return true;
+        }
+
+        return RequiredTutorialAction is
+            TutorialAction.DeployAttack or
+            TutorialAction.ReplaceAttack or
+            TutorialAction.RestAttack or
+            TutorialAction.ResolveWandererEntry;
+    }
+
+    private void SelectPlacementAttack(
+        int slot)
+    {
+        if (Session.CurrentMatch == null ||
+            slot is not (1 or 2))
+        {
+            return;
+        }
+
+        Player player =
+            GetPresentedPlayer();
+
+        if (!CanSelectPlacementAttack(player))
+            return;
+
+        if (awaitingWandererEntry)
+        {
+            ResolveWandererEntrySelection(
+                player,
+                slot);
+
+            return;
+        }
+
+        Card? deployed =
+            slot == 1
+                ? player.AttackSlot1
+                : player.AttackSlot2;
+
+        bool fatigued =
+            slot == 1
+                ? player.IsFatiguedSlot1
+                : player.IsFatiguedSlot2;
+
+        if (IsLearnToPlayBattle &&
+            RequiredTutorialAction ==
+                TutorialAction.ReplaceAttack &&
+            (deployed == null ||
+             !string.Equals(
+                 deployed.Id,
+                 "AP4",
+                 StringComparison.OrdinalIgnoreCase)))
+        {
+            return;
+        }
+
+        if (IsLearnToPlayBattle &&
+            RequiredTutorialAction ==
+                TutorialAction.RestAttack &&
+            (deployed == null ||
+             !TutorialAllowsCard(deployed)))
+        {
+            return;
+        }
+
+        if (fatigued)
+        {
+            selectedPlacementAttackSlot = slot;
+            showFatiguedAttackActions = true;
+            return;
+        }
+
+        if (RequiredTutorialAction ==
+            TutorialAction.RestAttack)
+        {
+            return;
+        }
+
+        if (deployed != null &&
+            !player.HandSlots.Any(
+                handSlot =>
+                    !handSlot.IsEmpty &&
+                    handSlot.CardInSlot?.Type ==
+                        CardType.Attack))
+        {
+            return;
+        }
+
         selectedPlacementAttackSlot = slot;
-        showFatiguedAttackActions = true;
-        return;
     }
 
-    if (RequiredTutorialAction == TutorialAction.RestAttack)
-        return;
-
-    if (deployed != null &&
-        !player.HandSlots.Any(handSlot =>
-            !handSlot.IsEmpty &&
-            handSlot.CardInSlot?.Type ==
-                CardType.Attack))
-        return;
-
-    selectedPlacementAttackSlot = slot;
-}
-
-private void ClosePlacementAttack() =>
-    selectedPlacementAttackSlot = null;
-
-private void DeployAttackFromHand(int handSlotNumber)
-{
-    if (Session.CurrentMatch == null ||
-        selectedPlacementAttackSlot == null ||
-        handSlotNumber < 1 ||
-        handSlotNumber > Player.MAX_HAND_SIZE)
-        return;
-
-    Player player = GetPresentedPlayer();
-
-    if (!CanSelectPlacementAttack(player))
-        return;
-
-    HandSlot handSlot =
-        player.HandSlots[handSlotNumber - 1];
-
-    if (!CanChoosePlacementAttack(handSlot))
-        return;
-
-    Card selectedAttack =
-        handSlot.CardInSlot!;
-
-    int fieldSlot =
-        selectedPlacementAttackSlot.Value;
-
-    Card? previous =
-        fieldSlot == 1
-            ? player.AttackSlot1
-            : player.AttackSlot2;
-
-    TutorialAction completedAction =
-        previous == null
-            ? TutorialAction.DeployAttack
-            : TutorialAction.ReplaceAttack;
-
-    if (IsLearnToPlayBattle &&
-    RequiredTutorialAction != completedAction)
-{
-    return;
-}
-
-    int cost = selectedAttack.Cost;
-
-    if (player.DiscountActive)
-        cost = Math.Max(0, cost - 1);
-
-    if (WouldReachZeroEnergy(player, cost))
-    {
-        if (IsGuidedTutorialBattle) return;
-
+    private void ClosePlacementAttack() =>
         selectedPlacementAttackSlot = null;
 
-        WarnBeforeZeroEnergy(() =>
+    private void DeployAttackFromHand(
+        int handSlotNumber)
+    {
+        if (Session.CurrentMatch == null ||
+            selectedPlacementAttackSlot == null ||
+            handSlotNumber < 1 ||
+            handSlotNumber > Player.MAX_HAND_SIZE)
+        {
+            return;
+        }
+
+        Player player =
+            GetPresentedPlayer();
+
+        if (!CanSelectPlacementAttack(player))
+            return;
+
+        HandSlot handSlot =
+            player.HandSlots[
+                handSlotNumber - 1];
+
+        if (!CanChoosePlacementAttack(
+                handSlot))
+        {
+            return;
+        }
+
+        Card selectedAttack =
+            handSlot.CardInSlot!;
+
+        int fieldSlot =
+            selectedPlacementAttackSlot.Value;
+
+        Card? previous =
+            fieldSlot == 1
+                ? player.AttackSlot1
+                : player.AttackSlot2;
+
+        TutorialAction completedAction =
+            previous == null
+                ? TutorialAction.DeployAttack
+                : TutorialAction.ReplaceAttack;
+
+        if (IsLearnToPlayBattle &&
+            RequiredTutorialAction !=
+                completedAction)
+        {
+            return;
+        }
+
+        int cost =
+            selectedAttack.Cost;
+
+        if (player.DiscountActive)
+            cost = Math.Max(0, cost - 1);
+
+        if (WouldReachZeroEnergy(
+                player,
+                cost))
+        {
+            if (IsGuidedTutorialBattle)
+                return;
+
+            selectedPlacementAttackSlot = null;
+
+            WarnBeforeZeroEnergy(() =>
+                PlacementManager.TryDeployAttack(
+                    player,
+                    handSlotNumber,
+                    fieldSlot));
+
+            return;
+        }
+
+        bool success =
             PlacementManager.TryDeployAttack(
                 player,
                 handSlotNumber,
-                fieldSlot));
+                fieldSlot);
 
-        return;
-    }
+        if (!success)
+            return;
 
-    bool success =
-        PlacementManager.TryDeployAttack(
-            player,
-            handSlotNumber,
-            fieldSlot);
+        selectedPlacementAttackSlot = null;
 
-    if (!success) return;
-
-    selectedPlacementAttackSlot = null;
-
-    if (IsLearnToPlayBattle)
-{
-    NotifyTutorialAction(
-        completedAction);
-}
-    CheckForZeroEnergy();
-    StateHasChanged();
-}
-
-private void DeploySelectedAttack(HandSlot slot) =>
-    DeployAttackFromHand(slot.SlotNumber);
-
-private Card? GetSelectedPlacementAttack(Player player)
-{
-    if (selectedPlacementAttackSlot == null)
-        return null;
-
-    return selectedPlacementAttackSlot == 1
-        ? player.AttackSlot1
-        : player.AttackSlot2;
-}
-
-private bool HasUnresolvedFatigue(Player player) =>
-    player.IsFatiguedSlot1 ||
-    player.IsFatiguedSlot2;
-
-private static bool HasDeployedAttack(
-    Player player)
-{
-    return
-        player.AttackSlot1 != null ||
-        player.AttackSlot2 != null;
-}
-
-private bool ShouldHighlightContinue(Player player)
-{
-    MatchState? match = Session.CurrentMatch;
-
-    if (match == null ||
-        botIsActing ||
-        !coinFlipAcknowledged ||
-        awaitingWandererEntry ||
-        match.GetActingPlayer() != player)
-        return false;
-
-    if (IsGuidedTutorialBattle)
-{
-    if (RequiredTutorialAction !=
-        TutorialAction.ContinuePhase)
-    {
-        return false;
-    }
-
-    if (IsDsaTutorialBattle &&
-        match.CurrentPhase ==
-            MatchPhase.Placement &&
-        !HasDeployedAttack(
-            player))
-    {
-        return false;
-    }
-
-    return true;
-}
-
-    if (match.CurrentPhase == MatchPhase.Placement &&
-        HasUnresolvedFatigue(player))
-        return false;
-
-    return !HasLegalPlayerAction(player);
-}
-
-private bool HasLegalPlayerAction(Player player)
-{
-    if (Session.CurrentMatch == null)
-        return false;
-
-    return Session.CurrentMatch.CurrentPhase switch
-    {
-        MatchPhase.Utility =>
-            HasLegalUtilityAction(player),
-
-        MatchPhase.Placement =>
-            HasLegalPlacementAction(player),
-
-        MatchPhase.Attack =>
-            HasLegalAttackAction(player),
-
-        _ => false
-    };
-}
-
-private bool HasLegalUtilityAction(Player player)
-{
-    bool deckHasCards =
-        player.Deck.RuntimeStorage != null &&
-        player.Deck.RuntimeStorage.Count > 0;
-
-    bool freePeek =
-        CharacterManager.HasPassive(
-            player,
-            "FreePeek");
-
-    if (freePeek &&
-        deckHasCards &&
-        player.Deck.Structure is
-            DeckStructure.Queue or
-            DeckStructure.Stack or
-            DeckStructure.RandomList)
-        return true;
-
-    if (player.UtilityActionsRemaining <= 0)
-        return false;
-
-    if (player.HandSlots.Any(slot =>
-            !slot.IsEmpty))
-        return true;
-
-bool supportsDeckAction =
-    player.Deck.Structure is
-        DeckStructure.Queue or
-        DeckStructure.Stack or
-        DeckStructure.RandomList or
-        DeckStructure.LinkedList;
-
-return
-    deckHasCards &&
-    supportsDeckAction;
-}
-
-private bool HasLegalPlacementAction(Player player)
-{
-    if (HasUnresolvedFatigue(player))
-        return true;
-
-    foreach (HandSlot slot in player.HandSlots)
-    {
-        Card? card = slot.CardInSlot;
-
-        if (card == null) continue;
-
-        if (card.Type == CardType.Character)
+        if (IsLearnToPlayBattle)
         {
+            NotifyTutorialAction(
+                completedAction);
+        }
+
+        CheckForZeroEnergy();
+        StateHasChanged();
+    }
+
+    private void DeploySelectedAttack(
+        HandSlot slot) =>
+        DeployAttackFromHand(
+            slot.SlotNumber);
+
+    private Card? GetSelectedPlacementAttack(
+        Player player)
+    {
+        if (selectedPlacementAttackSlot == null)
+            return null;
+
+        return selectedPlacementAttackSlot == 1
+            ? player.AttackSlot1
+            : player.AttackSlot2;
+    }
+
+    private bool HasUnresolvedFatigue(
+        Player player) =>
+        player.IsFatiguedSlot1 ||
+        player.IsFatiguedSlot2;
+
+    private static bool HasDeployedAttack(
+        Player player)
+    {
+        return
+            player.AttackSlot1 != null ||
+            player.AttackSlot2 != null;
+    }
+
+    private void CloseFatiguedAttackActions()
+    {
+        showFatiguedAttackActions = false;
+        selectedPlacementAttackSlot = null;
+    }
+
+    private void RestSelectedAttack()
+    {
+        if (Session.CurrentMatch == null ||
+            selectedPlacementAttackSlot == null ||
+            !CanResolveFatigueWithRest)
+        {
+            return;
+        }
+
+        Player player =
+            GetPresentedPlayer();
+
+        if (!CanSelectPlacementAttack(player))
+            return;
+
+        bool success =
+            PlacementManager.RestFatiguedAttack(
+                player,
+                selectedPlacementAttackSlot.Value);
+
+        if (!success)
+            return;
+
+        showFatiguedAttackActions = false;
+        selectedPlacementAttackSlot = null;
+
+        NotifyTutorialAction(
+            TutorialAction.RestAttack);
+
+        StateHasChanged();
+    }
+
+    private void EmergencyRestSelectedAttack()
+    {
+        if (Session.CurrentMatch == null ||
+            selectedPlacementAttackSlot == null ||
+            !CanResolveFatigueWithRest)
+        {
+            return;
+        }
+
+        Player player =
+            GetPresentedPlayer();
+
+        if (!CanSelectPlacementAttack(player))
+            return;
+
+        bool success =
+            PlacementManager.EmergencyRestFatiguedAttack(
+                player,
+                selectedPlacementAttackSlot.Value);
+
+        if (!success)
+            return;
+
+        showFatiguedAttackActions = false;
+        selectedPlacementAttackSlot = null;
+
+        NotifyTutorialAction(
+            TutorialAction.RestAttack);
+
+        StateHasChanged();
+    }
+
+    private void ReplaceSelectedFatiguedAttack()
+    {
+        if (Session.CurrentMatch == null ||
+            selectedPlacementAttackSlot == null ||
+            !CanResolveFatigueWithReplace)
+        {
+            return;
+        }
+
+        Player player =
+            GetPresentedPlayer();
+
+        if (!CanSelectPlacementAttack(player))
+            return;
+
+        bool success =
+            PlacementManager.ReplaceFatiguedAttack(
+                player,
+                selectedPlacementAttackSlot.Value);
+
+        if (!success)
+            return;
+
+        showFatiguedAttackActions = false;
+
+        /*
+            PlacementManager removes the Fatigued card.
+            Keep the selected field slot so the Attack
+            picker can now choose its replacement.
+        */
+        StateHasChanged();
+    }
+
+    private bool CanSelectPlacementCharacter(
+        Player player)
+    {
+        MatchState? match =
+            Session.CurrentMatch;
+
+        if (match == null ||
+            IsBattleFinished ||
+            botIsActing ||
+            match.CurrentPhase != MatchPhase.Placement ||
+            match.GetActingPlayer() != player)
+        {
+            return false;
+        }
+
+        if (!IsGuidedTutorialBattle)
+            return true;
+
+        return RequiredTutorialAction is
+            TutorialAction.DeployCharacter or
+            TutorialAction.ReplaceCharacter;
+    }
+
+    private void SelectPlacementCharacter()
+    {
+        if (Session.CurrentMatch == null)
+            return;
+
+        Player player =
+            GetPresentedPlayer();
+
+        if (!CanSelectPlacementCharacter(player))
+            return;
+
+        bool hasCharacter =
+            player.HandSlots.Any(
+                slot =>
+                    !slot.IsEmpty &&
+                    slot.CardInSlot?.Type ==
+                        CardType.Character);
+
+        if (!hasCharacter)
+            return;
+
+        showCharacterPicker = true;
+
+        if (RequiredTutorialAction ==
+            TutorialAction.ReplaceCharacter)
+        {
+            NotifyTutorialAction(
+                TutorialAction.ReplaceCharacter);
+        }
+
+        StateHasChanged();
+    }
+
+    private void CloseCharacterPicker()
+    {
+        /*
+            During the informational Wanderer-inspection
+            step, closing the picker would hide the card
+            required by the next deployment step.
+        */
+        if (IsLearnToPlayBattle &&
+            RequiredTutorialAction ==
+                TutorialAction.Acknowledge &&
+            TutorialTarget == "wanderer")
+        {
+            return;
+        }
+
+        showCharacterPicker = false;
+    }
+
+    private void DeploySelectedCharacter(
+        HandSlot slot)
+    {
+        if (Session.CurrentMatch == null ||
+            slot.IsEmpty ||
+            slot.CardInSlot?.Type !=
+                CardType.Character)
+        {
+            return;
+        }
+
+        Card character =
+            slot.CardInSlot;
+
+        if (!CanChoosePlacementCharacter(
+                character))
+        {
+            return;
+        }
+
+        Player player =
+            GetPresentedPlayer();
+
+        if (!CanSelectPlacementCharacter(
+                player))
+        {
+            return;
+        }
+
+        int cost =
+            player.CharacterDefeatedSinceLastPlacement
+                ? 0
+                : player.ActiveCharacter != null
+                    ? 4
+                    : character.Cost;
+
+        if (WouldReachZeroEnergy(
+                player,
+                cost))
+        {
+            if (IsGuidedTutorialBattle)
+                return;
+
+            showCharacterPicker = false;
+
+            WarnBeforeZeroEnergy(() =>
+                PlacementManager.TryDeployCharacter(
+                    player,
+                    slot.SlotNumber));
+
+            return;
+        }
+
+        bool success =
+            PlacementManager.TryDeployCharacter(
+                player,
+                slot.SlotNumber);
+
+        if (!success)
+            return;
+
+        showCharacterPicker = false;
+
+        NotifyTutorialAction(
+            TutorialAction.DeployCharacter);
+
+        if (player.ActiveCharacter?.Name ==
+                "Wanderer Red Panda" &&
+            (player.AttackSlot1 != null ||
+             player.AttackSlot2 != null))
+        {
+            awaitingWandererEntry = true;
+        }
+
+        CheckForZeroEnergy();
+        StateHasChanged();
+    }
+
+
+    // ============================================================
+    // 8. ATTACK PHASE / CHARACTER ABILITIES
+    // ============================================================
+
+    private bool CanInteractWithAttack(
+        Player player,
+        int slot)
+    {
+        MatchState? match =
+            Session.CurrentMatch;
+
+        if (match == null ||
+            IsBattleFinished ||
+            botIsActing ||
+            match.GetActingPlayer() != player ||
+            slot is not (1 or 2))
+        {
+            return false;
+        }
+
+        Card? attack =
+            slot == 1
+                ? player.AttackSlot1
+                : player.AttackSlot2;
+
+        if (match.CurrentPhase ==
+            MatchPhase.Placement)
+        {
+            if (IsDsaTutorialBattle)
+                return attack == null;
+
+            if (!IsGuidedTutorialBattle)
+                return true;
+
+            if (RequiredTutorialAction ==
+                TutorialAction.ResolveWandererEntry)
+            {
+                return attack != null;
+            }
+
+            if (RequiredTutorialAction ==
+                    TutorialAction.ReplaceAttack &&
+                IsLearnToPlayBattle)
+            {
+                return
+                    attack != null &&
+                    string.Equals(
+                        attack.Id,
+                        "AP4",
+                        StringComparison.OrdinalIgnoreCase);
+            }
+
+            if (RequiredTutorialAction ==
+                    TutorialAction.RestAttack &&
+                IsLearnToPlayBattle)
+            {
+                return
+                    attack != null &&
+                    TutorialAllowsCard(attack);
+            }
+
+            if (RequiredTutorialAction ==
+                TutorialAction.DeployAttack)
+            {
+                return attack == null;
+            }
+
+            return false;
+        }
+
+        if (match.CurrentPhase !=
+                MatchPhase.Attack ||
+            attack == null)
+        {
+            return false;
+        }
+
+        if (IsGuidedTutorialBattle &&
+            RequiredTutorialAction !=
+                TutorialAction.UseAttack)
+        {
+            return false;
+        }
+
+        if (IsLearnToPlayBattle &&
+            !TutorialAllowsCard(attack))
+        {
+            return false;
+        }
+
+        bool fatigued =
+            slot == 1
+                ? player.IsFatiguedSlot1
+                : player.IsFatiguedSlot2;
+
+        bool resting =
+            slot == 1
+                ? player.IsRestingSlot1
+                : player.IsRestingSlot2;
+
+        bool used =
+            slot == 1
+                ? player.AttackSlot1UsedThisPhase
+                : player.AttackSlot2UsedThisPhase;
+
+        int useCost =
+            slot == 1
+                ? player.AttackSlot1TotalUses
+                : player.AttackSlot2TotalUses;
+
+        return
+            !fatigued &&
+            !resting &&
+            !used &&
+            player.Energy >= useCost;
+    }
+
+    private void HandleAttackCardClick(
+        int slot)
+    {
+        if (Session.CurrentMatch == null)
+            return;
+
+        MatchState match =
+            Session.CurrentMatch;
+
+        Player player =
+            GetPresentedPlayer();
+
+        if (botIsActing ||
+            match.GetActingPlayer() != player)
+        {
+            return;
+        }
+
+        if (match.CurrentPhase ==
+            MatchPhase.Placement)
+        {
+            if (awaitingWandererEntry)
+            {
+                ResolveWandererEntrySelection(
+                    player,
+                    slot);
+
+                return;
+            }
+
+            SelectPlacementAttack(slot);
+            return;
+        }
+
+        if (match.CurrentPhase !=
+                MatchPhase.Attack ||
+            !CanInteractWithAttack(
+                player,
+                slot))
+        {
+            return;
+        }
+
+        bool success =
+            AttackManager.UseAttack(
+                player,
+                GetPresentedOpponent(),
+                slot);
+
+        if (!success)
+            return;
+
+        NotifyTutorialAction(
+            TutorialAction.UseAttack);
+
+        CheckForZeroEnergy();
+        StateHasChanged();
+    }
+
+    private bool CanInteractWithCharacter(
+        Player player)
+    {
+        MatchState? match =
+            Session.CurrentMatch;
+
+        if (match == null ||
+            IsBattleFinished ||
+            botIsActing ||
+            match.GetActingPlayer() != player)
+        {
+            return false;
+        }
+
+        if (match.CurrentPhase ==
+            MatchPhase.Placement)
+        {
+            if (!IsGuidedTutorialBattle)
+                return true;
+
+            return RequiredTutorialAction is
+                TutorialAction.DeployCharacter or
+                TutorialAction.ReplaceCharacter;
+        }
+
+        if (match.CurrentPhase !=
+                MatchPhase.Attack ||
+            player.ActiveCharacter == null)
+        {
+            return false;
+        }
+
+        if (IsGuidedTutorialBattle &&
+            RequiredTutorialAction !=
+                TutorialAction.UseCharacterAbility)
+        {
+            return false;
+        }
+
+        if (player.CharacterNewlyDeployed ||
+            player.AbilityUsedThisPhase ||
+            player.AbilityCooldownRemaining > 0)
+        {
+            return false;
+        }
+
+        return CanAffordCharacterAbility(player);
+    }
+
+    private void HandleCharacterCardClick()
+    {
+        if (Session.CurrentMatch == null)
+            return;
+
+        MatchState match =
+            Session.CurrentMatch;
+
+        Player player =
+            GetPresentedPlayer();
+
+        if (botIsActing ||
+            match.GetActingPlayer() != player)
+        {
+            return;
+        }
+
+        if (match.CurrentPhase ==
+            MatchPhase.Placement)
+        {
+            SelectPlacementCharacter();
+            return;
+        }
+
+        if (match.CurrentPhase !=
+                MatchPhase.Attack ||
+            !CanInteractWithCharacter(player))
+        {
+            return;
+        }
+
+        bool success =
+            AttackManager.UseCharacterAbility(
+                player);
+
+        if (!success)
+            return;
+
+        NotifyTutorialAction(
+            TutorialAction.UseCharacterAbility);
+
+        CheckForZeroEnergy();
+        StateHasChanged();
+    }
+
+    private bool CanAffordCharacterAbility(
+        Player player)
+    {
+        if (player.ActiveCharacter == null)
+            return false;
+
+        int cost =
+            player.ActiveCharacter.ActiveAbility switch
+            {
+                "ShieldGain" => 2,
+                "MagicBoost" => 1,
+                "FieldShield" => 3,
+                "PowerSurge" => 3,
+                "AttackBoost" => 2,
+                "Heal" => 2,
+                _ => int.MaxValue
+            };
+
+        return player.Energy >= cost;
+    }
+
+    private void ResolveWandererEntrySelection(
+        Player player,
+        int slot)
+    {
+        if (!awaitingWandererEntry ||
+            !TutorialAllows(
+                TutorialAction.ResolveWandererEntry))
+        {
+            return;
+        }
+
+        bool success =
+            PlacementManager.ResolveWandererEntry(
+                player,
+                slot);
+
+        if (!success)
+            return;
+
+        awaitingWandererEntry = false;
+
+        NotifyTutorialAction(
+            TutorialAction.ResolveWandererEntry);
+
+        StateHasChanged();
+    }
+
+
+    // ============================================================
+    // 9. DSA / DECK STRUCTURE TUTORIAL
+    // ============================================================
+
+    private void PrepareDsaTutorialBattle()
+    {
+        if (Session.CurrentMatch == null ||
+            dsaRecyclePrepared)
+        {
+            return;
+        }
+
+        Player player =
+            GetPresentedPlayer();
+
+        dsaRecyclePrepared = true;
+        dsaRecycleResolved = false;
+        dsaRecycleCardCount = 0;
+
+        if (player.DiscardPile.Count == 0 &&
+            player.Deck.RuntimeStorage != null)
+        {
+            for (
+                int i = 0;
+                i < DsaRecycleSampleSize &&
+                player.Deck.RuntimeStorage.Count > 0;
+                i++)
+            {
+                Card? card =
+                    player.Deck.RuntimeStorage.Draw();
+
+                if (card != null)
+                {
+                    player.DiscardPile.Add(card);
+                }
+            }
+        }
+
+        dsaRecycleCardCount =
+            player.DiscardPile.Count;
+    }
+
+    private async Task HandleDsaInformationalAdvance()
+    {
+        if (!IsDsaTutorialBattle ||
+            Session.CurrentMatch == null)
+        {
+            return;
+        }
+
+        TutorialAction action =
+            RequiredTutorialAction;
+
+        if (action ==
+            TutorialAction.PrepareRecycle)
+        {
+            PrepareDsaRecycleState();
+
+            NotifyTutorialAction(
+                TutorialAction.PrepareRecycle);
+        }
+
+        await Task.CompletedTask;
+    }
+
+    private void PrepareDsaRecycleState()
+    {
+        if (Session.CurrentMatch == null ||
+            dsaRecycleResolved)
+        {
+            return;
+        }
+
+        Player player =
+            GetPresentedPlayer();
+
+        if (player.Deck.RuntimeStorage == null ||
+            player.DiscardPile.Count == 0)
+        {
+            return;
+        }
+
+        /*
+            Empty only runtime storage. The field and hand
+            remain visible, while the saved discard cards
+            demonstrate how this deck structure receives
+            recycled cards.
+        */
+        while (player.Deck.RuntimeStorage.Count > 0)
+        {
+            player.Deck.RuntimeStorage.Draw();
+        }
+    }
+
+    private async Task ResolveDsaRecycleDemonstration()
+    {
+        if (Session.CurrentMatch == null ||
+            dsaRecycleResolved ||
+            RequiredTutorialAction !=
+                TutorialAction.ObserveRecycle)
+        {
+            return;
+        }
+
+        Player player =
+            GetPresentedPlayer();
+
+        if (player.Deck.RuntimeStorage == null)
+            return;
+
+        int recycledCount =
+            dsaRecycleCardCount;
+
+        /*
+            If cards remain in discard, the normal End
+            draw did not need them. Recycle them now
+            through the real structure's Add operation.
+        */
+        if (player.DiscardPile.Count > 0)
+        {
+            List<Card> recycled =
+                player.DiscardPile.ToList();
+
+            recycledCount =
+                recycled.Count;
+
+            player.DiscardPile.Clear();
+
+            foreach (Card card in recycled)
+            {
+                player.Deck.RuntimeStorage.Add(card);
+            }
+
+            BattleLog.WriteSystem(
+                GetRecycleLogMessage(
+                    player.Deck.Structure,
+                    recycledCount));
+        }
+        else
+        {
+            /*
+                DrawUntilHandSize already recycled the
+                discard pile during the real End Phase.
+            */
+            BattleLog.WriteSystem(
+                GetRecycleLogMessage(
+                    player.Deck.Structure,
+                    recycledCount));
+        }
+
+        dsaRecycleResolved = true;
+
+        NotifyTutorialAction(
+            TutorialAction.ObserveRecycle);
+
+        StateHasChanged();
+
+        await Task.CompletedTask;
+    }
+
+    private string GetRecycleLogMessage(
+        DeckStructure structure,
+        int count)
+    {
+        string destination =
+            structure switch
+            {
+                DeckStructure.Queue =>
+                    "the rear of the Queue",
+
+                DeckStructure.PriorityQueue =>
+                    "the Priority Queue using each card's priority",
+
+                DeckStructure.Stack =>
+                    "the top of the Stack",
+
+                DeckStructure.RandomList =>
+                    "the Random List draw pool",
+
+                DeckStructure.LinkedList =>
+                    "the tail of the Linked List",
+
+                _ =>
+                    "the deck"
+            };
+
+        return
+            $"{count} discarded card(s) recycled into {destination}.";
+    }
+
+
+    // ============================================================
+    // 10. MATCH COMPLETION / SURRENDER
+    // ============================================================
+
+    private bool IsBattleFinished
+    {
+        get
+        {
+            if (surrendered)
+                return true;
+
+            if (Session.CurrentMatch == null)
+                return true;
+
+            return
+                Session.CurrentMatch.IsCompleted ||
+                MatchManager.IsMatchOver(
+                    Session.CurrentMatch.Player1,
+                    Session.CurrentMatch.Player2);
+        }
+    }
+
+    private bool WouldReachZeroEnergy(
+        Player player,
+        int cost) =>
+        cost > 0 &&
+        player.Energy - cost <= 0;
+
+    private void WarnBeforeZeroEnergy(
+        Func<bool> action)
+    {
+        pendingZeroEnergyAction = action;
+        showZeroEnergyWarning = true;
+    }
+
+    private void CancelZeroEnergyAction()
+    {
+        showZeroEnergyWarning = false;
+        pendingZeroEnergyAction = null;
+    }
+
+    private void ConfirmZeroEnergyAction()
+    {
+        Func<bool>? action =
+            pendingZeroEnergyAction;
+
+        showZeroEnergyWarning = false;
+        pendingZeroEnergyAction = null;
+
+        if (action == null ||
+            !action())
+        {
+            return;
+        }
+
+        CheckForZeroEnergy();
+    }
+
+    private bool CheckForZeroEnergy()
+    {
+        if (Session.CurrentMatch == null)
+            return false;
+
+        MatchState match =
+            Session.CurrentMatch;
+
+        if (match.Player1.Energy > 0 &&
+            match.Player2.Energy > 0)
+        {
+            return false;
+        }
+
+        bool tournamentMatch =
+            IsTournamentMatch;
+
+        BattleEngine.CompleteMatch(
+            match);
+
+        if (!match.IsCompleted)
+            return false;
+
+        finishedTournamentMatch =
+            tournamentMatch;
+
+        if (tournamentMatch)
+        {
+            Player? winner =
+                MatchManager.GetWinner(
+                    match.Player1,
+                    match.Player2);
+
+            if (match.IsDraw ||
+                winner == null)
+            {
+                TournamentManager.EndAfterLoss(
+                    Session.Tournament);
+            }
+            else if (winner == match.Player1)
+            {
+                TournamentManager.AdvanceAfterWin(
+                    Session.Tournament);
+            }
+            else
+            {
+                TournamentManager.EndAfterLoss(
+                    Session.Tournament);
+            }
+        }
+
+        CloseGameplayPopups();
+
+        surrendered = false;
+        observingFinishedMatch = false;
+        showZeroEnergyWarning = false;
+        pendingZeroEnergyAction = null;
+        showZeroEnergyDialog = true;
+
+        return true;
+    }
+
+    private void CancelLeaveMatch()
+    {
+        showLeaveMatchDialog = false;
+        pendingNavigationUrl = null;
+    }
+
+    private void RequestSurrender()
+    {
+        if (IsBattleFinished ||
+            IsSurrenderDisabled)
+        {
+            return;
+        }
+
+        pendingNavigationUrl = null;
+        showLeaveMatchDialog = true;
+    }
+
+    private void ConfirmLeaveMatch()
+    {
+        if (Session.CurrentMatch == null ||
+            IsBattleFinished)
+        {
+            showLeaveMatchDialog = false;
+            pendingNavigationUrl = null;
+            return;
+        }
+
+        string? destination =
+            pendingNavigationUrl;
+
+        bool tournamentMatch =
+            IsTournamentMatch;
+
+        bool tutorialSurrender =
+            IsLearnToPlayBattle &&
+            RequiredTutorialAction ==
+                TutorialAction.Surrender;
+
+        showLeaveMatchDialog = false;
+        pendingNavigationUrl = null;
+        surrendered = true;
+        observingFinishedMatch = false;
+
+        MatchState match =
+            Session.CurrentMatch;
+
+        Player losingPlayer =
+            GetPresentedPlayer();
+
+        Player winningPlayer =
+            GetPresentedOpponent();
+
+        // Record the surrender in the actual game state.
+        losingPlayer.HasSurrendered = true;
+
+        BattleLog.WriteSystem(
+            $"{losingPlayer.Name} surrendered.");
+
+        BattleLog.WriteSystem(
+            $"Match ended. {winningPlayer.Name} wins.");
+
+        // Complete the match through the normal engine pathway.
+        BattleEngine.CompleteMatch(
+            match);
+
+        if (tournamentMatch)
+        {
+            finishedTournamentMatch = true;
+
+            TournamentManager.EndAfterLoss(
+                Session.Tournament);
+        }
+
+        botIsActing = false;
+
+        CloseGameplayPopups();
+
+        showZeroEnergyWarning = false;
+        pendingZeroEnergyAction = null;
+
+        if (tutorialSurrender)
+        {
+            NotifyTutorialAction(
+                TutorialAction.Surrender);
+        }
+
+        if (!string.IsNullOrWhiteSpace(
+                destination))
+        {
+            Session.CurrentMatch = null;
+            allowNavigation = true;
+
+            Navigation.NavigateTo(
+                destination);
+
+            return;
+        }
+
+        showZeroEnergyDialog = true;
+        logCollapsed = false;
+
+        StateHasChanged();
+    }
+
+    private void ObserveFinishedMatch()
+    {
+        if (IsObserveBoardDisabled)
+            return;
+
+        showZeroEnergyDialog = false;
+        observingFinishedMatch = true;
+
+        CloseGameplayPopups();
+
+        NotifyTutorialAction(
+            TutorialAction.ObserveBoard);
+
+        StateHasChanged();
+    }
+
+    private void ReturnToMainMenu()
+    {
+        showZeroEnergyDialog = false;
+        observingFinishedMatch = false;
+
+        Session.CurrentMatch = null;
+        allowNavigation = true;
+
+        Navigation.NavigateTo("/");
+    }
+
+
+    // ============================================================
+    // 11. TOURNAMENT FLOW
+    // ============================================================
+
+    private bool IsTournamentMatch =>
+        Session.Tournament.IsActive &&
+        Session.CurrentMatch != null &&
+        Session.Tournament.CurrentOpponentName ==
+            GetPresentedOpponent().Name;
+
+    private bool IsFinishedTournamentMatch =>
+        Session.CurrentMatch != null &&
+        finishedTournamentMatch &&
+        IsBattleFinished;
+
+    private bool HasNextTournamentRound =>
+        IsFinishedTournamentMatch &&
+        Session.Tournament.IsActive &&
+        !Session.Tournament.IsCompleted;
+
+    private bool IsTournamentChampion =>
+        IsFinishedTournamentMatch &&
+        Session.Tournament.IsCompleted &&
+        Session.Tournament.PlayerWonTournament &&
+        Session.Tournament.HasMasterStrategistTitle;
+
+    private void ReturnToTournament()
+    {
+        showZeroEnergyDialog = false;
+        observingFinishedMatch = false;
+        Session.CurrentMatch = null;
+        finishedTournamentMatch = false;
+        allowNavigation = true;
+
+        Navigation.NavigateTo("/tournament");
+    }
+
+    private void ContinueTournament()
+    {
+        showZeroEnergyDialog = false;
+        observingFinishedMatch = false;
+        Session.CurrentMatch = null;
+        finishedTournamentMatch = false;
+        allowNavigation = true;
+
+        Navigation.NavigateTo("/tournament");
+    }
+
+
+    // ============================================================
+    // 12. NAVIGATION / POPUPS
+    // ============================================================
+
+    private void HandleNavigationAway(
+        LocationChangingContext context)
+    {
+        if (allowNavigation)
+            return;
+
+        if (Session.CurrentMatch == null)
+        {
+            allowNavigation = true;
+            return;
+        }
+
+        if (IsBattleFinished)
+        {
+            Session.CurrentMatch = null;
+            allowNavigation = true;
+            return;
+        }
+
+        context.PreventNavigation();
+
+        pendingNavigationUrl =
+            context.TargetLocation;
+
+        showLeaveMatchDialog = true;
+    }
+
+    private void CloseGameplayPopups()
+    {
+        selectedHandSlot = null;
+        selectedPlacementAttackSlot = null;
+        showFatiguedAttackActions = false;
+        showDeckAction = false;
+        peekedCards = null;
+        drawPoolCards = null;
+        reorderCards = null;
+        showCharacterPicker = false;
+        showDiscardForEnergyPicker = false;
+        discardForEnergyUtilitySlot = null;
+    }
+
+
+    // ============================================================
+    // 13. BATTLE LOG
+    // ============================================================
+
+    private async Task ToggleLog()
+    {
+        logCollapsed = !logCollapsed;
+
+        if (logCollapsed)
+            return;
+
+        StateHasChanged();
+
+        await Task.Yield();
+
+        await JS.InvokeVoidAsync(
+            "redPandaBattle.scrollLogToBottom",
+            battleLogElement);
+    }
+
+    private string GetLogPhaseClass(
+        BattleLogEntry entry)
+    {
+        if (entry.IsSystem)
+            return "log-system";
+
+        return entry.Phase switch
+        {
+            MatchPhase.Utility =>
+                "log-utility",
+
+            MatchPhase.Placement =>
+                "log-placement",
+
+            MatchPhase.Attack =>
+                "log-attack",
+
+            MatchPhase.End =>
+                "log-end",
+
+            _ =>
+                ""
+        };
+    }
+
+    private async Task CopyBattleLog()
+{
+    string replay = BattleLog.ExportReplay();
+
+    await JS.InvokeVoidAsync(
+        "navigator.clipboard.writeText",
+        replay);
+
+    logCopied = true;
+
+    await InvokeAsync(StateHasChanged);
+
+    await Task.Delay(1500);
+
+    logCopied = false;
+
+    await InvokeAsync(StateHasChanged);
+}
+
+
+    // ============================================================
+    // 14. PRESENTED PLAYER / MATCH MODE
+    // ============================================================
+
+    private bool IsPassAndPlay()
+    {
+        if (Session.CurrentMatch == null)
+            return false;
+
+        return
+            !Session.CurrentMatch.Player1.IsBot &&
+            !Session.CurrentMatch.Player2.IsBot;
+    }
+
+    private Player GetPresentedPlayer()
+    {
+        MatchState match =
+            Session.CurrentMatch!;
+
+        return IsPassAndPlay()
+            ? match.GetActingPlayer()
+            : match.Player1;
+    }
+
+    private Player GetPresentedOpponent()
+    {
+        MatchState match =
+            Session.CurrentMatch!;
+
+        Player player =
+            GetPresentedPlayer();
+
+        return player == match.Player1
+            ? match.Player2
+            : match.Player1;
+    }
+
+
+    // ============================================================
+    // 15. UI / PHASE / TURN DISPLAY HELPERS
+    // ============================================================
+
+    private RenderFragment PhaseBox(
+        string name,
+        MatchPhase phase,
+        string cssClass) =>
+        @<div class="phase @cssClass @(Session.CurrentMatch!.CurrentPhase == phase ? "active" : "")">
+            @name
+        </div>;
+
+    private string GetDeckStructureName(
+        DeckStructure structure) =>
+        structure switch
+        {
+            DeckStructure.RandomList =>
+                "Random List",
+
+            DeckStructure.LinkedList =>
+                "Linked List",
+
+            DeckStructure.PriorityQueue =>
+                "Priority Queue",
+
+            _ =>
+                structure.ToString()
+        };
+
+    private string GetTurnOwnerClass(
+        Player presentedPlayer)
+    {
+        if (Session.CurrentMatch == null)
+            return "player-turn";
+
+        return
+            Session.CurrentMatch.GetActingPlayer() ==
+            presentedPlayer
+                ? "player-turn"
+                : "bot-turn";
+    }
+
+    private string GetTurnOwnerText(
+        Player presentedPlayer)
+    {
+        if (Session.CurrentMatch == null)
+            return "";
+
+        Player acting =
+            Session.CurrentMatch.GetActingPlayer();
+
+        if (IsPassAndPlay())
+        {
+            return
+                $"{acting.Name.ToUpperInvariant()} ACTING";
+        }
+
+        return acting == presentedPlayer
+            ? $"{presentedPlayer.Name.ToUpperInvariant()} ACTING"
+            : $"{acting.Name.ToUpperInvariant()} ACTING";
+    }
+
+    private bool ShouldHighlightContinue(
+        Player player)
+    {
+        MatchState? match =
+            Session.CurrentMatch;
+
+        if (match == null ||
+            botIsActing ||
+            !coinFlipAcknowledged ||
+            awaitingWandererEntry ||
+            match.GetActingPlayer() != player)
+        {
+            return false;
+        }
+
+        if (IsGuidedTutorialBattle)
+        {
+            if (RequiredTutorialAction !=
+                TutorialAction.ContinuePhase)
+            {
+                return false;
+            }
+
+            if (IsDsaTutorialBattle &&
+                match.CurrentPhase ==
+                    MatchPhase.Placement &&
+                !HasDeployedAttack(player))
+            {
+                return false;
+            }
+
+            return true;
+        }
+
+        if (match.CurrentPhase ==
+                MatchPhase.Placement &&
+            HasUnresolvedFatigue(player))
+        {
+            return false;
+        }
+
+        return !HasLegalPlayerAction(
+            player);
+    }
+
+    private bool HasLegalPlayerAction(
+        Player player)
+    {
+        if (Session.CurrentMatch == null)
+            return false;
+
+        return Session.CurrentMatch.CurrentPhase switch
+        {
+            MatchPhase.Utility =>
+                HasLegalUtilityAction(player),
+
+            MatchPhase.Placement =>
+                HasLegalPlacementAction(player),
+
+            MatchPhase.Attack =>
+                HasLegalAttackAction(player),
+
+            _ =>
+                false
+        };
+    }
+
+    private bool HasLegalPlacementAction(
+        Player player)
+    {
+        if (HasUnresolvedFatigue(player))
+            return true;
+
+        foreach (HandSlot slot in player.HandSlots)
+        {
+            Card? card =
+                slot.CardInSlot;
+
+            if (card == null)
+                continue;
+
+            if (card.Type == CardType.Character)
+            {
+                int cost =
+                    player.CharacterDefeatedSinceLastPlacement
+                        ? 0
+                        : player.ActiveCharacter != null
+                            ? 4
+                            : card.Cost;
+
+                if (player.Energy >= cost)
+                    return true;
+            }
+
+            if (card.Type == CardType.Attack)
+            {
+                int cost =
+                    card.Cost;
+
+                if (player.DiscountActive)
+                    cost = Math.Max(0, cost - 1);
+
+                if (player.Energy >= cost)
+                    return true;
+            }
+        }
+
+        return false;
+    }
+
+    private bool HasLegalAttackAction(
+        Player player)
+    {
+        bool slot1 =
+            player.AttackSlot1 != null &&
+            !player.IsFatiguedSlot1 &&
+            !player.IsRestingSlot1 &&
+            !player.AttackSlot1UsedThisPhase &&
+            player.Energy >=
+                player.AttackSlot1TotalUses;
+
+        bool slot2 =
+            player.AttackSlot2 != null &&
+            !player.IsFatiguedSlot2 &&
+            !player.IsRestingSlot2 &&
+            !player.AttackSlot2UsedThisPhase &&
+            player.Energy >=
+                player.AttackSlot2TotalUses;
+
+        bool ability =
+            player.ActiveCharacter != null &&
+            !player.CharacterNewlyDeployed &&
+            !player.AbilityUsedThisPhase &&
+            player.AbilityCooldownRemaining <= 0 &&
+            CanAffordCharacterAbility(player);
+
+        return slot1 || slot2 || ability;
+    }
+
+
+    // ============================================================
+    // 16. ATTACK / CHARACTER HIGHLIGHT HELPERS
+    // ============================================================
+
+    private bool ShouldHighlightAttack(
+        Player player,
+        int slot)
+    {
+        if (Session.CurrentMatch?.CurrentPhase !=
+            MatchPhase.Attack)
+        {
+            return false;
+        }
+
+        return CanInteractWithAttack(
+            player,
+            slot);
+    }
+
+    private string GetAttackPlacementHighlight(
+        Player player,
+        int slot)
+    {
+        MatchState? match =
+            Session.CurrentMatch;
+
+        if (match == null ||
+            IsBattleFinished ||
+            botIsActing ||
+            match.GetActingPlayer() != player)
+        {
+            return "";
+        }
+
+        Card? attack =
+            slot == 1
+                ? player.AttackSlot1
+                : player.AttackSlot2;
+
+        if (awaitingWandererEntry)
+        {
+            return attack != null
+                ? "placement-replace"
+                : "";
+        }
+
+        if (match.CurrentPhase !=
+            MatchPhase.Placement)
+        {
+            return "";
+        }
+
+        if (IsDsaTutorialBattle)
+        {
+            return
+                attack == null &&
+                HasAffordableAttackInHand(player)
+                    ? "placement-deploy"
+                    : "";
+        }
+
+        if (IsGuidedTutorialBattle)
+        {
+            if (RequiredTutorialAction ==
+                    TutorialAction.RestAttack &&
+                attack != null &&
+                TutorialAllowsCard(attack))
+            {
+                return "placement-fatigued";
+            }
+
+            if (RequiredTutorialAction ==
+                    TutorialAction.ReplaceAttack &&
+                attack != null &&
+                string.Equals(
+                    attack.Id,
+                    "AP4",
+                    StringComparison.OrdinalIgnoreCase))
+            {
+                return "placement-replace";
+            }
+
+            if (RequiredTutorialAction ==
+                TutorialAction.DeployAttack)
+            {
+                return
+                    attack == null &&
+                    HasAffordableAttackInHand(player)
+                        ? "placement-deploy"
+                        : "";
+            }
+
+            return "";
+        }
+
+        bool fatigued =
+            slot == 1
+                ? player.IsFatiguedSlot1
+                : player.IsFatiguedSlot2;
+
+        if (attack != null &&
+            fatigued)
+        {
+            return "placement-fatigued";
+        }
+
+        if (!HasAffordableAttackInHand(
+                player))
+        {
+            return "";
+        }
+
+        return attack == null
+            ? "placement-deploy"
+            : "placement-replace";
+    }
+
+    private bool HasAffordableAttackInHand(
+        Player player)
+    {
+        foreach (HandSlot slot in player.HandSlots)
+        {
+            Card? card =
+                slot.CardInSlot;
+
+            if (card?.Type != CardType.Attack)
+                continue;
+
+            if (IsLearnToPlayBattle &&
+                !TutorialAllowsCard(card))
+            {
+                continue;
+            }
+
+            int cost =
+                card.Cost;
+
+            if (player.DiscountActive)
+                cost = Math.Max(0, cost - 1);
+
+            if (player.Energy >= cost)
+                return true;
+        }
+
+        return false;
+    }
+
+    private bool ShouldHighlightCharacterAbility(
+        Player player)
+    {
+        if (Session.CurrentMatch?.CurrentPhase !=
+            MatchPhase.Attack)
+        {
+            return false;
+        }
+
+        return CanInteractWithCharacter(
+            player);
+    }
+
+    private string GetCharacterPlacementHighlight(
+        Player player)
+    {
+        MatchState? match =
+            Session.CurrentMatch;
+
+        if (match == null ||
+            IsBattleFinished ||
+            botIsActing ||
+            match.CurrentPhase !=
+                MatchPhase.Placement ||
+            match.GetActingPlayer() != player)
+        {
+            return "";
+        }
+
+        if (IsGuidedTutorialBattle &&
+            RequiredTutorialAction is not
+                (TutorialAction.DeployCharacter or
+                 TutorialAction.ReplaceCharacter))
+        {
+            return "";
+        }
+
+        if (!HasAffordableCharacterInHand(
+                player))
+        {
+            return "";
+        }
+
+        return player.ActiveCharacter == null
+            ? "placement-deploy"
+            : "placement-replace";
+    }
+
+    private bool HasAffordableCharacterInHand(
+        Player player)
+    {
+        foreach (HandSlot slot in player.HandSlots)
+        {
+            Card? card =
+                slot.CardInSlot;
+
+            if (card?.Type != CardType.Character)
+                continue;
+
+            if (IsLearnToPlayBattle &&
+                !TutorialAllowsCard(card))
+            {
+                continue;
+            }
+
             int cost =
                 player.CharacterDefeatedSinceLastPlacement
                     ? 0
@@ -3622,1212 +5075,154 @@ private bool HasLegalPlacementAction(Player player)
                 return true;
         }
 
-        if (card.Type == CardType.Attack)
-        {
-            int cost = card.Cost;
-
-            if (player.DiscountActive)
-                cost = Math.Max(0, cost - 1);
-
-            if (player.Energy >= cost)
-                return true;
-        }
-    }
-
-    return false;
-}
-
-private bool HasLegalAttackAction(Player player)
-{
-    bool slot1 =
-        player.AttackSlot1 != null &&
-        !player.IsFatiguedSlot1 &&
-        !player.IsRestingSlot1 &&
-        !player.AttackSlot1UsedThisPhase &&
-        player.Energy >=
-            player.AttackSlot1TotalUses;
-
-    bool slot2 =
-        player.AttackSlot2 != null &&
-        !player.IsFatiguedSlot2 &&
-        !player.IsRestingSlot2 &&
-        !player.AttackSlot2UsedThisPhase &&
-        player.Energy >=
-            player.AttackSlot2TotalUses;
-
-    bool ability =
-        player.ActiveCharacter != null &&
-        !player.CharacterNewlyDeployed &&
-        !player.AbilityUsedThisPhase &&
-        player.AbilityCooldownRemaining <= 0 &&
-        CanAffordCharacterAbility(player);
-
-    return slot1 || slot2 || ability;
-}
-
-private bool CanAffordCharacterAbility(Player player)
-{
-    if (player.ActiveCharacter == null)
-        return false;
-
-    int cost =
-        player.ActiveCharacter.ActiveAbility switch
-        {
-            "ShieldGain" => 2,
-            "MagicBoost" => 1,
-            "FieldShield" => 3,
-            "PowerSurge" => 3,
-            "AttackBoost" => 2,
-            "Heal" => 2,
-            _ => int.MaxValue
-        };
-
-    return player.Energy >= cost;
-}
-
-private void CloseFatiguedAttackActions()
-{
-    showFatiguedAttackActions = false;
-    selectedPlacementAttackSlot = null;
-}
-
-private void RestSelectedAttack()
-{
-    if (Session.CurrentMatch == null ||
-        selectedPlacementAttackSlot == null ||
-        !CanResolveFatigueWithRest)
-        return;
-
-    Player player = GetPresentedPlayer();
-
-    if (!CanSelectPlacementAttack(player))
-        return;
-
-    bool success =
-        PlacementManager.RestFatiguedAttack(
-            player,
-            selectedPlacementAttackSlot.Value);
-
-    if (!success) return;
-
-    showFatiguedAttackActions = false;
-    selectedPlacementAttackSlot = null;
-
-    NotifyTutorialAction(
-        TutorialAction.RestAttack);
-
-    StateHasChanged();
-}
-
-private void EmergencyRestSelectedAttack()
-{
-    if (Session.CurrentMatch == null ||
-        selectedPlacementAttackSlot == null ||
-        !CanResolveFatigueWithRest)
-        return;
-
-    Player player = GetPresentedPlayer();
-
-    if (!CanSelectPlacementAttack(player))
-        return;
-
-    bool success =
-        PlacementManager.EmergencyRestFatiguedAttack(
-            player,
-            selectedPlacementAttackSlot.Value);
-
-    if (!success) return;
-
-    showFatiguedAttackActions = false;
-    selectedPlacementAttackSlot = null;
-
-    NotifyTutorialAction(
-        TutorialAction.RestAttack);
-
-    StateHasChanged();
-}
-
-private void ReplaceSelectedFatiguedAttack()
-{
-    if (Session.CurrentMatch == null ||
-        selectedPlacementAttackSlot == null ||
-        !CanResolveFatigueWithReplace)
-        return;
-
-    Player player = GetPresentedPlayer();
-
-    if (!CanSelectPlacementAttack(player))
-        return;
-
-    bool success =
-        PlacementManager.ReplaceFatiguedAttack(
-            player,
-            selectedPlacementAttackSlot.Value);
-
-    if (!success) return;
-
-    showFatiguedAttackActions = false;
-
-    /*
-        PlacementManager removes the Fatigued card.
-        Keep the selected field slot so the Attack
-        picker can now choose its replacement.
-    */
-    StateHasChanged();
-}
-
-private bool CanSelectPlacementCharacter(Player player)
-{
-    MatchState? match = Session.CurrentMatch;
-
-    if (match == null ||
-        IsBattleFinished ||
-        botIsActing ||
-        match.CurrentPhase != MatchPhase.Placement ||
-        match.GetActingPlayer() != player)
-        return false;
-
-    if (!IsGuidedTutorialBattle) return true;
-
-    return RequiredTutorialAction is
-        TutorialAction.DeployCharacter or
-        TutorialAction.ReplaceCharacter;
-}
-
-private void SelectPlacementCharacter()
-{
-    if (Session.CurrentMatch == null)
-        return;
-
-    Player player = GetPresentedPlayer();
-
-    if (!CanSelectPlacementCharacter(player))
-        return;
-
-    bool hasCharacter =
-        player.HandSlots.Any(slot =>
-            !slot.IsEmpty &&
-            slot.CardInSlot?.Type ==
-                CardType.Character);
-
-    if (!hasCharacter) return;
-
-    showCharacterPicker = true;
-
-    if (RequiredTutorialAction ==
-        TutorialAction.ReplaceCharacter)
-    {
-        NotifyTutorialAction(
-            TutorialAction.ReplaceCharacter);
-    }
-
-    StateHasChanged();
-}
-
-private void CloseCharacterPicker()
-{
-    /*
-        During the informational Wanderer-inspection
-        step, closing the picker would hide the card
-        required by the next deployment step.
-    */
-    if (IsLearnToPlayBattle &&
-        RequiredTutorialAction ==
-            TutorialAction.Acknowledge &&
-        TutorialTarget == "wanderer")
-        return;
-
-    showCharacterPicker = false;
-}
-
-private void DeploySelectedCharacter(HandSlot slot)
-{
-    if (Session.CurrentMatch == null ||
-        slot.IsEmpty ||
-        slot.CardInSlot?.Type !=
-            CardType.Character)
-        return;
-
-    Card character = slot.CardInSlot;
-
-    if (!CanChoosePlacementCharacter(character))
-        return;
-
-    Player player = GetPresentedPlayer();
-
-    if (!CanSelectPlacementCharacter(player))
-        return;
-
-    int cost =
-        player.CharacterDefeatedSinceLastPlacement
-            ? 0
-            : player.ActiveCharacter != null
-                ? 4
-                : character.Cost;
-
-    if (WouldReachZeroEnergy(player, cost))
-    {
-        if (IsGuidedTutorialBattle) return;
-
-        showCharacterPicker = false;
-
-        WarnBeforeZeroEnergy(() =>
-            PlacementManager.TryDeployCharacter(
-                player,
-                slot.SlotNumber));
-
-        return;
-    }
-
-    bool success =
-        PlacementManager.TryDeployCharacter(
-            player,
-            slot.SlotNumber);
-
-    if (!success) return;
-
-    showCharacterPicker = false;
-
-    NotifyTutorialAction(
-        TutorialAction.DeployCharacter);
-
-    if (player.ActiveCharacter?.Name ==
-            "Wanderer Red Panda" &&
-        (player.AttackSlot1 != null ||
-         player.AttackSlot2 != null))
-    {
-        awaitingWandererEntry = true;
-    }
-
-    CheckForZeroEnergy();
-    StateHasChanged();
-}
-
-private bool CanInteractWithAttack(
-    Player player,
-    int slot)
-{
-    MatchState? match =
-        Session.CurrentMatch;
-
-    if (match == null ||
-        IsBattleFinished ||
-        botIsActing ||
-        match.GetActingPlayer() != player ||
-        slot is not (1 or 2))
-    {
         return false;
     }
 
-    Card? attack =
-        slot == 1
-            ? player.AttackSlot1
-            : player.AttackSlot2;
 
-    if (match.CurrentPhase ==
-        MatchPhase.Placement)
-    {
-        if (IsDsaTutorialBattle)
-{
-    return attack == null;
-}
+    // ============================================================
+    // 17. TUTORIAL VISUAL HIGHLIGHTS
+    // ============================================================
 
-        if (!IsGuidedTutorialBattle)
-        {
-            return true;
-        }
-
-        if (RequiredTutorialAction ==
-            TutorialAction.ResolveWandererEntry)
-        {
-            return attack != null;
-        }
-
-        if (RequiredTutorialAction ==
-                TutorialAction.ReplaceAttack &&
-            IsLearnToPlayBattle)
-        {
-            return
-                attack != null &&
-                string.Equals(
-                    attack.Id,
-                    "AP4",
-                    StringComparison.OrdinalIgnoreCase);
-        }
-
-        if (RequiredTutorialAction ==
-                TutorialAction.RestAttack &&
-            IsLearnToPlayBattle)
-        {
-            return
-                attack != null &&
-                TutorialAllowsCard(
-                    attack);
-        }
-
-        if (RequiredTutorialAction ==
-            TutorialAction.DeployAttack)
-        {
-            return attack == null;
-        }
-
-        return false;
-    }
-
-    if (match.CurrentPhase !=
-            MatchPhase.Attack ||
-        attack == null)
-    {
-        return false;
-    }
-
-    if (IsGuidedTutorialBattle &&
-        RequiredTutorialAction !=
-            TutorialAction.UseAttack)
-    {
-        return false;
-    }
-
-    if (IsLearnToPlayBattle &&
-        !TutorialAllowsCard(
-            attack))
-    {
-        return false;
-    }
-
-    bool fatigued =
-        slot == 1
-            ? player.IsFatiguedSlot1
-            : player.IsFatiguedSlot2;
-
-    bool resting =
-        slot == 1
-            ? player.IsRestingSlot1
-            : player.IsRestingSlot2;
-
-    bool used =
-        slot == 1
-            ? player.AttackSlot1UsedThisPhase
-            : player.AttackSlot2UsedThisPhase;
-
-    int useCost =
-        slot == 1
-            ? player.AttackSlot1TotalUses
-            : player.AttackSlot2TotalUses;
-
-    return
-        !fatigued &&
-        !resting &&
-        !used &&
-        player.Energy >= useCost;
-}
-
-private void HandleAttackCardClick(int slot)
-{
-    if (Session.CurrentMatch == null)
-        return;
-
-    MatchState match = Session.CurrentMatch;
-    Player player = GetPresentedPlayer();
-
-    if (botIsActing ||
-        match.GetActingPlayer() != player)
-        return;
-
-    if (match.CurrentPhase == MatchPhase.Placement)
-    {
-        if (awaitingWandererEntry)
-        {
-            ResolveWandererEntrySelection(
-                player,
-                slot);
-
-            return;
-        }
-
-        SelectPlacementAttack(slot);
-        return;
-    }
-
-    if (match.CurrentPhase != MatchPhase.Attack ||
-        !CanInteractWithAttack(player, slot))
-        return;
-
-    bool success =
-        AttackManager.UseAttack(
-            player,
-            GetPresentedOpponent(),
-            slot);
-
-    if (!success) return;
-
-    NotifyTutorialAction(
-        TutorialAction.UseAttack);
-
-    CheckForZeroEnergy();
-    StateHasChanged();
-}
-
-private bool CanInteractWithCharacter(Player player)
-{
-    MatchState? match = Session.CurrentMatch;
-
-    if (match == null ||
-        IsBattleFinished ||
-        botIsActing ||
-        match.GetActingPlayer() != player)
-        return false;
-
-    if (match.CurrentPhase == MatchPhase.Placement)
+    private string GetTutorialFocusClass(
+        params string[] targets)
     {
         if (!IsGuidedTutorialBattle)
-            return true;
-
-        return RequiredTutorialAction is
-            TutorialAction.DeployCharacter or
-            TutorialAction.ReplaceCharacter;
-    }
-
-    if (match.CurrentPhase != MatchPhase.Attack ||
-        player.ActiveCharacter == null)
-        return false;
-
-    if (IsGuidedTutorialBattle &&
-        RequiredTutorialAction !=
-            TutorialAction.UseCharacterAbility)
-        return false;
-
-    if (player.CharacterNewlyDeployed ||
-        player.AbilityUsedThisPhase ||
-        player.AbilityCooldownRemaining > 0)
-        return false;
-
-    return CanAffordCharacterAbility(player);
-}
-
-private void HandleCharacterCardClick()
-{
-    if (Session.CurrentMatch == null)
-        return;
-
-    MatchState match = Session.CurrentMatch;
-    Player player = GetPresentedPlayer();
-
-    if (botIsActing ||
-        match.GetActingPlayer() != player)
-        return;
-
-    if (match.CurrentPhase == MatchPhase.Placement)
-    {
-        SelectPlacementCharacter();
-        return;
-    }
-
-    if (match.CurrentPhase != MatchPhase.Attack ||
-        !CanInteractWithCharacter(player))
-        return;
-
-    bool success =
-        AttackManager.UseCharacterAbility(player);
-
-    if (!success) return;
-
-    NotifyTutorialAction(
-        TutorialAction.UseCharacterAbility);
-
-    CheckForZeroEnergy();
-    StateHasChanged();
-}
-
-private void ResolveWandererEntrySelection(
-    Player player,
-    int slot)
-{
-    if (!awaitingWandererEntry ||
-        !TutorialAllows(
-            TutorialAction.ResolveWandererEntry))
-        return;
-
-    bool success =
-        PlacementManager.ResolveWandererEntry(
-            player,
-            slot);
-
-    if (!success) return;
-
-    awaitingWandererEntry = false;
-
-    NotifyTutorialAction(
-        TutorialAction.ResolveWandererEntry);
-
-    StateHasChanged();
-}
-
-private bool CheckForZeroEnergy()
-{
-    if (Session.CurrentMatch == null)
-        return false;
-
-    MatchState match = Session.CurrentMatch;
-
-    if (match.Player1.Energy > 0 &&
-        match.Player2.Energy > 0)
-        return false;
-
-    bool tournamentMatch =
-        IsTournamentMatch;
-
-    BattleEngine.CompleteMatch(match);
-
-    if (!match.IsCompleted)
-        return false;
-
-    finishedTournamentMatch =
-        tournamentMatch;
-
-    if (tournamentMatch)
-    {
-        Player? winner =
-            MatchManager.GetWinner(
-                match.Player1,
-                match.Player2);
-
-        if (match.IsDraw ||
-            winner == null)
-        {
-            TournamentManager.EndAfterLoss(
-                Session.Tournament);
-        }
-        else if (winner == match.Player1)
-        {
-            TournamentManager.AdvanceAfterWin(
-                Session.Tournament);
-        }
-        else
-        {
-            TournamentManager.EndAfterLoss(
-                Session.Tournament);
-        }
-    }
-
-    CloseGameplayPopups();
-
-    surrendered = false;
-    observingFinishedMatch = false;
-    showZeroEnergyWarning = false;
-    pendingZeroEnergyAction = null;
-    showZeroEnergyDialog = true;
-
-    return true;
-}
-
-private bool WouldReachZeroEnergy(
-    Player player,
-    int cost) =>
-    cost > 0 &&
-    player.Energy - cost <= 0;
-
-private void WarnBeforeZeroEnergy(
-    Func<bool> action)
-{
-    pendingZeroEnergyAction = action;
-    showZeroEnergyWarning = true;
-}
-
-private void CancelZeroEnergyAction()
-{
-    showZeroEnergyWarning = false;
-    pendingZeroEnergyAction = null;
-}
-
-private void ConfirmZeroEnergyAction()
-{
-    Func<bool>? action =
-        pendingZeroEnergyAction;
-
-    showZeroEnergyWarning = false;
-    pendingZeroEnergyAction = null;
-
-    if (action == null ||
-        !action())
-        return;
-
-    CheckForZeroEnergy();
-}
-
-private void ObserveFinishedMatch()
-{
-    if (IsObserveBoardDisabled) return;
-
-    showZeroEnergyDialog = false;
-    observingFinishedMatch = true;
-
-    CloseGameplayPopups();
-
-    NotifyTutorialAction(
-        TutorialAction.ObserveBoard);
-
-    StateHasChanged();
-}
-
-private void ReturnToMainMenu()
-{
-    showZeroEnergyDialog = false;
-    observingFinishedMatch = false;
-    Session.CurrentMatch = null;
-    allowNavigation = true;
-    Navigation.NavigateTo("/");
-}
-
-private async Task CopyBattleLog()
-{
-    IReadOnlyList<BattleLogEntry> entries =
-        BattleLog.GetPhaseActions();
-
-    if (entries.Count == 0) return;
-
-    string logText =
-        "RED PANDA TCD - BATTLE LOG" +
-        Environment.NewLine +
-        Environment.NewLine +
-        string.Join(
-            Environment.NewLine,
-            entries.Select(entry =>
-                $"[{entry.Label.ToUpperInvariant()}] " +
-                entry.Message));
-
-    await JS.InvokeVoidAsync(
-        "navigator.clipboard.writeText",
-        logText);
-
-    logCopied = true;
-    await Task.Delay(1200);
-    logCopied = false;
-}
-
-private bool IsPassAndPlay()
-{
-    if (Session.CurrentMatch == null)
-        return false;
-
-    return
-        !Session.CurrentMatch.Player1.IsBot &&
-        !Session.CurrentMatch.Player2.IsBot;
-}
-
-private Player GetPresentedPlayer()
-{
-    MatchState match =
-        Session.CurrentMatch!;
-
-    return IsPassAndPlay()
-        ? match.GetActingPlayer()
-        : match.Player1;
-}
-
-private Player GetPresentedOpponent()
-{
-    MatchState match =
-        Session.CurrentMatch!;
-
-    Player player =
-        GetPresentedPlayer();
-
-    return player == match.Player1
-        ? match.Player2
-        : match.Player1;
-}
-
-protected override async Task OnAfterRenderAsync(
-    bool firstRender)
-{
-    int currentCount =
-        BattleLog.GetPhaseActions().Count;
-
-    if (currentCount == lastBattleLogCount)
-        return;
-
-    lastBattleLogCount = currentCount;
-
-    if (logCollapsed) return;
-
-    await JS.InvokeVoidAsync(
-        "redPandaBattle.scrollLogToBottom",
-        battleLogElement);
-}
-
-private bool IsBattleFinished
-{
-    get
-    {
-        if (surrendered) return true;
-        if (Session.CurrentMatch == null) return true;
-
-        return Session.CurrentMatch.IsCompleted ||
-               MatchManager.IsMatchOver(
-                   Session.CurrentMatch.Player1,
-                   Session.CurrentMatch.Player2);
-    }
-}
-
-private bool IsTournamentMatch =>
-    Session.Tournament.IsActive &&
-    Session.CurrentMatch != null &&
-    Session.Tournament.CurrentOpponentName ==
-        GetPresentedOpponent().Name;
-
-private bool ShouldConfirmExternalNavigation =>
-    Session.CurrentMatch != null &&
-    !allowNavigation &&
-    !IsBattleFinished;
-
-private string GetTurnOwnerClass(
-    Player presentedPlayer)
-{
-    if (Session.CurrentMatch == null)
-        return "player-turn";
-
-    return Session.CurrentMatch.GetActingPlayer() ==
-           presentedPlayer
-        ? "player-turn"
-        : "bot-turn";
-}
-
-private string GetTurnOwnerText(
-    Player presentedPlayer)
-{
-    if (Session.CurrentMatch == null)
-        return "";
-
-    Player acting =
-        Session.CurrentMatch.GetActingPlayer();
-
-    if (IsPassAndPlay())
-        return
-            $"{acting.Name.ToUpperInvariant()} ACTING";
-
-    return acting == presentedPlayer
-        ? $"{presentedPlayer.Name.ToUpperInvariant()} ACTING"
-        : $"{acting.Name.ToUpperInvariant()} ACTING";
-}
-
-private bool ShouldHighlightAttack(
-    Player player,
-    int slot)
-{
-    if (Session.CurrentMatch?.CurrentPhase !=
-        MatchPhase.Attack)
-        return false;
-
-    return CanInteractWithAttack(
-        player,
-        slot);
-}
-
-private string GetAttackPlacementHighlight(
-    Player player,
-    int slot)
-{
-    MatchState? match =
-        Session.CurrentMatch;
-
-    if (match == null ||
-        IsBattleFinished ||
-        botIsActing ||
-        match.GetActingPlayer() != player)
-    {
-        return "";
-    }
-
-    Card? attack =
-        slot == 1
-            ? player.AttackSlot1
-            : player.AttackSlot2;
-
-    if (awaitingWandererEntry)
-    {
-        return attack != null
-            ? "placement-replace"
+            return "";
+
+        return targets.Any(target =>
+            string.Equals(
+                TutorialTarget,
+                target,
+                StringComparison.OrdinalIgnoreCase))
+            ? "tutorial-focus"
             : "";
     }
 
-    if (match.CurrentPhase !=
-        MatchPhase.Placement)
+    private string GetDeckClass(
+        Player player)
     {
-        return "";
-    }
+        string interactionClass =
+            CanUseDeckAction(player)
+                ? "deck-clickable"
+                : "deck-disabled";
 
-    if (IsDsaTutorialBattle)
-    {
+        string tutorialClass =
+            GetTutorialFocusClass(
+                "player-deck",
+                "deck");
+
         return
-            attack == null &&
-            HasAffordableAttackInHand(
-                player)
-                ? "placement-deploy"
-                : "";
+            $"deck {interactionClass} {tutorialClass}";
     }
 
-    if (IsGuidedTutorialBattle)
+    private string GetTutorialHandFocusClass()
     {
-        if (RequiredTutorialAction ==
-                TutorialAction.RestAttack &&
-            attack != null &&
-            TutorialAllowsCard(
-                attack))
-        {
-            return "placement-fatigued";
-        }
+        if (!IsGuidedTutorialBattle)
+            return "";
 
-        if (RequiredTutorialAction ==
-                TutorialAction.ReplaceAttack &&
-            attack != null &&
+        TutorialStep? currentStep =
+            TutorialManager.GetCurrentStep(
+                Session.Tutorial);
+
+        bool isHandInformationStep =
             string.Equals(
-                attack.Id,
-                "AP4",
-                StringComparison.OrdinalIgnoreCase))
+                TutorialTarget,
+                "player-hand",
+                StringComparison.OrdinalIgnoreCase) ||
+            string.Equals(
+                TutorialTarget,
+                "hand-area",
+                StringComparison.OrdinalIgnoreCase) ||
+            string.Equals(
+                currentStep?.Title,
+                "Your Hand",
+                StringComparison.OrdinalIgnoreCase);
+
+        if (isHandInformationStep)
+            return "tutorial-focus";
+
+        return RequiredTutorialAction switch
         {
-            return "placement-replace";
+            TutorialAction.SelectUtility =>
+                "tutorial-focus",
+
+            TutorialAction.PlayUtility =>
+                "tutorial-focus",
+
+            TutorialAction.DiscardAndDraw =>
+                "tutorial-focus",
+
+            TutorialAction.DeployCharacter =>
+                "tutorial-focus",
+
+            TutorialAction.DeployAttack =>
+                "tutorial-focus",
+
+            _ =>
+                ""
+        };
+    }
+
+    private string GetReplacementChoiceClass(
+        HandSlot slot)
+    {
+        if (!IsLearnToPlayBattle ||
+            RequiredTutorialAction !=
+                TutorialAction.ReplaceAttack ||
+            slot.CardInSlot == null)
+        {
+            return "";
+        }
+
+        return string.Equals(
+            slot.CardInSlot.Id,
+            "AM3",
+            StringComparison.OrdinalIgnoreCase)
+            ? "tutorial-replacement-choice"
+            : "tutorial-nonreplacement-choice";
+    }
+
+    private string GetTutorialHandCardClass(
+        HandSlot slot)
+    {
+        if (!IsLearnToPlayBattle ||
+            slot.CardInSlot == null)
+        {
+            return "";
         }
 
         if (RequiredTutorialAction ==
-            TutorialAction.DeployAttack)
+            TutorialAction.DiscardAndDraw)
         {
-            return
-                attack == null &&
-                HasAffordableAttackInHand(
-                    player)
-                    ? "placement-deploy"
-                    : "";
+            return string.Equals(
+                slot.CardInSlot.Id,
+                "AN1",
+                StringComparison.OrdinalIgnoreCase)
+                ? "tutorial-hand-card-target"
+                : "tutorial-hand-card-disabled";
+        }
+
+        if (RequiredTutorialAction ==
+            TutorialAction.SelectUtility)
+        {
+            return string.Equals(
+                slot.CardInSlot.Id,
+                "UM1",
+                StringComparison.OrdinalIgnoreCase)
+                ? "tutorial-hand-card-target"
+                : "tutorial-hand-card-disabled";
         }
 
         return "";
     }
 
-    bool fatigued =
-        slot == 1
-            ? player.IsFatiguedSlot1
-            : player.IsFatiguedSlot2;
 
-    if (attack != null &&
-        fatigued)
-    {
-        return "placement-fatigued";
-    }
+    // ============================================================
+    // 18. NAVIGATION STATE / EXTERNAL NAVIGATION HELPERS
+    // ============================================================
 
-    if (!HasAffordableAttackInHand(
-            player))
-    {
-        return "";
-    }
-
-    return attack == null
-        ? "placement-deploy"
-        : "placement-replace";
-}
-
-private bool HasAffordableAttackInHand(
-    Player player)
-{
-    foreach (HandSlot slot in player.HandSlots)
-    {
-        Card? card = slot.CardInSlot;
-
-        if (card?.Type != CardType.Attack)
-            continue;
-
-        if (IsLearnToPlayBattle &&
-            !TutorialAllowsCard(card))
-            continue;
-
-        int cost = card.Cost;
-
-        if (player.DiscountActive)
-            cost = Math.Max(0, cost - 1);
-
-        if (player.Energy >= cost)
-            return true;
-    }
-
-    return false;
-}
-
-private bool ShouldHighlightCharacterAbility(
-    Player player)
-{
-    if (Session.CurrentMatch?.CurrentPhase !=
-        MatchPhase.Attack)
-        return false;
-
-    return CanInteractWithCharacter(player);
-}
-
-private string GetCharacterPlacementHighlight(
-    Player player)
-{
-    MatchState? match = Session.CurrentMatch;
-
-    if (match == null ||
-        IsBattleFinished ||
-        botIsActing ||
-        match.CurrentPhase !=
-            MatchPhase.Placement ||
-        match.GetActingPlayer() != player)
-        return "";
-
-    if (IsGuidedTutorialBattle &&
-        RequiredTutorialAction is not
-            (TutorialAction.DeployCharacter or
-             TutorialAction.ReplaceCharacter))
-        return "";
-
-    if (!HasAffordableCharacterInHand(player))
-        return "";
-
-    return player.ActiveCharacter == null
-        ? "placement-deploy"
-        : "placement-replace";
-}
-
-private bool HasAffordableCharacterInHand(
-    Player player)
-{
-    foreach (HandSlot slot in player.HandSlots)
-    {
-        Card? card = slot.CardInSlot;
-
-        if (card?.Type != CardType.Character)
-            continue;
-
-        if (IsLearnToPlayBattle &&
-            !TutorialAllowsCard(card))
-            continue;
-
-        int cost =
-            player.CharacterDefeatedSinceLastPlacement
-                ? 0
-                : player.ActiveCharacter != null
-                    ? 4
-                    : card.Cost;
-
-        if (player.Energy >= cost)
-            return true;
-    }
-
-    return false;
-}
-
-private bool IsFinishedTournamentMatch =>
-    Session.CurrentMatch != null &&
-    finishedTournamentMatch &&
-    IsBattleFinished;
-
-private bool HasNextTournamentRound =>
-    IsFinishedTournamentMatch &&
-    Session.Tournament.IsActive &&
-    !Session.Tournament.IsCompleted;
-
-private bool IsTournamentChampion =>
-    IsFinishedTournamentMatch &&
-    Session.Tournament.IsCompleted &&
-    Session.Tournament.PlayerWonTournament &&
-    Session.Tournament.HasMasterStrategistTitle;
-
-private void ReturnToTournament()
-{
-    showZeroEnergyDialog = false;
-    observingFinishedMatch = false;
-    Session.CurrentMatch = null;
-    finishedTournamentMatch = false;
-    allowNavigation = true;
-
-    Navigation.NavigateTo("/tournament");
-}
-
-private void ContinueTournament()
-{
-    showZeroEnergyDialog = false;
-    observingFinishedMatch = false;
-    Session.CurrentMatch = null;
-    finishedTournamentMatch = false;
-    allowNavigation = true;
-
-    Navigation.NavigateTo("/tournament");
-}
-private string GetTutorialFocusClass(
-    params string[] targets)
-{
-    if (!IsGuidedTutorialBattle)
-    {
-        return "";
-    }
-
-    return targets.Any(target =>
-        string.Equals(
-            TutorialTarget,
-            target,
-            StringComparison.OrdinalIgnoreCase))
-        ? "tutorial-focus"
-        : "";
-}
-
-private string GetDeckClass(
-    Player player)
-{
-    string interactionClass =
-        CanUseDeckAction(player)
-            ? "deck-clickable"
-            : "deck-disabled";
-
-    string tutorialClass =
-        GetTutorialFocusClass(
-            "player-deck",
-            "deck");
-
-    return
-        $"deck {interactionClass} {tutorialClass}";
-}
-private string GetTutorialHandFocusClass()
-{
-    if (!IsGuidedTutorialBattle)
-    {
-        return "";
-    }
-
-    TutorialStep? currentStep =
-        TutorialManager.GetCurrentStep(
-            Session.Tutorial);
-
-    bool isHandInformationStep =
-        string.Equals(
-            TutorialTarget,
-            "player-hand",
-            StringComparison.OrdinalIgnoreCase) ||
-        string.Equals(
-            TutorialTarget,
-            "hand-area",
-            StringComparison.OrdinalIgnoreCase) ||
-        string.Equals(
-            currentStep?.Title,
-            "Your Hand",
-            StringComparison.OrdinalIgnoreCase);
-
-    if (isHandInformationStep)
-    {
-        return "tutorial-focus";
-    }
-
-    return RequiredTutorialAction switch
-    {
-        TutorialAction.SelectUtility =>
-            "tutorial-focus",
-
-        TutorialAction.PlayUtility =>
-            "tutorial-focus",
-
-        TutorialAction.DiscardAndDraw =>
-            "tutorial-focus",
-
-        TutorialAction.DeployCharacter =>
-            "tutorial-focus",
-
-        TutorialAction.DeployAttack =>
-            "tutorial-focus",
-
-        _ =>
-            ""
-    };
-}
-private string GetReplacementChoiceClass(
-    HandSlot slot)
-{
-    if (!IsLearnToPlayBattle ||
-        RequiredTutorialAction !=
-            TutorialAction.ReplaceAttack ||
-        slot.CardInSlot == null)
-    {
-        return "";
-    }
-
-    return string.Equals(
-        slot.CardInSlot.Id,
-        "AM3",
-        StringComparison.OrdinalIgnoreCase)
-        ? "tutorial-replacement-choice"
-        : "tutorial-nonreplacement-choice";
-}
-private string GetTutorialHandCardClass(
-    HandSlot slot)
-{
-    if (!IsLearnToPlayBattle ||
-        slot.CardInSlot == null)
-    {
-        return "";
-    }
-
-    if (RequiredTutorialAction ==
-        TutorialAction.DiscardAndDraw)
-    {
-        return string.Equals(
-            slot.CardInSlot.Id,
-            "AN1",
-            StringComparison.OrdinalIgnoreCase)
-            ? "tutorial-hand-card-target"
-            : "tutorial-hand-card-disabled";
-    }
-
-    if (RequiredTutorialAction ==
-        TutorialAction.SelectUtility)
-    {
-        return string.Equals(
-            slot.CardInSlot.Id,
-            "UM1",
-            StringComparison.OrdinalIgnoreCase)
-            ? "tutorial-hand-card-target"
-            : "tutorial-hand-card-disabled";
-    }
-
-    return "";
-}
-private void CloseDiscardForEnergyPicker()
-{
-    showDiscardForEnergyPicker = false;
-    discardForEnergyUtilitySlot = null;
-}
-
-private void SelectDiscardForEnergyCard(HandSlot slot)
-{
-    if (Session.CurrentMatch == null ||
-        !showDiscardForEnergyPicker ||
-        !discardForEnergyUtilitySlot.HasValue ||
-        slot.IsEmpty ||
-        slot.CardInSlot == null ||
-        slot.SlotNumber == discardForEnergyUtilitySlot.Value)
-    {
-        return;
-    }
-
-    MatchState match = Session.CurrentMatch;
-    Player player = GetPresentedPlayer();
-
-    if (match.CurrentPhase != MatchPhase.Utility ||
-        match.GetActingPlayer() != player ||
-        player.UtilityActionsRemaining <= 0)
-    {
-        return;
-    }
-
-    bool success =
-        UtilityManager.DiscardForEnergy(
-            player,
-            discardForEnergyUtilitySlot.Value,
-            slot.SlotNumber);
-
-    if (!success)
-        return;
-
-    showDiscardForEnergyPicker = false;
-    discardForEnergyUtilitySlot = null;
-
-    StateHasChanged();
-}
+    private bool ShouldConfirmExternalNavigation =>
+        Session.CurrentMatch != null &&
+        !allowNavigation &&
+        !IsBattleFinished;
 }

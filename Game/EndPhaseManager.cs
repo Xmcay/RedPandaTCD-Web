@@ -4,7 +4,8 @@ public static class EndPhaseManager
 {
     public static void Resolve(
         Player player,
-        int turnNumber)
+        int turnNumber,
+        int playerIndex)
     {
         player.CharacterNewlyDeployed = false;
         player.EntryDefenseUsed = false;
@@ -15,13 +16,13 @@ public static class EndPhaseManager
             player.AbilityCooldownRemaining--;
         }
 
-player.UtilityActionsRemaining = 1;
-player.ReorderMovesThisPhase = 0;
-player.IsReorderingNodes = false;
-player.EnergyDrainedThisPhaseCount = 0;
-player.AttackSlot1UsedThisPhase = false;
-player.AttackSlot2UsedThisPhase = false;
-player.DiscountActive = false;
+        player.UtilityActionsRemaining = 1;
+        player.ReorderMovesThisPhase = 0;
+        player.IsReorderingNodes = false;
+        player.EnergyDrainedThisPhaseCount = 0;
+        player.AttackSlot1UsedThisPhase = false;
+        player.AttackSlot2UsedThisPhase = false;
+        player.DiscountActive = false;
 
         if (player.IsRestingSlot1)
         {
@@ -65,7 +66,10 @@ player.DiscountActive = false;
             player.Shield = 0;
         }
 
-        HandManager.DrawUntilHandSize(player);
+        HandManager.DrawUntilHandSize(
+            player,
+            playerIndex,
+            turnNumber);
 
         int energyGain = 5;
 

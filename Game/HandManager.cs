@@ -20,29 +20,41 @@ public static class HandManager
         return player.HandSlots.FirstOrDefault(s => s.IsEmpty);
     }
 
-   public static void RecycleDiscardPile(
-    Player player)
-{
-    if (player.DiscardPile.Count == 0)
+    public static void RecycleDiscardPile(
+        Player player)
     {
-        return;
+        if (player.DiscardPile.Count == 0)
+        {
+            return;
+        }
+
+        int recycledCount =
+            player.DiscardPile.Count;
+
+        foreach (Card card in player.DiscardPile)
+        {
+            player.Deck.RuntimeStorage!.Add(card);
+        }
+
+        player.DiscardPile.Clear();
+
+        BattleLog.Write(
+            $"{player.Name} recycled their discard pile " +
+            $"into their deck ({recycledCount} card(s))");
     }
 
-    int recycledCount =
-        player.DiscardPile.Count;
-
-    foreach (Card card in player.DiscardPile)
-    {
-        player.Deck.RuntimeStorage!.Add(card);
-    }
-
-    player.DiscardPile.Clear();
-
-    BattleLog.Write(
-        $"{player.Name} recycled their discard pile " +
-        $"into their deck ({recycledCount} card(s))");
-}
     public static void DrawCard(Player player)
+    {
+        DrawCard(
+            player,
+            -1,
+            0);
+    }
+
+    public static void DrawCard(
+        Player player,
+        int playerIndex,
+        int turnNumber)
     {
         if (player == null)
         {
@@ -59,7 +71,8 @@ public static class HandManager
             return;
         }
 
-        HandSlot? slot = GetFirstEmptySlot(player);
+        HandSlot? slot =
+            GetFirstEmptySlot(player);
 
         if (slot == null)
         {
@@ -70,6 +83,7 @@ public static class HandManager
         {
             RecycleDiscardPile(player);
         }
+
         if (player.Deck.RuntimeStorage!.Count == 0)
         {
             return;
@@ -84,16 +98,43 @@ public static class HandManager
         }
 
         slot.CardInSlot = drawnCard;
+
+        if (playerIndex >= 1 &&
+            turnNumber >= 1)
+        {
+            BattleLog.WriteReplay(
+                $"{player.Name} drew {drawnCard.Name}.",
+                turnNumber,
+                playerIndex,
+                BattleLogEventType.Draw,
+                drawnCard.Name,
+                drawnCard.Type,
+                player.Deck.Structure);
+        }
     }
 
     public static void DrawUntilHandSize(Player player)
+    {
+        DrawUntilHandSize(
+            player,
+            -1,
+            0);
+    }
+
+    public static void DrawUntilHandSize(
+        Player player,
+        int playerIndex,
+        int turnNumber)
     {
         int targetHandSize =
             DeckStructureManager.GetHandSize(player.Deck);
 
         while (CountCards(player) < targetHandSize)
         {
-            DrawCard(player);
+            DrawCard(
+                player,
+                playerIndex,
+                turnNumber);
         }
     }
 
@@ -115,15 +156,20 @@ public static class HandManager
             return null;
         }
 
-        Card card = slot.CardInSlot!;
+        Card card =
+            slot.CardInSlot!;
 
         slot.CardInSlot = null;
 
         return card;
     }
 
-    public static void DrawOpeningHand(Player player)
+    public static void DrawOpeningHand(
+        Player player,
+        int playerIndex)
     {
+        const int openingTurnNumber = 1;
+
         if (player.Deck.Structure == DeckStructure.RandomList &&
             player.Deck.RuntimeStorage is RandomListDeckStorage randomStorage)
         {
@@ -138,11 +184,23 @@ public static class HandManager
                 if (slot != null)
                 {
                     slot.CardInSlot = character;
+
+                    BattleLog.WriteReplay(
+                        $"{player.Name} drew {character.Name}.",
+                        openingTurnNumber,
+                        playerIndex,
+                        BattleLogEventType.Draw,
+                        character.Name,
+                        character.Type,
+                        player.Deck.Structure);
                 }
             }
         }
 
-        DrawUntilHandSize(player);
+        DrawUntilHandSize(
+            player,
+            playerIndex,
+            openingTurnNumber);
     }
 
     public static void DiscardCard(

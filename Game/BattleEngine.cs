@@ -10,10 +10,12 @@ public static class BattleEngine
     {
         BattleLog.ClearPhaseActions();
         MatchManager.InitializePlayer(
-            player1);
+    player1,
+    1);
 
-        MatchManager.InitializePlayer(
-            player2);
+MatchManager.InitializePlayer(
+    player2,
+    2);
 
 bool playerOneStarts =
     forcePlayerOneStarts ??

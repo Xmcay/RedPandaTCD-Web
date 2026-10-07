@@ -2,6 +2,10 @@ namespace RedPandaTCD_Web.Game;
 
 public static class PlacementManager
 {
+    // ==========================================================
+    // DEPLOY ATTACK
+    // ==========================================================
+
     public static bool TryDeployAttack(
         Player player,
         int handSlotNumber,
@@ -57,7 +61,12 @@ public static class PlacementManager
                 false;
         }
 
-        player.Energy -= cost;
+        player.Energy -=
+            cost;
+
+        // ======================================================
+        // SLOT 1
+        // ======================================================
 
         if (fieldSlot == 1)
         {
@@ -82,6 +91,11 @@ public static class PlacementManager
             player.AttackSlot1TotalUses =
                 0;
         }
+
+        // ======================================================
+        // SLOT 2
+        // ======================================================
+
         else
         {
             if (player.AttackSlot2 != null)
@@ -109,12 +123,27 @@ public static class PlacementManager
         handSlot.CardInSlot =
             null;
 
-        BattleLog.Write(
+        BattleLog.WriteReplay(
             $"{player.Name} placed {card.Name} in Attack Slot {fieldSlot} " +
-            $"(-{cost} Energy)");
+            $"(-{cost} Energy)",
+            BattleLog.CurrentTurnNumber,
+            BattleLog.CurrentPlayerIndex,
+            BattleLogEventType.Placement,
+            card.Name,
+            card.Type,
+            player.Deck.Structure,
+            slotNumber: handSlotNumber,
+            targetSlotNumber: fieldSlot,
+            amount: -cost,
+            playerEnergy: player.Energy);
 
         return true;
     }
+
+
+    // ==========================================================
+    // DEPLOY CHARACTER
+    // ==========================================================
 
     public static bool TryDeployCharacter(
         Player player,
@@ -162,7 +191,8 @@ public static class PlacementManager
             return false;
         }
 
-        player.Energy -= cost;
+        player.Energy -=
+            cost;
 
         if (player.ActiveCharacter != null)
         {
@@ -170,8 +200,11 @@ public static class PlacementManager
                 player.ActiveCharacter);
         }
 
-        player.ActiveCharacter = card;
-        player.AbilityCooldownRemaining = 0;
+        player.ActiveCharacter =
+            card;
+
+        player.AbilityCooldownRemaining =
+            0;
 
         player.CurrentCharacterHp =
             card.HpValue;
@@ -179,28 +212,48 @@ public static class PlacementManager
         player.Shield =
             card.ShieldValue;
 
-        player.CharacterNewlyDeployed = true;
+        player.CharacterNewlyDeployed =
+            true;
 
         player.CharacterDefeatedSinceLastPlacement =
             false;
 
-        handSlot.CardInSlot = null;
+        handSlot.CardInSlot =
+            null;
 
-        CharacterManager.ApplyEntryEffect(player);
+        CharacterManager.ApplyEntryEffect(
+            player);
 
-        BattleLog.Write(
+        BattleLog.WriteReplay(
             $"{player.Name} deployed {card.Name} " +
             $"(HP:{card.HpValue} SH:{card.ShieldValue}) " +
-            $"(-{cost} Energy)");
+            $"(-{cost} Energy)",
+            BattleLog.CurrentTurnNumber,
+            BattleLog.CurrentPlayerIndex,
+            BattleLogEventType.Placement,
+            card.Name,
+            card.Type,
+            player.Deck.Structure,
+            slotNumber: slotNumber,
+            characterHp: player.CurrentCharacterHp,
+            amount: -cost,
+            playerEnergy: player.Energy,
+            playerShield: player.Shield);
 
         return true;
     }
+
+
+    // ==========================================================
+    // WANDERER ENTRY
+    // ==========================================================
 
     public static bool ResolveWandererEntry(
         Player player,
         int chosenSlot)
     {
-        if (player.ActiveCharacter?.Name != "Wanderer Red Panda")
+        if (player.ActiveCharacter?.Name !=
+            "Wanderer Red Panda")
         {
             return false;
         }
@@ -213,8 +266,17 @@ public static class PlacementManager
         if (player.AttackSlot1 == null &&
             player.AttackSlot2 == null)
         {
-            BattleLog.Write(
-                $"{player.Name}'s Wanderer had no deployed Attack to adapt");
+            BattleLog.WriteReplay(
+                $"{player.Name}'s Wanderer had no deployed Attack to adapt",
+                BattleLog.CurrentTurnNumber,
+                BattleLog.CurrentPlayerIndex,
+                BattleLogEventType.Ability,
+                cardName:
+                    player.ActiveCharacter.Name,
+                cardType:
+                    CardType.Character,
+                deckStructure:
+                    player.Deck.Structure);
 
             return true;
         }
@@ -253,17 +315,38 @@ public static class PlacementManager
             return false;
         }
 
-        BattleLog.Write(
+        BattleLog.WriteReplay(
             $"{player.Name}'s Wanderer reduced " +
-            $"{chosenAttack.Name}'s buildup cost by 2");
+            $"{chosenAttack.Name}'s buildup cost by 2",
+            BattleLog.CurrentTurnNumber,
+            BattleLog.CurrentPlayerIndex,
+            BattleLogEventType.Ability,
+            cardName:
+                player.ActiveCharacter.Name,
+            cardType:
+                CardType.Character,
+            deckStructure:
+                player.Deck.Structure,
+            targetCardName:
+                chosenAttack.Name,
+            targetSlotNumber:
+                chosenSlot,
+            amount:
+                2);
 
         return true;
     }
 
+
+    // ==========================================================
+    // STACK AUTO PLACEMENT
+    // ==========================================================
+
     public static void AutoStackPlacement(
         Player player)
     {
-        if (player.Deck.Structure != DeckStructure.Stack)
+        if (player.Deck.Structure !=
+            DeckStructure.Stack)
         {
             return;
         }
@@ -288,7 +371,8 @@ public static class PlacementManager
                 continue;
             }
 
-            if (slot.CardInSlot!.Type != CardType.Attack)
+            if (slot.CardInSlot!.Type !=
+                CardType.Attack)
             {
                 continue;
             }
@@ -311,6 +395,11 @@ public static class PlacementManager
         }
     }
 
+
+    // ==========================================================
+    // REPLACE FATIGUED ATTACK
+    // ==========================================================
+
     public static bool ReplaceFatiguedAttack(
         Player player,
         int slotNumber)
@@ -330,13 +419,26 @@ public static class PlacementManager
                 player.AttackSlot1);
 
             player.AttackSlot1 = null;
+
             player.IsFatiguedSlot1 = false;
+
             player.IsRestingSlot1 = false;
+
             player.AttackSlot1UsesRemaining = 2;
+
             player.AttackSlot1TotalUses = 0;
 
-            BattleLog.Write(
-                $"{attackName} was replaced");
+            BattleLog.WriteReplay(
+                $"{attackName} was replaced",
+                BattleLog.CurrentTurnNumber,
+                BattleLog.CurrentPlayerIndex,
+                BattleLogEventType.Placement,
+                cardName:
+                    attackName,
+                deckStructure:
+                    player.Deck.Structure,
+                targetSlotNumber:
+                    slotNumber);
 
             return true;
         }
@@ -356,19 +458,37 @@ public static class PlacementManager
                 player.AttackSlot2);
 
             player.AttackSlot2 = null;
+
             player.IsFatiguedSlot2 = false;
+
             player.IsRestingSlot2 = false;
+
             player.AttackSlot2UsesRemaining = 2;
+
             player.AttackSlot2TotalUses = 0;
 
-            BattleLog.Write(
-                $"{attackName} was replaced");
+            BattleLog.WriteReplay(
+                $"{attackName} was replaced",
+                BattleLog.CurrentTurnNumber,
+                BattleLog.CurrentPlayerIndex,
+                BattleLogEventType.Placement,
+                cardName:
+                    attackName,
+                deckStructure:
+                    player.Deck.Structure,
+                targetSlotNumber:
+                    slotNumber);
 
             return true;
         }
 
         return false;
     }
+
+
+    // ==========================================================
+    // REST FATIGUED ATTACK
+    // ==========================================================
 
     public static bool RestFatiguedAttack(
         Player player,
@@ -389,10 +509,20 @@ public static class PlacementManager
             }
 
             player.IsFatiguedSlot1 = false;
+
             player.IsRestingSlot1 = true;
 
-            BattleLog.Write(
-                $"{player.AttackSlot1.Name} is Resting");
+            BattleLog.WriteReplay(
+                $"{player.AttackSlot1.Name} is Resting",
+                BattleLog.CurrentTurnNumber,
+                BattleLog.CurrentPlayerIndex,
+                BattleLogEventType.Placement,
+                cardName:
+                    player.AttackSlot1.Name,
+                deckStructure:
+                    player.Deck.Structure,
+                targetSlotNumber:
+                    slotNumber);
 
             return true;
         }
@@ -406,10 +536,20 @@ public static class PlacementManager
             }
 
             player.IsFatiguedSlot2 = false;
+
             player.IsRestingSlot2 = true;
 
-            BattleLog.Write(
-                $"{player.AttackSlot2.Name} is Resting");
+            BattleLog.WriteReplay(
+                $"{player.AttackSlot2.Name} is Resting",
+                BattleLog.CurrentTurnNumber,
+                BattleLog.CurrentPlayerIndex,
+                BattleLogEventType.Placement,
+                cardName:
+                    player.AttackSlot2.Name,
+                deckStructure:
+                    player.Deck.Structure,
+                targetSlotNumber:
+                    slotNumber);
 
             return true;
         }
@@ -417,12 +557,20 @@ public static class PlacementManager
         return false;
     }
 
+
+    // ==========================================================
+    // FIND CHEAPER ATTACK
+    // ==========================================================
+
     private static HandSlot? FindCheaperAttackInHand(
         Player player,
         int buildupCost)
     {
-        HandSlot? bestSlot = null;
-        int lowestCost = int.MaxValue;
+        HandSlot? bestSlot =
+            null;
+
+        int lowestCost =
+            int.MaxValue;
 
         foreach (HandSlot slot in player.HandSlots)
         {
@@ -434,7 +582,8 @@ public static class PlacementManager
             Card card =
                 slot.CardInSlot!;
 
-            if (card.Type != CardType.Attack)
+            if (card.Type !=
+                CardType.Attack)
             {
                 continue;
             }
@@ -450,17 +599,20 @@ public static class PlacementManager
                         deployCost - 1);
             }
 
-            if (deployCost > player.Energy)
+            if (deployCost >
+                player.Energy)
             {
                 continue;
             }
 
-            if (deployCost >= buildupCost)
+            if (deployCost >=
+                buildupCost)
             {
                 continue;
             }
 
-            if (deployCost < lowestCost)
+            if (deployCost <
+                lowestCost)
             {
                 lowestCost =
                     deployCost;
@@ -472,6 +624,11 @@ public static class PlacementManager
 
         return bestSlot;
     }
+
+
+    // ==========================================================
+    // PRIORITY QUEUE EMERGENCY REST
+    // ==========================================================
 
     public static bool EmergencyRestFatiguedAttack(
         Player player,
@@ -492,10 +649,20 @@ public static class PlacementManager
             }
 
             player.IsFatiguedSlot1 = false;
+
             player.IsRestingSlot1 = true;
 
-            BattleLog.Write(
-                $"{player.AttackSlot1.Name} entered Emergency Rest");
+            BattleLog.WriteReplay(
+                $"{player.AttackSlot1.Name} entered Emergency Rest",
+                BattleLog.CurrentTurnNumber,
+                BattleLog.CurrentPlayerIndex,
+                BattleLogEventType.Placement,
+                cardName:
+                    player.AttackSlot1.Name,
+                deckStructure:
+                    player.Deck.Structure,
+                targetSlotNumber:
+                    slotNumber);
 
             return true;
         }
@@ -509,16 +676,31 @@ public static class PlacementManager
             }
 
             player.IsFatiguedSlot2 = false;
+
             player.IsRestingSlot2 = true;
 
-            BattleLog.Write(
-                $"{player.AttackSlot2.Name} entered Emergency Rest");
+            BattleLog.WriteReplay(
+                $"{player.AttackSlot2.Name} entered Emergency Rest",
+                BattleLog.CurrentTurnNumber,
+                BattleLog.CurrentPlayerIndex,
+                BattleLogEventType.Placement,
+                cardName:
+                    player.AttackSlot2.Name,
+                deckStructure:
+                    player.Deck.Structure,
+                targetSlotNumber:
+                    slotNumber);
 
             return true;
         }
 
         return false;
     }
+
+
+    // ==========================================================
+    // BOT FATIGUE RESOLUTION
+    // ==========================================================
 
     public static void BotResolveFatigue(
         Player player)
@@ -537,6 +719,7 @@ public static class PlacementManager
                 2);
         }
     }
+
 
     public static bool BotResolveFatiguedSlot(
         Player player,
@@ -598,6 +781,11 @@ public static class PlacementManager
             slotNumber);
     }
 
+
+    // ==========================================================
+    // BOT DEPLOYMENT
+    // ==========================================================
+
     public static bool BotDeployCharacter(
         Player player,
         int slotNumber)
@@ -606,6 +794,7 @@ public static class PlacementManager
             player,
             slotNumber);
     }
+
 
     public static bool BotDeployAttack(
         Player player,

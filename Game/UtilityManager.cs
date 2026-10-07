@@ -2,6 +2,10 @@ namespace RedPandaTCD_Web.Game;
 
 public static class UtilityManager
 {
+    // ==========================================================
+    // USE UTILITY
+    // ==========================================================
+
     public static bool PlayUtility(
         Player player,
         Player opponent,
@@ -17,48 +21,79 @@ public static class UtilityManager
             player.HandSlots[slotNumber - 1];
 
         if (handSlot.IsEmpty)
+        {
             return false;
+        }
 
         if (handSlot.CardInSlot!.Type != CardType.Utility)
+        {
             return false;
+        }
 
-        Card card = handSlot.CardInSlot;
+        Card card =
+            handSlot.CardInSlot;
 
-        // Discard For Energy requires the player
-        // to choose another card first.
+        // Discard For Energy requires
+        // a second card selection.
         if (card.Name == "Discard For Energy")
         {
             return false;
         }
 
         if (player.Energy < card.Cost)
+        {
             return false;
+        }
 
-        player.Energy -= card.Cost;
+        player.Energy -=
+            card.Cost;
 
         handSlot.CardInSlot = null;
-        player.DiscardPile.Add(card);
+
+        player.DiscardPile.Add(
+            card);
 
         player.UtilityActionsRemaining--;
+
+        // ======================================================
+        // ENERGY POTION
+        // ======================================================
 
         switch (card.Name)
         {
             case "Energy Potion":
             {
-                int before = player.Energy;
+                int before =
+                    player.Energy;
 
                 player.Energy =
                     Math.Min(
                         player.MaxEnergy,
                         player.Energy + 3);
 
-                BattleLog.Write(
+                int gained =
+                    player.Energy - before;
+
+                BattleLog.WriteReplay(
                     $"{player.Name} used Energy Potion " +
-                    $"(+{player.Energy - before} Energy, " +
-                    $"{player.Energy} Total)");
+                    $"(+{gained} Energy, " +
+                    $"{player.Energy} Total)",
+                    BattleLog.CurrentTurnNumber,
+                    BattleLog.CurrentPlayerIndex,
+                    BattleLogEventType.Utility,
+                    card.Name,
+                    card.Type,
+                    player.Deck.Structure,
+                    slotNumber: slotNumber,
+                    amount: gained,
+                    playerEnergy: player.Energy);
 
                 break;
             }
+
+            // ==================================================
+            // ENERGY DRAIN
+            // ==================================================
 
             case "Energy Drain":
             {
@@ -76,48 +111,101 @@ public static class UtilityManager
                             player.MaxEnergy,
                             player.Energy + 2);
 
-                    BattleLog.Write(
+                    BattleLog.WriteReplay(
                         $"{player.Name} used Energy Drain " +
                         $"({opponent.Name}: {opponent.Energy} Energy, " +
-                        $"{player.Name}: {player.Energy} Energy)");
+                        $"{player.Name}: {player.Energy} Energy)",
+                        BattleLog.CurrentTurnNumber,
+                        BattleLog.CurrentPlayerIndex,
+                        BattleLogEventType.Utility,
+                        card.Name,
+                        card.Type,
+                        player.Deck.Structure,
+                        targetPlayerIndex:
+                            BattleLog.GetOpponentPlayerIndex(),
+                        amount: 2,
+                        slotNumber: slotNumber,
+                        playerEnergy: player.Energy,
+                        opponentEnergy: opponent.Energy);
                 }
 
                 break;
             }
 
+            // ==================================================
+            // ATTACK AMPLIFIER
+            // ==================================================
+
             case "Attack Amplifier":
             {
                 player.TemporaryAttackBonus++;
 
-                BattleLog.Write(
+                BattleLog.WriteReplay(
                     $"{player.Name} used Attack Amplifier " +
-                    $"(+1 Attack Damage)");
+                    $"(+1 Attack Damage)",
+                    BattleLog.CurrentTurnNumber,
+                    BattleLog.CurrentPlayerIndex,
+                    BattleLogEventType.Utility,
+                    card.Name,
+                    card.Type,
+                    player.Deck.Structure,
+                    slotNumber: slotNumber,
+                    amount: 1);
 
                 break;
             }
+
+            // ==================================================
+            // DEFENSIVE STANCE
+            // ==================================================
 
             case "Defensive Stance":
             {
                 player.StatusEffects.Add(
                     "DeflectNextHit");
 
-                BattleLog.Write(
+                BattleLog.WriteReplay(
                     $"{player.Name} used Defensive Stance " +
-                    $"(Deflect Next Hit)");
+                    $"(Deflect Next Hit)",
+                    BattleLog.CurrentTurnNumber,
+                    BattleLog.CurrentPlayerIndex,
+                    BattleLogEventType.Utility,
+                    card.Name,
+                    card.Type,
+                    player.Deck.Structure,
+                    slotNumber: slotNumber);
 
                 break;
             }
+
+            // ==================================================
+            // SHIELD BOOSTER
+            // ==================================================
 
             case "Shield Booster":
             {
-                player.Shield += 2;
+                player.Shield +=
+                    2;
 
-                BattleLog.Write(
+                BattleLog.WriteReplay(
                     $"{player.Name} used Shield Booster " +
-                    $"(+2 Shield, {player.Shield} Total)");
+                    $"(+2 Shield, {player.Shield} Total)",
+                    BattleLog.CurrentTurnNumber,
+                    BattleLog.CurrentPlayerIndex,
+                    BattleLogEventType.Utility,
+                    card.Name,
+                    card.Type,
+                    player.Deck.Structure,
+                    slotNumber: slotNumber,
+                    amount: 2,
+                    playerShield: player.Shield);
 
                 break;
             }
+
+            // ==================================================
+            // FORTIFY
+            // ==================================================
 
             case "Fortify":
             {
@@ -125,22 +213,43 @@ public static class UtilityManager
                     (player.AttackSlot1 != null ? 1 : 0) +
                     (player.AttackSlot2 != null ? 1 : 0);
 
-                player.Shield += attacks;
+                player.Shield +=
+                    attacks;
 
-                BattleLog.Write(
+                BattleLog.WriteReplay(
                     $"{player.Name} used Fortify " +
-                    $"(+{attacks} Shield, {player.Shield} Total)");
+                    $"(+{attacks} Shield, {player.Shield} Total)",
+                    BattleLog.CurrentTurnNumber,
+                    BattleLog.CurrentPlayerIndex,
+                    BattleLogEventType.Utility,
+                    card.Name,
+                    card.Type,
+                    player.Deck.Structure,
+                    slotNumber: slotNumber,
+                    amount: attacks,
+                    playerShield: player.Shield);
 
                 break;
             }
+
+            // ==================================================
+            // DISCOUNT COUPON
+            // ==================================================
 
             case "Discount Coupon":
             {
                 player.DiscountActive = true;
 
-                BattleLog.Write(
+                BattleLog.WriteReplay(
                     $"{player.Name} used Discount Coupon " +
-                    $"(Next Card Costs 1 Less)");
+                    $"(Next Card Costs 1 Less)",
+                    BattleLog.CurrentTurnNumber,
+                    BattleLog.CurrentPlayerIndex,
+                    BattleLogEventType.Utility,
+                    card.Name,
+                    card.Type,
+                    player.Deck.Structure,
+                    slotNumber: slotNumber);
 
                 break;
             }
@@ -148,6 +257,11 @@ public static class UtilityManager
 
         return true;
     }
+
+
+    // ==========================================================
+    // DISCARD FOR ENERGY
+    // ==========================================================
 
     public static bool DiscardForEnergy(
         Player player,
@@ -198,13 +312,15 @@ public static class UtilityManager
             return false;
         }
 
-        // Remove both cards from the hand.
         utilitySlot.CardInSlot = null;
+
         targetSlot.CardInSlot = null;
 
-        // Both cards go to the discard pile.
-        player.DiscardPile.Add(utilityCard);
-        player.DiscardPile.Add(discardedCard);
+        player.DiscardPile.Add(
+            utilityCard);
+
+        player.DiscardPile.Add(
+            discardedCard);
 
         player.UtilityActionsRemaining--;
 
@@ -219,18 +335,36 @@ public static class UtilityManager
         int gained =
             player.Energy - before;
 
-        BattleLog.Write(
+        BattleLog.WriteReplay(
             $"{player.Name} used Discard For Energy, " +
             $"discarding {discardedCard.Name} " +
             $"(+{gained} Energy, " +
-            $"{player.Energy} Total)");
+            $"{player.Energy} Total)",
+            BattleLog.CurrentTurnNumber,
+            BattleLog.CurrentPlayerIndex,
+            BattleLogEventType.Utility,
+            utilityCard.Name,
+            utilityCard.Type,
+            player.Deck.Structure,
+            targetCardName: discardedCard.Name,
+            targetSlotNumber: targetSlotNumber,
+            slotNumber: utilitySlotNumber,
+            amount: gained,
+            playerEnergy: player.Energy);
 
         return true;
     }
 
+
+    // ==========================================================
+    // DISCARD AND DRAW
+    // ==========================================================
+
     public static bool DiscardAndDraw(
         Player player,
-        int slotNumber)
+        int slotNumber,
+        int playerIndex,
+        int turnNumber)
     {
         if (slotNumber < 1 ||
             slotNumber > Player.MAX_HAND_SIZE)
@@ -243,19 +377,40 @@ public static class UtilityManager
             return false;
         }
 
+        Card? discardedCard =
+            player.HandSlots[slotNumber - 1].CardInSlot;
+
         HandManager.DiscardCard(
             player,
             slotNumber);
 
-        HandManager.DrawCard(player);
+        HandManager.DrawCard(
+            player,
+            playerIndex,
+            turnNumber);
 
-        BattleLog.Write(
-            $"{player.Name} discarded a card and drew a replacement");
+        BattleLog.WriteReplay(
+            $"{player.Name} discarded a card and drew a replacement",
+            turnNumber,
+            playerIndex,
+            BattleLogEventType.Utility,
+            targetCardName:
+                discardedCard?.Name,
+            deckStructure:
+                player.Deck.Structure,
+            slotNumber:
+                slotNumber);
 
         return true;
     }
 
-    public static List<Card>? PeekDeck(Player player)
+
+    // ==========================================================
+    // PEEK DECK
+    // ==========================================================
+
+    public static List<Card>? PeekDeck(
+        Player player)
     {
         if (player.Deck.Structure != DeckStructure.Queue &&
             player.Deck.Structure != DeckStructure.Stack)
@@ -291,15 +446,29 @@ public static class UtilityManager
                 .Take(Math.Min(2, cards.Count))
                 .ToList();
 
-        BattleLog.Write(
-            $"{player.Name} peeked at the next cards");
+        BattleLog.WriteReplay(
+            $"{player.Name} peeked at the next cards",
+            BattleLog.CurrentTurnNumber,
+            BattleLog.CurrentPlayerIndex,
+            BattleLogEventType.Utility,
+            deckStructure:
+                player.Deck.Structure,
+            amount:
+                peekedCards.Count);
 
         return peekedCards;
     }
 
-    public static List<Card>? ViewDrawPool(Player player)
+
+    // ==========================================================
+    // VIEW RANDOM DRAW POOL
+    // ==========================================================
+
+    public static List<Card>? ViewDrawPool(
+        Player player)
     {
-        if (player.Deck.Structure != DeckStructure.RandomList)
+        if (player.Deck.Structure !=
+            DeckStructure.RandomList)
         {
             return null;
         }
@@ -327,15 +496,29 @@ public static class UtilityManager
             player.UtilityActionsRemaining--;
         }
 
-        BattleLog.Write(
-            $"{player.Name} viewed the Random draw pool");
+        BattleLog.WriteReplay(
+            $"{player.Name} viewed the Random draw pool",
+            BattleLog.CurrentTurnNumber,
+            BattleLog.CurrentPlayerIndex,
+            BattleLogEventType.Utility,
+            deckStructure:
+                player.Deck.Structure,
+            amount:
+                cards.Count);
 
         return cards;
     }
 
-    public static bool StartReorderNodes(Player player)
+
+    // ==========================================================
+    // START REORDER NODES
+    // ==========================================================
+
+    public static bool StartReorderNodes(
+        Player player)
     {
-        if (player.Deck.Structure != DeckStructure.LinkedList)
+        if (player.Deck.Structure !=
+            DeckStructure.LinkedList)
         {
             return false;
         }
@@ -357,14 +540,26 @@ public static class UtilityManager
         }
 
         player.UtilityActionsRemaining--;
+
         player.ReorderMovesThisPhase = 0;
+
         player.IsReorderingNodes = true;
 
-        BattleLog.Write(
-            $"{player.Name} started Reorder Nodes");
+        BattleLog.WriteReplay(
+            $"{player.Name} started Reorder Nodes",
+            BattleLog.CurrentTurnNumber,
+            BattleLog.CurrentPlayerIndex,
+            BattleLogEventType.Utility,
+            deckStructure:
+                player.Deck.Structure);
 
         return true;
     }
+
+
+    // ==========================================================
+    // REORDER NODES
+    // ==========================================================
 
     public static bool ReorderNodes(
         Player player,
@@ -376,7 +571,8 @@ public static class UtilityManager
             return false;
         }
 
-        if (player.Deck.Structure != DeckStructure.LinkedList)
+        if (player.Deck.Structure !=
+            DeckStructure.LinkedList)
         {
             return false;
         }
@@ -385,7 +581,9 @@ public static class UtilityManager
             player.Deck.RuntimeStorage!.GetCards();
 
         int visibleCount =
-            Math.Min(6, currentCards.Count);
+            Math.Min(
+                6,
+                currentCards.Count);
 
         if (fromPosition < 1 ||
             fromPosition > visibleCount ||
@@ -417,17 +615,36 @@ public static class UtilityManager
             return false;
         }
 
-        player.Energy -= moveCost;
+        player.Energy -=
+            moveCost;
+
         player.ReorderMovesThisPhase++;
 
-        BattleLog.Write(
+        BattleLog.WriteReplay(
             $"Moved {movedCard} from Position {fromPosition} " +
-            $"to Position {toPosition} (-{moveCost} Energy)");
+            $"to Position {toPosition} (-{moveCost} Energy)",
+            BattleLog.CurrentTurnNumber,
+            BattleLog.CurrentPlayerIndex,
+            BattleLogEventType.Utility,
+            targetCardName:
+                movedCard,
+            deckStructure:
+                player.Deck.Structure,
+            amount:
+                -moveCost,
+            playerEnergy:
+                player.Energy);
 
         return true;
     }
 
-    public static void FinishReorderNodes(Player player)
+
+    // ==========================================================
+    // FINISH REORDER NODES
+    // ==========================================================
+
+    public static void FinishReorderNodes(
+        Player player)
     {
         if (!player.IsReorderingNodes)
         {
@@ -436,9 +653,19 @@ public static class UtilityManager
 
         player.IsReorderingNodes = false;
 
-        BattleLog.Write(
-            $"{player.Name} finished Reorder Nodes");
+        BattleLog.WriteReplay(
+            $"{player.Name} finished Reorder Nodes",
+            BattleLog.CurrentTurnNumber,
+            BattleLog.CurrentPlayerIndex,
+            BattleLogEventType.Utility,
+            deckStructure:
+                player.Deck.Structure);
     }
+
+
+    // ==========================================================
+    // BOT
+    // ==========================================================
 
     public static bool BotPlayUtility(
         Player player,

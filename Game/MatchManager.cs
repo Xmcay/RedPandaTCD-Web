@@ -2,7 +2,9 @@ namespace RedPandaTCD_Web.Game;
 
 public static class MatchManager
 {
-    public static void InitializePlayer(Player player)
+    public static void InitializePlayer(
+    Player player,
+    int playerIndex)
     {
         player.Energy = 20;
         player.MaxEnergy = 25;
@@ -52,7 +54,9 @@ public static class MatchManager
 
         player.Deck.InitializeRuntimeStorage();
 
-        HandManager.DrawOpeningHand(player);
+       HandManager.DrawOpeningHand(
+    player,
+    playerIndex);
 
         player.AbilityCooldownRemaining = 0;
     }
