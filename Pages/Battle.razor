@@ -132,10 +132,15 @@ else
                 {
                     <h2>Battle Log</h2>
 
-                    <button class="copy-log-button"
-                            @onclick="CopyBattleLog">
-                        @(logCopied ? "Copied!" : "Copy Log")
-                    </button>
+                  <button class="copy-log-button"
+        @onclick="CopyVisibleBattleLog">
+    @(logCopied ? "Copied!" : "Copy Log")
+</button>
+
+<button class="copy-log-button"
+        @onclick="CopyReplay">
+    @(replayCopied ? "Copied!" : "Copy Replay")
+</button>
                 }
 
                 <button class="log-toggle"
@@ -147,13 +152,13 @@ else
             @if (!logCollapsed)
             {
                 <div class="log" @ref="battleLogElement">
-                    @if (BattleLog.GetPhaseActions().Count == 0)
+                    @if (GetDisplayedBattleLog().Count == 0)
                     {
                         <span class="muted">No actions yet.</span>
                     }
                     else
                     {
-                        @foreach (BattleLogEntry entry in BattleLog.GetPhaseActions())
+                        @foreach (BattleLogEntry entry in GetDisplayedBattleLog())
                         {
                             <div class="log-entry @GetLogPhaseClass(entry)">
                                 <span class="log-phase">@entry.Label</span>
@@ -165,26 +170,75 @@ else
             }
 
             <div class="match-controls">
-                @if (!IsBattleFinished)
-                {
-                    <ContinueButton
-                        Disabled="@IsContinueDisabled(player)"
-                        IsBusy="@botIsActing"
-                        Highlight="@ShouldHighlightContinue(player)"
-                        OnClick="ContinuePhase" />
+    @if (IsReplayMode)
+    {
+        <div class="replay-controls">
 
-                    <button disabled="@IsSurrenderDisabled"
-                            @onclick="RequestSurrender">
-                        Surrender
-                    </button>
-                }
-                else if (observingFinishedMatch)
-                {
-                    <div class="finished-observation-label">
-                        Match Finished · Observing Board
-                    </div>
-                }
+            <div class="replay-status">
+                @(replayState?.IsFinished == true
+                    ? "Replay Finished"
+                    : "Replay")
             </div>
+
+            <div class="replay-buttons">
+
+                <button
+                    disabled="@(replayState == null)"
+                    @onclick="ReplayStart">
+                    Start
+                </button>
+
+                <button
+                    disabled="@(replayState == null ||
+                                 replayState.CurrentEventIndex <= 0)"
+                    @onclick="ReplayPrevious">
+                    Previous
+                </button>
+
+                <button
+                    disabled="@(replayState == null ||
+                                 replayState.IsFinished)"
+                    @onclick="ReplayNext">
+                    Next
+                </button>
+
+                <button
+                    disabled="@(replayState == null)"
+                    @onclick="ReplayEnd">
+                    End
+                </button>
+
+            </div>
+
+            @if (replayState?.CurrentEvent != null)
+            {
+                <div class="replay-current-event">
+                    @replayState.CurrentEvent.Message
+                </div>
+            }
+
+        </div>
+    }
+    else if (!IsBattleFinished)
+    {
+        <ContinueButton
+            Disabled="@IsContinueDisabled(player)"
+            IsBusy="@botIsActing"
+            Highlight="@ShouldHighlightContinue(player)"
+            OnClick="ContinuePhase" />
+
+        <button disabled="@IsSurrenderDisabled"
+                @onclick="RequestSurrender">
+            Surrender
+        </button>
+    }
+    else if (observingFinishedMatch)
+    {
+        <div class="finished-observation-label">
+            Match Finished · Observing Board
+        </div>
+    }
+</div>
         </aside>
 
         <section class="hand-area @GetTutorialHandFocusClass()">
@@ -301,26 +355,35 @@ else
 
         @if (peekedCards != null)
         {
-            <CardViewer
-                Title="Deck Peek"
-                Cards="peekedCards"
-                OnClose="ClosePeek" />
+            <div class="component-popup-layer">
+                <CardViewer
+                    @key="peekedCards"
+                    Title="Deck Peek"
+                    Cards="peekedCards"
+                    OnClose="ClosePeek" />
+            </div>
         }
 
         @if (drawPoolCards != null)
         {
-            <CardViewer
-                Title="Draw Pool"
-                Cards="drawPoolCards"
-                OnClose="CloseDrawPool" />
+            <div class="component-popup-layer">
+                <CardViewer
+                    @key="drawPoolCards"
+                    Title="Draw Pool"
+                    Cards="drawPoolCards"
+                    OnClose="CloseDrawPool" />
+            </div>
         }
 
         @if (reorderCards != null)
         {
-            <ReorderNodes
-                Cards="reorderCards"
-                OnMove="MoveReorderNode"
-                OnFinish="CloseReorderPreview" />
+            <div class="component-popup-layer">
+                <ReorderNodes
+                    @key="reorderCards"
+                    Cards="reorderCards"
+                    OnMove="MoveReorderNode"
+                    OnFinish="CloseReorderPreview" />
+            </div>
         }
 
         @if (showPassDeviceDialog && Session.CurrentMatch != null)
@@ -856,533 +919,2008 @@ else
     </div>
 }
 <style>
-* { box-sizing: border-box; }
+* {
+    box-sizing: border-box;
+}
+
+
+/* =========================================================
+   BATTLE FOUNDATION
+   ========================================================= */
 
 .battle {
-    height: calc(100vh - 60px);
+    --header-offset: 58px;
+    --log-width: 320px;
+    --log-collapsed-width: 112px;
+    --phase-row-height: 72px;
+    --hand-row-height: 76px;
+
+    --background: #0d1116;
+    --surface: #151b21;
+    --surface-raised: #1b232b;
+    --surface-soft: #222b34;
+
+    --line: rgba(226, 233, 239, 0.09);
+    --line-strong: rgba(226, 233, 239, 0.17);
+
+    --text: #edf1f4;
+    --muted: #929da7;
+
+    --utility: #63ad79;
+    --placement: #dc6728;
+    --placement-bright: #ff8a3d;
+    --attack: #55b6df;
+    --attack-bright: #7ed8f5;
+    --end: #87919b;
+    --danger: #dd6262;
+    --interactable: #f2f7fb;
+
+    --tutorial-gold: #ffe078;
+    --champion-gold: #d6b65d;
+
+    position: relative;
+    isolation: isolate;
+
+    height: calc(100dvh - var(--header-offset));
+    min-height: 650px;
+
     display: grid;
-    grid-template-columns: minmax(0, 1fr) 320px;
-    grid-template-rows: minmax(0, 1fr) 72px minmax(0, 1fr) 200px;
-    background: #171d24;
+    grid-template-columns:
+        minmax(0, 1fr)
+        var(--log-width);
+    grid-template-rows:
+        minmax(205px, 1fr)
+        var(--phase-row-height)
+        minmax(230px, 1fr)
+        var(--hand-row-height);
+
     overflow: hidden;
+
+    background:
+        radial-gradient(
+            ellipse at 50% 48%,
+            rgba(82, 97, 111, 0.14) 0%,
+            rgba(13, 17, 22, 0.04) 48%,
+            rgba(5, 7, 10, 0.42) 100%
+        ),
+        repeating-linear-gradient(
+            135deg,
+            rgba(255, 255, 255, 0.012) 0,
+            rgba(255, 255, 255, 0.012) 1px,
+            transparent 1px,
+            transparent 8px
+        ),
+        var(--background);
+
+    color: var(--text);
+
+    transition:
+        grid-template-columns 0.18s ease;
+}
+
+.battle::before {
+    content: "";
+    position: absolute;
+    inset: 0;
+    z-index: 0;
+    pointer-events: none;
+
+    background:
+        linear-gradient(
+            180deg,
+            rgba(117, 43, 51, 0.17) 0%,
+            transparent 33%
+        ),
+        linear-gradient(
+            0deg,
+            rgba(37, 86, 123, 0.19) 0%,
+            transparent 36%
+        );
+
+    box-shadow:
+        inset 0 0 110px rgba(0, 0, 0, 0.43);
+}
+
+.battle > * {
+    position: relative;
+    z-index: 1;
 }
 
 .battle.log-collapsed {
-    grid-template-columns: minmax(0, 1fr) 115px;
+    grid-template-columns:
+        minmax(0, 1fr)
+        var(--log-collapsed-width);
 }
 
-.side {
+
+/* =========================================================
+   BATTLEFIELD
+   ========================================================= */
+
+.battle .side {
     min-width: 0;
-    padding: 20px 25px;
+    padding:
+        clamp(14px, 1.5vw, 24px)
+        clamp(20px, 1.8vw, 30px);
+    overflow: visible;
 }
 
-.enemy-side {
+.battle .enemy-side {
     grid-column: 1;
     grid-row: 1;
-    position: relative;
+
     display: flex;
     align-items: center;
     justify-content: center;
-    background: #3a2428;
-    color: #f5f5f5;
+
+    border-bottom:
+        1px solid rgba(221, 98, 98, 0.10);
 }
 
-.enemy-side > :first-child {
-    position: absolute;
-    left: 25px;
-}
-
-.player-side {
+.battle .player-side {
     grid-column: 1;
     grid-row: 3;
+
     display: flex;
     align-items: center;
-    background: #23364a;
-    color: #f5f5f5;
+
+    border-top:
+        1px solid rgba(85, 182, 223, 0.10);
 }
 
-.field {
-    min-width: 0;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    gap: clamp(10px, 2vw, 30px);
-}
-
-.player-row {
-    position: relative;
-    width: 100%;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-}
-
-.player-field {
-    min-width: 0;
-}
-
-.player-info {
+.battle .enemy-side::before,
+.battle .player-side::before {
+    content: "";
     position: absolute;
-    left: 0;
-    align-self: center;
+    inset: 14px 20px;
+    z-index: -1;
+    pointer-events: none;
+
+    border:
+        1px solid rgba(255, 255, 255, 0.04);
+    border-radius: 14px;
+
+    box-shadow:
+        inset 0 1px 0 rgba(255, 255, 255, 0.025),
+        0 16px 36px rgba(0, 0, 0, 0.12);
 }
 
-.phase-bar {
+.battle .enemy-side::before {
+    background:
+        linear-gradient(
+            180deg,
+            rgba(118, 52, 60, 0.09),
+            rgba(255, 255, 255, 0.008)
+        );
+}
+
+.battle .player-side::before {
+    background:
+        linear-gradient(
+            0deg,
+            rgba(45, 93, 132, 0.10),
+            rgba(255, 255, 255, 0.008)
+        );
+}
+
+
+/* =========================================================
+   PLAYER INFORMATION
+   ========================================================= */
+
+.battle .enemy-side > .player-info,
+.battle .player-row > .player-info {
+    position: absolute;
+    top: 50%;
+
+    width: 218px;
+    padding: 14px 11px;
+
+    border-radius: 9px;
+    background: #0d1217;
+
+    box-shadow:
+        0 14px 30px rgba(0, 0, 0, 0.28),
+        inset 0 1px 0 rgba(255, 255, 255, 0.035);
+
+    transform: translateY(-50%);
+}
+
+.battle .enemy-side > .player-info {
+    left: clamp(18px, 1.7vw, 28px);
+
+    border:
+        1px solid rgba(221, 98, 98, 0.20);
+}
+
+.battle .player-row > .player-info {
+    left: 0;
+
+    border:
+        1px solid rgba(85, 182, 223, 0.22);
+}
+
+
+/* =========================================================
+   FIELD LAYOUT
+   ========================================================= */
+
+.battle .field {
+    min-width: 0;
+
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: clamp(16px, 2vw, 34px);
+
+    perspective: 900px;
+}
+
+.battle .enemy-side > .field,
+.battle .player-field {
+    width: min(
+        650px,
+        calc(100% - 470px)
+    );
+}
+
+.battle .player-row {
+    position: relative;
+
+    width: 100%;
+    min-height: 100%;
+
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.battle .field-card-wrap,
+.battle .character-wrap {
+    filter:
+        drop-shadow(
+            0 12px 13px rgba(0, 0, 0, 0.30)
+        );
+
+    transition:
+        transform 0.16s ease,
+        filter 0.16s ease;
+}
+
+
+/* =========================================================
+   INTERACTION LANGUAGE
+
+   Every interactable uses the same high-presence frame:
+   - 3px semantic-color border
+   - 2px outer outline
+   - dark separation ring
+   - 6px semantic-color outer ring
+   - restrained static glow
+
+   The geometry stays identical. Only the meaning/color changes:
+   - Cyan: Attack card or Character ability
+   - Orange: Placement action
+   - White: General interaction, including Deck actions
+   - Red: Fatigue or required resolution
+
+   Normal gameplay never pulses or scales. Tutorial targets later
+   override this section with gold and controlled scaling.
+   ========================================================= */
+
+.battle {
+    --interaction-border-width: 4px;
+    --interaction-outline-width: 2px;
+    --interaction-outline-offset: 3px;
+}
+
+
+/* ---------- REMOVE COMPONENT-LEVEL INTERACTION EFFECTS ---------- */
+
+/*
+   PlacementHighlightClass is supplied to the card components.
+   Component CSS may otherwise add its old yellow ring or pulse.
+   Neutralize those wrapper-level effects so Battle owns one frame.
+*/
+
+.battle .attack-shell:is(
+    .placement-deploy,
+    .placement-replace,
+    .placement-fatigued
+),
+.battle .character-shell:is(
+    .placement-deploy,
+    .placement-replace
+),
+.battle .field-card-wrap:is(
+    .placement-deploy,
+    .placement-replace,
+    .placement-fatigued
+),
+.battle .character-wrap:is(
+    .placement-deploy,
+    .placement-replace
+) {
+    animation: none !important;
+    transform: none !important;
+    outline: 0 !important;
+    overflow: visible !important;
+}
+
+.battle .attack-shell.clickable,
+.battle .attack-shell.interactable,
+.battle .character-shell.clickable,
+.battle .character-shell.interactable,
+.battle .deck-clickable {
+    animation: none !important;
+    transform: none !important;
+}
+
+.battle .attack-shell.clickable .field-card-wrap,
+.battle .attack-shell.interactable .field-card-wrap,
+.battle .character-shell.clickable .character-wrap,
+.battle .character-shell.interactable .character-wrap,
+.battle .attack-shell.clickable:hover .field-card-wrap,
+.battle .attack-shell.interactable:hover .field-card-wrap,
+.battle .character-shell.clickable:hover .character-wrap,
+.battle .character-shell.interactable:hover .character-wrap {
+    animation: none !important;
+    transform: none !important;
+    overflow: visible !important;
+}
+
+
+/* ---------- ATTACK / CHARACTER ACTION AVAILABLE ---------- */
+
+.battle:has(.phase.attack.active)
+.attack-shell:is(.clickable, .interactable) .field-card,
+.battle:has(.phase.attack.active)
+.character-shell:is(.clickable, .interactable) .character-card {
+    border:
+        var(--interaction-border-width)
+        solid
+        var(--attack-bright) !important;
+
+    outline:
+        var(--interaction-outline-width)
+        solid
+        rgba(126, 216, 245, 0.90) !important;
+
+    outline-offset:
+        var(--interaction-outline-offset) !important;
+
+    box-shadow:
+        0 0 0 2px rgba(7, 15, 20, 0.94),
+        0 0 0 6px rgba(85, 182, 223, 0.38),
+        0 0 22px rgba(85, 182, 223, 0.31),
+        0 11px 23px rgba(0, 0, 0, 0.38) !important;
+
+    cursor: pointer;
+    animation: none !important;
+
+    transition:
+        border-color 0.14s ease,
+        outline-color 0.14s ease,
+        box-shadow 0.14s ease;
+}
+
+.battle:has(.phase.attack.active)
+.attack-shell:is(.clickable, .interactable):hover .field-card,
+.battle:has(.phase.attack.active)
+.character-shell:is(.clickable, .interactable):hover .character-card {
+    border-color: #a9ebff !important;
+    outline-color: #d0f4ff !important;
+
+    box-shadow:
+        0 0 0 2px rgba(7, 15, 20, 0.96),
+        0 0 0 7px rgba(85, 182, 223, 0.49),
+        0 0 26px rgba(85, 182, 223, 0.39),
+        0 13px 26px rgba(0, 0, 0, 0.42) !important;
+}
+
+
+/* ---------- PLACEMENT ACTION AVAILABLE ---------- */
+
+.battle:has(.phase.placement.active)
+.attack-shell:is(
+    .clickable,
+    .interactable,
+    .placement-deploy,
+    .placement-replace
+) .field-card,
+.battle:has(.phase.placement.active)
+.character-shell:is(
+    .clickable,
+    .interactable,
+    .placement-deploy,
+    .placement-replace
+) .character-card {
+    border:
+        var(--interaction-border-width)
+        solid
+        var(--placement-bright) !important;
+
+    outline:
+        var(--interaction-outline-width)
+        solid
+        rgba(255, 138, 61, 0.92) !important;
+
+    outline-offset:
+        var(--interaction-outline-offset) !important;
+
+    box-shadow:
+        0 0 0 2px rgba(18, 8, 4, 0.94),
+        0 0 0 6px rgba(220, 103, 40, 0.39),
+        0 0 22px rgba(220, 103, 40, 0.32),
+        0 11px 23px rgba(0, 0, 0, 0.38) !important;
+
+    cursor: pointer;
+    animation: none !important;
+
+    transition:
+        border-color 0.14s ease,
+        outline-color 0.14s ease,
+        box-shadow 0.14s ease;
+}
+
+.battle:has(.phase.placement.active)
+.attack-shell:is(
+    .clickable,
+    .interactable,
+    .placement-deploy,
+    .placement-replace
+):hover .field-card,
+.battle:has(.phase.placement.active)
+.character-shell:is(
+    .clickable,
+    .interactable,
+    .placement-deploy,
+    .placement-replace
+):hover .character-card {
+    border-color: #ff9f64 !important;
+    outline-color: #ffd0b0 !important;
+
+    box-shadow:
+        0 0 0 2px rgba(18, 8, 4, 0.96),
+        0 0 0 7px rgba(220, 103, 40, 0.50),
+        0 0 26px rgba(220, 103, 40, 0.40),
+        0 13px 26px rgba(0, 0, 0, 0.42) !important;
+}
+
+
+/* ---------- GENERAL ACTION AVAILABLE ---------- */
+
+.battle .deck-clickable {
+    cursor: pointer;
+
+    border:
+        var(--interaction-border-width)
+        solid
+        var(--interactable) !important;
+
+    outline:
+        var(--interaction-outline-width)
+        solid
+        rgba(242, 247, 251, 0.90) !important;
+
+    outline-offset:
+        var(--interaction-outline-offset) !important;
+
+    box-shadow:
+        4px 5px 0 rgba(4, 6, 8, 0.55),
+        0 0 0 2px rgba(8, 13, 17, 0.94),
+        0 0 0 6px rgba(242, 247, 251, 0.37),
+        0 0 22px rgba(225, 240, 248, 0.30) !important;
+
+    animation: none !important;
+
+    transition:
+        border-color 0.14s ease,
+        outline-color 0.14s ease,
+        box-shadow 0.14s ease;
+}
+
+.battle .deck-clickable:hover {
+    border-color: #ffffff !important;
+    outline-color: #ffffff !important;
+    transform: rotate(0deg) !important;
+
+    box-shadow:
+        4px 7px 0 rgba(4, 6, 8, 0.50),
+        0 0 0 2px rgba(8, 13, 17, 0.96),
+        0 0 0 7px rgba(255, 255, 255, 0.48),
+        0 0 26px rgba(225, 240, 248, 0.38),
+        0 13px 26px rgba(0, 0, 0, 0.42) !important;
+}
+
+
+/* ---------- FATIGUE / REQUIRED RESOLUTION ---------- */
+
+.battle .attack-shell:is(
+    .fatigued,
+    .danger,
+    .placement-fatigued
+) .field-card,
+.battle .field-card.fatigued {
+    border:
+        var(--interaction-border-width)
+        solid
+        #e66a6a !important;
+
+    outline:
+        var(--interaction-outline-width)
+        solid
+        rgba(230, 106, 106, 0.92) !important;
+
+    outline-offset:
+        var(--interaction-outline-offset) !important;
+
+    box-shadow:
+        0 0 0 2px rgba(16, 8, 10, 0.94),
+        0 0 0 6px rgba(221, 98, 98, 0.40),
+        0 0 22px rgba(221, 98, 98, 0.33),
+        0 11px 23px rgba(0, 0, 0, 0.38) !important;
+
+    animation: none !important;
+}
+
+.battle .attack-shell:is(
+    .fatigued,
+    .danger,
+    .placement-fatigued
+):hover .field-card {
+    border-color: #f17b7b !important;
+    outline-color: #ffc0c0 !important;
+
+    box-shadow:
+        0 0 0 2px rgba(16, 8, 10, 0.96),
+        0 0 0 7px rgba(221, 98, 98, 0.50),
+        0 0 26px rgba(221, 98, 98, 0.41),
+        0 13px 26px rgba(0, 0, 0, 0.42) !important;
+}
+
+
+/* ---------- CHARACTER INFORMATION STACKING ---------- */
+
+/*
+   Character details must render above neighboring Attack cards.
+   This changes stacking only. It does not resize, clip, or place a
+   border around the expanded information panel.
+*/
+
+.battle .field,
+.battle .player-row,
+.battle .enemy-side,
+.battle .player-side {
+    overflow: visible;
+}
+
+.battle .attack-shell,
+.battle .character-shell,
+.battle .field-card-wrap,
+.battle .character-wrap {
+    position: relative;
+}
+
+.battle .attack-shell {
+    z-index: 2;
+}
+
+.battle .character-shell {
+    z-index: 4;
+}
+
+.battle .character-shell:hover,
+.battle .character-shell:focus-within,
+.battle .character-wrap:hover,
+.battle .character-wrap:focus-within,
+.battle .character-card:hover,
+.battle .character-card:focus-within {
+    z-index: 40;
+}
+
+/* Any positioned information surface inside a hovered Character
+   remains above the card row and above adjacent Attack cards. */
+
+.battle .character-shell:hover .character-card > *,
+.battle .character-shell:focus-within .character-card > * {
+    position: relative;
+    z-index: 41;
+}
+
+/* =========================================================
+   PHASE BAR
+   ========================================================= */
+
+.battle .phase-bar {
     grid-column: 1;
     grid-row: 2;
-    position: relative;
-    padding: 8px 25px;
+
+    min-width: 0;
+    min-height: var(--phase-row-height);
+    padding: 8px 26px;
+
     display: flex;
     align-items: center;
     justify-content: center;
-    border-top: 3px solid #090c10;
-    border-bottom: 3px solid #090c10;
-    background: #151b22;
-    color: #f5f5f5;
-    font-size: 18px;
+
+    border-top: 1px solid var(--line);
+    border-bottom: 1px solid var(--line-strong);
+
+    background: rgba(8, 11, 15, 0.95);
+
+    box-shadow:
+        0 -9px 24px rgba(0, 0, 0, 0.20),
+        0 9px 24px rgba(0, 0, 0, 0.22);
+
+    backdrop-filter: blur(10px);
 }
 
-.turn-details {
+.battle .turn-details {
     position: absolute;
-    left: 25px;
+    left: 26px;
+
+    padding-left: 12px;
+
     display: flex;
     flex-direction: column;
     align-items: flex-start;
-    gap: 3px;
+    gap: 4px;
+
+    border-left:
+        2px solid rgba(214, 182, 93, 0.58);
+
     white-space: nowrap;
 }
 
-.turn-details strong {
+.battle .turn-details strong {
+    color: #f2f5f7;
+
     font-size: 18px;
     line-height: 1;
+    letter-spacing: 0.25px;
 }
 
-.initiative-owner {
-    color: #e5cc67;
-    font-size: 9px;
-    font-weight: bold;
+.battle .initiative-owner {
+    color: #c8b878;
+
+    font-size: 10px;
+    font-weight: 800;
     line-height: 1;
+
     text-transform: uppercase;
-    letter-spacing: .6px;
+    letter-spacing: 0.7px;
 }
 
-.turn-owner {
-    position: absolute;
-    right: 25px;
-    padding: 6px 12px;
-    border: 2px solid;
-    border-radius: 6px;
-    font-size: 12px;
-    font-weight: bold;
-    letter-spacing: .8px;
-    white-space: nowrap;
-}
-
-.turn-owner.player-turn {
-    color: #81c784;
-    border-color: #81c784;
-    background: rgba(129, 199, 132, .1);
-}
-
-.turn-owner.bot-turn {
-    color: #ef9a9a;
-    border-color: #ef9a9a;
-    background: rgba(239, 154, 154, .1);
-}
-
-.phases {
-    display: flex;
-    justify-content: center;
-    gap: 12px;
-}
-
-.phase {
-    padding: 8px 18px;
-    border: 2px solid rgba(255, 255, 255, .16);
-    border-radius: 7px;
-    color: #fff;
-    font-weight: bold;
-    white-space: nowrap;
-    opacity: .48;
-    transition: opacity .15s, transform .15s, border-color .15s, box-shadow .15s;
-}
-
-.phase.active {
-    opacity: 1;
-    border-color: #fff;
-    transform: scale(1.07);
-    box-shadow: 0 0 0 2px #000, 0 4px 10px rgba(0, 0, 0, .35);
-}
-
-.utility { background: #2f7d4a; }
-.placement { background: #a98224; }
-.attack { background: #b84747; }
-.end { background: #59616a; }
-
-.piles {
-    position: absolute;
-    right: 0;
-    display: flex;
-    align-items: flex-end;
-    gap: 14px;
-}
-
-.deck,
-.discard {
-    flex-shrink: 0;
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    justify-content: center;
-    border-radius: 8px;
-}
-
-.deck {
-    width: 82px;
-    height: 112px;
-    border: 3px solid #333;
-    background: #d9d1bc;
-    color: #222;
-}
-
-.discard {
-    width: 64px;
-    height: 82px;
-    border: 2px dashed #8b949e;
-    background: #292f36;
-    color: #eee;
-    font-size: 10px;
-}
-
-.pile-number {
-    margin-top: 5px;
-    font-size: 21px;
-    font-weight: bold;
-}
-
-.deck-structure {
-    font-size: 10px;
-    white-space: nowrap;
-}
-
-.deck-clickable {
-    cursor: pointer;
-    transition: transform .14s, border-color .14s, box-shadow .14s;
-}
-
-.deck-clickable:hover {
-    transform: translateY(-4px);
-    border-color: #c7b98f;
-    box-shadow: 0 7px 14px rgba(0, 0, 0, .3);
-}
-
-.deck-disabled {
-    cursor: default;
-    filter: grayscale(.85);
-    opacity: .52;
-}
-
-.log-panel {
-    grid-column: 2;
-    grid-row: 1 / 5;
-    min-width: 0;
-    padding: 15px;
-    display: flex;
-    flex-direction: column;
-    border-left: 3px solid #090c10;
-    background: #171d24;
-    color: #f5f5f5;
-}
-
-.log-header {
-    margin-bottom: 10px;
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    gap: 8px;
-}
-
-.log-header h2 {
-    flex: 1;
-    margin: 0;
-    text-align: center;
-    font-size: clamp(18px, 1.8vw, 28px);
-    white-space: nowrap;
-}
-
-.log-toggle {
-    min-width: 38px;
-    height: 38px;
-    cursor: pointer;
-    font-weight: bold;
-}
-
-.copy-log-button {
-    min-width: 72px;
-    height: 32px;
-    padding: 0 9px;
-    border: 1px solid #777;
-    border-radius: 4px;
-    background: #e8e8e8;
-    color: #171717;
-    cursor: pointer;
-    font-size: 10px;
-    font-weight: bold;
-    white-space: nowrap;
-}
-
-.copy-log-button:hover {
-    background: #f4f4f4;
-}
-
-.log {
-    flex: 1;
-    min-height: 0;
-    padding: 10px;
-    overflow-y: auto;
-    border: 1px solid #46515d;
-    background: #202832;
-    font-size: 12px;
-}
-
-.log-entry {
-    margin-bottom: 6px;
-    padding: 6px 7px;
-    border-left: 4px solid #777;
-    border-bottom: 1px solid #46515d;
-    line-height: 1.25;
-}
-
-.log-phase {
-    display: inline-block;
-    min-width: 62px;
-    margin-right: 6px;
-    padding: 2px 5px;
-    border-radius: 4px;
-    background: #151b22;
-    font-size: 8px;
-    font-weight: bold;
-    text-align: center;
-    text-transform: uppercase;
-}
-
-.log-action {
-    font-size: 11px;
-    line-height: 1.3;
-}
-
-.log-entry.log-utility { border-left-color: #75c878; }
-.log-entry.log-utility .log-phase { color: #75c878; }
-.log-entry.log-placement { border-left-color: #e5cc67; }
-.log-entry.log-placement .log-phase { color: #e5cc67; }
-.log-entry.log-attack { border-left-color: #de7777; }
-.log-entry.log-attack .log-phase { color: #de7777; }
-.log-entry.log-end { border-left-color: #ccc; }
-.log-entry.log-end .log-phase { color: #ccc; }
-
-.log-entry.log-system {
-    border-left-color: #8b949e;
-    background: rgba(139, 148, 158, .08);
-}
-
-.log-entry.log-system .log-phase {
-    color: #c7cdd4;
-    border: 1px solid rgba(199, 205, 212, .22);
-}
-
-.muted {
-    color: #777;
-}
-
-.match-controls {
-    margin-top: auto;
-    padding-top: 14px;
-    display: flex;
-    flex-direction: column;
-    gap: 10px;
-    border-top: 2px solid #aaa;
-}
-
-.match-controls button {
-    min-width: 80px;
-    padding: 11px 4px;
-    font-size: 13px;
-    font-weight: bold;
-    white-space: nowrap;
-}
-
-.match-controls > button,
-.log-toggle {
-    border: 1px solid #777;
-    background: #e8e8e8;
-    color: #171717;
-}
-
-.hand-area {
-    grid-column: 1;
-    grid-row: 4;
-    position: relative;
-    min-width: 0;
-    padding: 10px 24px;
+.battle .phases {
     display: flex;
     align-items: center;
     justify-content: center;
     gap: 18px;
-    overflow: hidden;
-    border-top: 3px solid #090c10;
-    background: #1b2733;
-    color: #f5f5f5;
 }
 
-.hand-label {
+.battle .phase {
+    position: relative;
+
+    min-width: 105px;
+    padding: 9px 16px;
+
+    border:
+        1px solid rgba(255, 255, 255, 0.10);
+    border-radius: 5px;
+
+    background: #20262d;
+    color: #8d969e;
+
+    font-size: 12px;
+    font-weight: 800;
+    text-align: center;
+    letter-spacing: 0.35px;
+    white-space: nowrap;
+
+    opacity: 0.58;
+
+    transition:
+        opacity 0.15s ease,
+        transform 0.15s ease,
+        border-color 0.15s ease,
+        background 0.15s ease,
+        color 0.15s ease,
+        box-shadow 0.15s ease;
+}
+
+.battle .phase:not(:last-child)::after {
+    content: "›";
+
     position: absolute;
-    left: 24px;
-    color: #d7dee5;
-    font-size: 14px;
-    text-align: center;
-    text-transform: uppercase;
-    letter-spacing: .8px;
+    right: -13px;
+    top: 50%;
+
+    color: #56606a;
+
+    font-size: 17px;
+    font-weight: 400;
+
+    transform: translateY(-53%);
+
+    pointer-events: none;
 }
 
-.hand {
-    min-width: 0;
-    display: flex;
-    align-items: stretch;
-    justify-content: center;
-    gap: 13px;
+.battle .phase.utility {
+    border-bottom-color:
+        rgba(99, 173, 121, 0.48);
 }
 
-.card-action-overlay {
-    position: fixed;
-    inset: 0;
-    z-index: 1000;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    padding: 20px;
-    background: rgba(0, 0, 0, .55);
+.battle .phase.placement {
+    border-bottom-color:
+        rgba(220, 103, 40, 0.58);
 }
 
-.card-action-panel {
-    width: min(320px, calc(100vw - 40px));
-    max-height: calc(100vh - 40px);
-    padding: 24px;
-    display: flex;
-    flex-direction: column;
-    gap: 12px;
-    overflow-y: auto;
-    border: 2px solid #9b9383;
-    border-radius: 10px;
-    background: #18212b;
-    color: #f5f5f5;
-    text-align: center;
+.battle .phase.attack {
+    border-bottom-color:
+        rgba(85, 182, 223, 0.48);
 }
 
-.card-action-panel h3 {
-    margin: 0;
-    color: #f4efe3;
+.battle .phase.end {
+    border-bottom-color:
+        rgba(135, 145, 155, 0.48);
 }
 
-.card-action-panel p {
-    margin: 0 0 8px;
-    color: #c8d0d8;
+.battle .phase.active {
+    opacity: 1;
+
+    transform: translateY(-2px);
+
+    border-color:
+        rgba(255, 255, 255, 0.38);
+
+    color: #0d1419;
+
+    box-shadow:
+        0 6px 18px rgba(0, 0, 0, 0.34),
+        inset 0 1px 0 rgba(255, 255, 255, 0.24);
 }
 
-.card-action-panel button {
-    padding: 10px 14px;
-    border: 1px solid #9b9383;
-    border-radius: 6px;
-    background: #f4efe3;
-    color: #222;
-    cursor: pointer;
-    font-weight: bold;
+.battle .phase.active.utility {
+    background: var(--utility);
 }
 
-.card-action-panel button:hover:not(:disabled) {
-    filter: brightness(1.08);
+.battle .phase.active.placement {
+    background: var(--placement);
+    color: #1c1109;
 }
 
-.card-action-panel button:disabled,
-.match-controls button:disabled {
-    cursor: default;
-    filter: grayscale(.75);
-    opacity: .38;
+.battle .phase.active.attack {
+    background: var(--attack);
 }
 
-.selected-card-meta {
-    padding: 8px 10px;
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    gap: 12px;
-    border: 1px solid #59636d;
-    border-radius: 6px;
-    background: #111820;
+.battle .phase.active.end {
+    background: var(--end);
 }
 
-.selected-card-meta span {
-    color: #8faee0;
-    font-size: 9px;
-    font-weight: bold;
-    text-transform: uppercase;
-    letter-spacing: .6px;
-}
+.battle .turn-owner {
+    position: absolute;
+    right: 26px;
 
-.selected-card-meta strong {
-    color: #e5cc67;
-    font-size: 10px;
+    padding: 7px 12px;
+
+    border: 1px solid var(--line-strong);
+    border-radius: 5px;
+
+    background:
+        rgba(255, 255, 255, 0.025);
+
+    font-size: 11px;
+    font-weight: 800;
+    letter-spacing: 0.8px;
     white-space: nowrap;
 }
 
-.utility-description {
-    padding: 11px 12px;
+.battle .turn-owner.player-turn {
+    border-color:
+        rgba(99, 173, 121, 0.56);
+
+    background:
+        rgba(99, 173, 121, 0.08);
+
+    color: #97d4a5;
+}
+
+.battle .turn-owner.bot-turn {
+    border-color:
+        rgba(221, 98, 98, 0.56);
+
+    background:
+        rgba(221, 98, 98, 0.08);
+
+    color: #e58b8b;
+}
+
+
+/* =========================================================
+   DECK AND DISCARD
+   ========================================================= */
+
+.battle .piles {
+    position: absolute;
+    right: 0;
+    top: 50%;
+
+    display: flex;
+    align-items: flex-end;
+    gap: 12px;
+
+    transform: translateY(-50%);
+}
+
+.battle .deck,
+.battle .discard {
+    position: relative;
+    flex-shrink: 0;
+
     display: flex;
     flex-direction: column;
-    gap: 5px;
-    border: 1px solid #59636d;
+    align-items: center;
+    justify-content: center;
+
     border-radius: 7px;
-    background: #111820;
-    text-align: left;
+
+    box-shadow:
+        4px 5px 0 rgba(4, 6, 8, 0.55),
+        8px 10px 20px rgba(0, 0, 0, 0.24);
 }
 
-.utility-description strong {
-    color: #81c784;
+.battle .deck {
+    width: 82px;
+    height: 112px;
+
+    border: 2px solid #5f98b8;
+
+    background:
+        linear-gradient(
+            145deg,
+            rgba(255, 255, 255, 0.22),
+            transparent 38%
+        ),
+        linear-gradient(
+            145deg,
+            #8bc7e4,
+            #529abb
+        );
+
+    color: #10202a;
+
+    transform: rotate(0.6deg);
+}
+
+.battle .deck::before {
+    content: "";
+
+    position: absolute;
+    inset: 4px;
+
+    border:
+        1px solid rgba(12, 42, 57, 0.26);
+    border-radius: 4px;
+
+    background:
+        repeating-linear-gradient(
+            135deg,
+            rgba(255, 255, 255, 0.055) 0,
+            rgba(255, 255, 255, 0.055) 2px,
+            transparent 2px,
+            transparent 7px
+        );
+
+    pointer-events: none;
+}
+
+.battle .discard {
+    width: 64px;
+    height: 84px;
+
+    border: 1px dashed #69737c;
+
+    background:
+        linear-gradient(
+            145deg,
+            #29313a,
+            #1a2026
+        );
+
+    color: #e4e8eb;
     font-size: 10px;
-    letter-spacing: .5px;
+
+    transform: rotate(-1deg);
 }
 
-.utility-description span {
-    color: #c8d0d8;
+.battle .pile-number {
+    margin-top: 5px;
+
+    font-size: 21px;
+    font-weight: 900;
+}
+
+.battle .deck-structure {
+    font-size: 9px;
+    white-space: nowrap;
+}
+
+.battle .deck-clickable {
+    cursor: pointer;
+
+    border: var(--interaction-border-width) solid var(--interactable);
+
+    outline:
+        1px solid rgba(242, 247, 251, 0.38);
+    outline-offset: 3px;
+
+    box-shadow:
+        4px 5px 0 rgba(4, 6, 8, 0.55),
+        0 0 0 2px rgba(8, 13, 17, 0.88),
+        0 0 0 4px rgba(242, 247, 251, 0.24),
+        0 0 18px rgba(225, 240, 248, 0.18);
+
+    animation: none !important;
+
+    transition:
+        transform 0.14s ease,
+        border-color 0.14s ease,
+        outline-color 0.14s ease,
+        box-shadow 0.14s ease;
+}
+
+.battle .deck-clickable:hover {
+    border-color: #ffffff;
+
+    outline-color:
+        rgba(255, 255, 255, 0.76);
+
+    transform:
+        translateY(-5px)
+        rotate(0deg);
+
+    box-shadow:
+        4px 7px 0 rgba(4, 6, 8, 0.50),
+        0 0 0 2px rgba(8, 13, 17, 0.94),
+        0 0 0 5px rgba(255, 255, 255, 0.38),
+        0 0 23px rgba(225, 240, 248, 0.26),
+        0 14px 27px rgba(0, 0, 0, 0.41);
+}
+
+.battle .deck-disabled {
+    cursor: default;
+
+    filter: grayscale(0.82);
+    opacity: 0.55;
+}
+
+
+/* =========================================================
+   BATTLE LOG
+   ========================================================= */
+
+.battle .log-panel {
+    grid-column: 2;
+    grid-row: 1 / 5;
+
+    min-width: 0;
+    padding: 14px 13px;
+
+    display: flex;
+    flex-direction: column;
+
+    border-left: 1px solid var(--line);
+
+    background:
+        linear-gradient(
+            180deg,
+            #141a20,
+            #0f1419
+        );
+
+    color: var(--text);
+
+    box-shadow:
+        -12px 0 30px rgba(0, 0, 0, 0.23);
+}
+
+.battle .log-panel::after {
+    content: "";
+
+    width: 100%;
+    flex: 0 0 66px;
+
+    pointer-events: none;
+}
+
+.battle .log-header {
+    min-height: 38px;
+    padding: 0 0 10px;
+
+    display: grid;
+    grid-template-columns:
+        minmax(0, 1fr)
+        auto
+        auto
+        38px;
+
+    align-items: center;
+    gap: 6px;
+
+    border-bottom: 1px solid var(--line);
+}
+
+.battle .log-header h2 {
+    min-width: 0;
+    margin: 0;
+
+    overflow: hidden;
+
+    color: #edf1f4;
+
+    font-size: 18px;
+    line-height: 1;
+    letter-spacing: 0.2px;
+
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.battle .copy-log-button,
+.battle .copy-replay-button {
+    min-width: 0;
+    height: 30px;
+    padding: 0 7px;
+
+    overflow: hidden;
+
+    border:
+        1px solid rgba(255, 255, 255, 0.14);
+    border-radius: 4px;
+
+    background: #252c34;
+    color: #dce2e7;
+
+    cursor: pointer;
+
+    font-size: 8px;
+    font-weight: 900;
+    line-height: 1;
+
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.battle .copy-log-button:hover,
+.battle .copy-replay-button:hover,
+.battle .log-toggle:hover {
+    border-color:
+        rgba(242, 247, 251, 0.45);
+
+    background: #2d3540;
+    color: #ffffff;
+}
+
+.battle .log-toggle {
+    width: 38px;
+    min-width: 38px;
+    height: 36px;
+    padding: 0;
+
+    border:
+        1px solid rgba(255, 255, 255, 0.14);
+    border-radius: 4px;
+
+    background: #252c34;
+    color: #dce2e7;
+
+    cursor: pointer;
+    font-weight: 900;
+}
+
+.battle.log-collapsed .log-panel {
+    padding-inline: 10px;
+}
+
+.battle.log-collapsed .log-header {
+    display: flex;
+    justify-content: center;
+    padding-inline: 0;
+}
+
+.battle.log-collapsed .log-toggle {
+    width: 100%;
+    min-width: 0;
+    height: 42px;
+
+    font-size: 17px;
+}
+
+.battle.log-collapsed .match-controls {
+    width: 100%;
+    gap: 8px;
+}
+
+.battle.log-collapsed .match-controls > button,
+.battle.log-collapsed .match-controls .continue-button {
+    width: 100%;
+    min-width: 0;
+    padding: 10px 4px;
+
+    overflow: hidden;
+
+    font-size: 10px;
+    line-height: 1.05;
+
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.battle.log-collapsed .finished-observation-label,
+.battle.log-collapsed .replay-status,
+.battle.log-collapsed .replay-current-event {
+    font-size: 8px;
+}
+
+.battle.log-collapsed .replay-buttons {
+    display: grid;
+    grid-template-columns: 1fr;
+}
+
+.battle.log-collapsed .replay-buttons button {
+    width: 100%;
+    min-width: 0;
+    padding: 8px 3px;
+
+    font-size: 9px;
+}
+
+.battle .log {
+    min-height: 0;
+    margin-top: 10px;
+    padding: 8px;
+
+    flex: 1;
+
+    overflow-y: auto;
+
+    border: 0;
+    border-radius: 7px;
+
+    background: #0b1014;
+
+    box-shadow:
+        inset 0 1px 5px rgba(0, 0, 0, 0.48);
+
+    font-size: 12px;
+
+    scrollbar-width: thin;
+    scrollbar-color: #49545e #0b1014;
+}
+
+.battle .log-entry {
+    margin-bottom: 5px;
+    padding: 7px 8px;
+
+    border-left: 3px solid #69727b;
+    border-radius: 0 4px 4px 0;
+
+    background:
+        rgba(255, 255, 255, 0.025);
+
+    line-height: 1.35;
+}
+
+.battle .log-entry:hover {
+    background:
+        rgba(255, 255, 255, 0.045);
+}
+
+.battle .log-phase {
+    display: inline-block;
+
+    min-width: 62px;
+    margin-right: 6px;
+    padding: 2px 5px;
+
+    border:
+        1px solid rgba(255, 255, 255, 0.09);
+    border-radius: 3px;
+
+    background:
+        rgba(255, 255, 255, 0.035);
+
+    font-size: 8px;
+    font-weight: 900;
+    text-align: center;
+    text-transform: uppercase;
+}
+
+.battle .log-action {
+    color: #e0e5e9;
+
     font-size: 11px;
     line-height: 1.4;
 }
 
-.placement-picker-panel {
-    width: fit-content;
-    min-width: 280px;
-    max-width: calc(100vw - 80px);
+.battle .log-entry.log-utility {
+    border-left-color: var(--utility);
 }
 
-.placement-card-choices {
-    width: fit-content;
-    max-width: 100%;
-    margin: 0 auto;
+.battle .log-entry.log-utility .log-phase {
+    color: #83c692;
+}
+
+.battle .log-entry.log-placement {
+    border-left-color: var(--placement);
+}
+
+.battle .log-entry.log-placement .log-phase {
+    color: #ff9554;
+}
+
+.battle .log-entry.log-attack {
+    border-left-color: var(--attack);
+}
+
+.battle .log-entry.log-attack .log-phase {
+    color: #7ac3e8;
+}
+
+.battle .log-entry.log-end {
+    border-left-color: var(--end);
+}
+
+.battle .log-entry.log-end .log-phase {
+    color: #c0c7cd;
+}
+
+.battle .log-entry.log-system {
+    border-left-color: #8b949e;
+
+    background:
+        rgba(139, 148, 158, 0.065);
+}
+
+.battle .log-entry.log-system .log-phase {
+    color: #c9d0d6;
+}
+
+.battle .muted {
+    color: #737d86;
+}
+
+
+/* =========================================================
+   MATCH AND REPLAY CONTROLS
+   ========================================================= */
+
+.battle .match-controls {
+    position: relative;
+
+    margin-top: auto;
+    padding-top: 12px;
+
+    display: flex;
+    flex-direction: column;
+    gap: 9px;
+
+    border-top: 1px solid var(--line);
+}
+
+.battle .match-controls > button {
+    min-width: 80px;
+    padding: 11px 7px;
+
+    border:
+        1px solid rgba(255, 255, 255, 0.14);
+    border-radius: 4px;
+
+    background: #252c34;
+    color: #e3e8ec;
+
+    cursor: pointer;
+
+    font-size: 13px;
+    font-weight: 800;
+    white-space: nowrap;
+}
+
+.battle .match-controls > button:hover:not(:disabled) {
+    border-color:
+        rgba(242, 247, 251, 0.45);
+
+    background: #2d3540;
+    color: #ffffff;
+}
+
+.battle .match-controls > button:disabled {
+    cursor: default;
+
+    filter: grayscale(0.75);
+    opacity: 0.4;
+}
+
+.battle .replay-controls {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+
+.battle .replay-status {
+    color: var(--champion-gold);
+
+    font-size: 12px;
+    font-weight: 900;
+    text-align: center;
+}
+
+.battle .replay-buttons {
+    display: flex;
+    justify-content: center;
+    flex-wrap: wrap;
+    gap: 6px;
+}
+
+.battle .replay-buttons button {
+    padding: 7px 10px;
+
+    border: 1px solid #56606a;
+    border-radius: 4px;
+
+    background: #20262c;
+    color: #e5e8eb;
+
+    cursor: pointer;
+}
+
+.battle .replay-buttons button:hover:not(:disabled) {
+    border-color:
+        rgba(242, 247, 251, 0.45);
+
+    background: #2c343c;
+}
+
+.battle .replay-buttons button:disabled {
+    cursor: default;
+    opacity: 0.42;
+}
+
+.battle .replay-current-event {
+    padding: 7px 9px;
+
+    border: 1px solid #665b36;
+    border-radius: 4px;
+
+    background:
+        rgba(214, 182, 93, 0.07);
+
+    color: #ddd2a1;
+
+    font-size: 10px;
+    line-height: 1.4;
+    text-align: center;
+}
+
+.battle .finished-observation-label {
+    width: 100%;
+    padding: 12px 8px;
+
+    border: 1px solid #46505a;
+    border-radius: 5px;
+
+    background:
+        rgba(255, 255, 255, 0.04);
+
+    color: #c8d0d8;
+
+    font-size: 10px;
+    font-weight: 800;
+    text-align: center;
+    text-transform: uppercase;
+    letter-spacing: 0.8px;
+}
+
+
+/* =========================================================
+   HAND OVERLAY DRAWER
+
+   Utility:
+   Solid drawer.
+
+   Placement, Attack, End:
+   Cards rise without a large drawer.
+   ========================================================= */
+
+.battle .hand-area {
+    grid-column: 1;
+    grid-row: 4;
+
+    min-width: 0;
+    min-height: 0;
+
+    padding: 5px 24px;
+
     display: flex;
     align-items: center;
     justify-content: center;
-    gap: 14px;
+
+    overflow: visible;
+
+    border-top: 1px solid var(--line);
+
+    background: #0e1419;
+
+    box-shadow:
+        0 -8px 20px rgba(0, 0, 0, 0.30);
 }
 
-.character-picker-panel {
+.battle .hand-area::before {
+    content: "";
+
+    position: absolute;
+    inset: 6px 20px;
+    z-index: -1;
+
+    border:
+        1px solid rgba(255, 255, 255, 0.05);
+    border-radius: 10px;
+
+    background: #121920;
+}
+
+.battle .hand-area::after {
+    content: "";
+
+    position: absolute;
+    left: 20px;
+    right: 20px;
+    bottom: 6px;
+    z-index: 1;
+
+    height: 0;
+
+    border: 1px solid transparent;
+    border-radius: 12px 12px 9px 9px;
+
+    background: #11181f;
+
+    opacity: 0;
+
+    box-shadow: none;
+
+    pointer-events: none;
+
+    transition:
+        height 0.22s ease,
+        opacity 0.18s ease,
+        border-color 0.18s ease,
+        box-shadow 0.22s ease;
+}
+
+.battle .hand-label {
+    position: absolute;
+    left: 28px;
+    top: 50%;
+    z-index: 5;
+
+    color: #87929c;
+
+    font-size: 11px;
+    font-weight: 900;
+    line-height: 1;
+
+    text-transform: uppercase;
+    letter-spacing: 1.15px;
+    white-space: nowrap;
+
+    transform: translateY(-50%);
+}
+
+.battle .hand {
+    position: relative;
+    z-index: 3;
+
+    min-width: 0;
+
+    display: flex;
+    align-items: stretch;
+    justify-content: center;
+    gap: 13px;
+
+    transform:
+        translateY(68px)
+        scale(0.78);
+
+    transform-origin: center bottom;
+
+    opacity: 1;
+    filter: none;
+
+    transition:
+        transform 0.22s ease,
+        filter 0.22s ease;
+}
+
+
+/* ---------- EMPTY SLOTS ---------- */
+
+.battle .hand-card.empty {
+    height: 48px !important;
+    min-height: 48px !important;
+
+    align-self: flex-end;
+
+    border:
+        1px dashed #46515b !important;
+
+    background: #151b21 !important;
+    color: #7d8790 !important;
+
+    opacity: 1 !important;
+    filter: none !important;
+
+    box-shadow:
+        0 9px 18px rgba(0, 0, 0, 0.36) !important;
+}
+
+.battle .hand-card.empty .empty-title {
+    color: #8c96a0 !important;
+    opacity: 1 !important;
+}
+
+.battle .hand-card.empty .slot-number {
+    color: #66717b !important;
+    opacity: 1 !important;
+}
+
+.battle .hand:not(:has(.hand-card:not(.empty))) {
+    align-items: flex-end;
+
+    transform:
+        translateY(9px)
+        scale(0.84);
+
+    opacity: 1;
+    filter: none;
+}
+
+
+/* ---------- DISABLED CARDS ---------- */
+
+.battle .hand .hand-card.disabled {
+    opacity: 1 !important;
+
+    filter:
+        grayscale(0.68)
+        brightness(0.88) !important;
+}
+
+
+/* ---------- UTILITY SOLID DRAWER ---------- */
+
+.battle:has(.phase.utility.active) .hand-area {
+    z-index: 100;
+
+    background: #10161c;
+
+    box-shadow:
+        0 -24px 48px rgba(0, 0, 0, 0.60);
+}
+
+.battle:has(.phase.utility.active) .hand-area::before {
+    border-color:
+        rgba(99, 173, 121, 0.28);
+
+    background: #151c23;
+}
+
+.battle:has(.phase.utility.active) .hand-area::after {
+    height: 188px;
+
+    border-color:
+        rgba(99, 173, 121, 0.28);
+
+    background:
+        linear-gradient(
+            180deg,
+            #19232b,
+            #11181f
+        );
+
+    opacity: 1;
+
+    box-shadow:
+        0 -20px 44px rgba(0, 0, 0, 0.60);
+}
+
+.battle:has(.phase.utility.active)
+.hand-area .hand {
+    transform:
+        translateY(-112px)
+        scale(1);
+
+    opacity: 1;
+    filter: none;
+}
+
+.battle:has(.phase.utility.active)
+.hand-area .hand-label {
+    left: 30px;
+    top: -99px;
+
+    width: 185px;
+    padding: 7px 10px 8px;
+
+    border:
+        1px solid rgba(99, 173, 121, 0.26);
+    border-radius: 4px;
+
+    background: #11181f;
+    color: #81c994;
+
+    font-size: 11px;
+    line-height: 1;
+
+    transform: none;
+}
+
+.battle:has(.phase.utility.active)
+.hand-area .hand-label {
+    position: absolute;
+
+    left: 30px;
+    top: -99px;
+    z-index: 8;
+
+    width: 130px;
+    min-width: 0;
+    padding: 6px 8px;
+
+    box-sizing: border-box;
+
+    border: 1px solid rgba(99, 173, 121, 0.26);
+    border-radius: 4px;
+
+    background: #11181f;
+    color: #81c994;
+
+    font-size: 10px;
+    font-weight: 900;
+    line-height: 1;
+    letter-spacing: 0.55px;
+    white-space: nowrap;
+
+    transform: none;
+    pointer-events: none;
+}
+
+.battle:has(.phase.utility.active)
+.hand-area .hand-card.empty {
+    height: auto !important;
+    min-height: initial !important;
+
+    align-self: stretch;
+}
+
+.battle:has(.phase.utility.active)
+.hand-area .hand-card {
+    opacity: 1 !important;
+    filter: none !important;
+}
+
+
+/* ---------- PLACEMENT / ATTACK / END: CARDS ONLY ---------- */
+
+.battle:has(
+    .phase:is(
+        .placement,
+        .attack,
+        .end
+    ).active
+)
+.hand-area:hover:has(.hand-card:not(.empty)) {
+    z-index: 100;
+
+    background: #0e1419;
+
+    box-shadow:
+        0 -12px 26px rgba(0, 0, 0, 0.38);
+}
+
+.battle:has(
+    .phase:is(
+        .placement,
+        .attack,
+        .end
+    ).active
+)
+.hand-area:hover:has(.hand-card:not(.empty))::after {
+    height: 0;
+
+    border-color: transparent;
+
+    opacity: 0;
+
+    box-shadow: none;
+}
+
+.battle:has(
+    .phase:is(
+        .placement,
+        .attack,
+        .end
+    ).active
+)
+.hand-area:hover:has(.hand-card:not(.empty))
+.hand {
+    transform:
+        translateY(-112px)
+        scale(1);
+
+    opacity: 1;
+    filter: none;
+}
+
+.battle:has(
+    .phase:is(
+        .placement,
+        .attack,
+        .end
+    ).active
+)
+.hand-area:hover
+.hand-card.disabled {
+    opacity: 1 !important;
+
+    filter:
+        grayscale(0.38)
+        brightness(0.97) !important;
+}
+
+.battle:has(
+    .phase:is(
+        .placement,
+        .attack,
+        .end
+    ).active
+)
+.hand-area:hover
+.hand-card.empty {
+    height: auto !important;
+    min-height: initial !important;
+
+    align-self: stretch;
+}
+
+
+/* ---------- TRAY LABELS ---------- */
+
+.battle:has(
+    .phase:is(
+        .placement,
+        .attack,
+        .end
+    ).active
+)
+.hand-area:has(.hand-card:not(.empty))
+.hand-label::after {
+    content: " · HOVER TO VIEW";
+
+    color: #65707a;
+
+    font-size: 8px;
+    font-weight: 800;
+    letter-spacing: 0.75px;
+}
+
+.battle
+.hand-area:not(:has(.hand-card:not(.empty)))
+.hand-label::after {
+    content: " · EMPTY";
+
+    color: #606a73;
+
+    font-size: 8px;
+    font-weight: 800;
+    letter-spacing: 0.75px;
+}
+
+.battle:has(
+    .phase:is(
+        .placement,
+        .attack,
+        .end
+    ).active
+)
+.hand-area:hover
+.hand-label::after {
+    content: "";
+}
+
+
+/* =========================================================
+   MODALS AND OVERLAYS
+   ========================================================= */
+
+.battle .card-action-overlay {
+    position: fixed;
+    inset: 0;
+    z-index: 1000;
+
+    padding: 20px;
+
+    display: flex;
+    align-items: center;
+    justify-content: center;
+
+    background:
+        rgba(4, 7, 10, 0.72);
+
+    backdrop-filter: blur(3px);
+}
+
+.battle .card-action-panel {
+    width: min(340px, calc(100vw - 40px));
+    max-height: calc(100dvh - 40px);
+    padding: 24px;
+
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+
+    overflow-y: auto;
+
+    border: 1px solid #66717a;
+    border-radius: 8px;
+
+    background:
+        linear-gradient(
+            145deg,
+            #1d252d,
+            #141a20
+        );
+
+    color: var(--text);
+
+    box-shadow:
+        0 20px 48px rgba(0, 0, 0, 0.48);
+
+    text-align: center;
+}
+
+.battle .card-action-panel h3 {
+    margin: 0;
+
+    color: #f1efe8;
+    font-size: 21px;
+}
+
+.battle .card-action-panel p {
+    margin: 0 0 8px;
+
+    color: #bfc7ce;
+    line-height: 1.45;
+}
+
+.battle .card-action-panel button {
+    padding: 10px 14px;
+
+    border: 1px solid #777e85;
+    border-radius: 5px;
+
+    background: #e8e4da;
+    color: #222;
+
+    cursor: pointer;
+    font-weight: 800;
+}
+
+.battle .card-action-panel button:hover:not(:disabled) {
+    background: #f4efe3;
+}
+
+.battle .card-action-panel button:disabled {
+    cursor: default;
+
+    filter: grayscale(0.75);
+    opacity: 0.4;
+}
+
+.battle .selected-card-meta,
+.battle .utility-description,
+.battle .character-choice-info {
+    border: 1px solid #46505a;
+    border-radius: 5px;
+
+    background: #10161b;
+}
+
+.battle .selected-card-meta {
+    padding: 8px 10px;
+
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+}
+
+.battle .selected-card-meta span {
+    color: #91afd5;
+
+    font-size: 9px;
+    font-weight: 800;
+    text-transform: uppercase;
+    letter-spacing: 0.6px;
+}
+
+.battle .selected-card-meta strong {
+    color: #bd83ed;
+
+    font-size: 10px;
+    white-space: nowrap;
+}
+
+.battle .utility-description {
+    padding: 11px 12px;
+
+    display: flex;
+    flex-direction: column;
+    gap: 5px;
+
+    text-align: left;
+}
+
+.battle .utility-description strong {
+    color: var(--utility);
+
+    font-size: 10px;
+    letter-spacing: 0.5px;
+}
+
+.battle .utility-description span {
+    color: #c8d0d8;
+
+    font-size: 11px;
+    line-height: 1.4;
+}
+
+
+/* =========================================================
+   CARD CHOICE PANELS
+   ========================================================= */
+
+.battle .placement-picker-panel {
     width: fit-content;
-    min-width: 320px;
+    min-width: 300px;
     max-width: calc(100vw - 60px);
 }
 
-.character-picker-choices {
+.battle .placement-card-choices,
+.battle .discard-energy-card-choices {
     width: fit-content;
     max-width: 100%;
     margin: 0 auto;
+
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-wrap: wrap;
+    gap: 14px;
+}
+
+.battle .character-picker-panel {
+    width: fit-content;
+    min-width: 340px;
+    max-width: calc(100vw - 60px);
+}
+
+.battle .character-picker-choices {
+    width: fit-content;
+    max-width: 100%;
+    margin: 0 auto;
+
     display: flex;
     align-items: flex-start;
     justify-content: center;
@@ -1390,484 +2928,968 @@ else
     gap: 18px;
 }
 
-.character-choice {
+.battle .character-choice {
     width: 250px;
+
     display: flex;
     flex-direction: column;
     align-items: center;
     gap: 10px;
 }
 
-.character-choice-info {
+.battle .character-choice-info {
     width: 100%;
     padding: 11px 12px;
+
     display: flex;
     flex-direction: column;
     gap: 9px;
-    border: 1px solid #59636d;
-    border-radius: 7px;
-    background: #111820;
+
     text-align: left;
 }
 
-.character-choice-archetype {
+.battle .character-choice-archetype {
     padding-bottom: 7px;
-    border-bottom: 1px solid rgba(255, 255, 255, .12);
-    color: #8faee0;
+
+    border-bottom: 1px solid var(--line);
+
+    color: #91afd5;
+
     font-size: 10px;
-    font-weight: bold;
+    font-weight: 800;
     text-transform: uppercase;
-    letter-spacing: .7px;
+    letter-spacing: 0.7px;
 }
 
-.character-choice-ability {
+.battle .character-choice-ability {
     display: flex;
     flex-direction: column;
     gap: 3px;
 }
 
-.character-choice-ability strong {
+.battle .character-choice-ability strong {
     font-size: 10px;
-    letter-spacing: .3px;
+    letter-spacing: 0.3px;
 }
 
-.character-choice-ability span {
+.battle .character-choice-ability span {
     color: #c8d0d8;
+
     font-size: 10px;
     line-height: 1.35;
 }
 
-.character-choice-ability.entry strong { color: #e5cc67; }
-.character-choice-ability.passive strong { color: #b98adb; }
-.character-choice-ability.active strong { color: #81c784; }
+.battle .character-choice-ability.entry strong {
+    color: var(--placement-bright);
+}
 
-.pass-device-overlay {
+.battle .character-choice-ability.passive strong {
+    color: #b98adb;
+}
+
+.battle .character-choice-ability.active strong {
+    color: var(--utility);
+}
+
+
+/* =========================================================
+   COMPONENT POPUP LAYER
+
+   CardViewer and ReorderNodes are components with their own
+   internal panels. This fixed layer gives Deck Peek, Draw
+   Pool, and Reorder Nodes the same reliable viewport-level
+   stacking context as the Battle page's native dialogs.
+   ========================================================= */
+
+.battle .component-popup-layer {
+    position: fixed;
+    inset: 0;
+    z-index: 11000;
+
+    display: grid;
+    place-items: center;
+
+    padding: 20px;
+    overflow: auto;
+
+    background: rgba(4, 7, 10, 0.78);
+    backdrop-filter: blur(4px);
+}
+
+.battle .component-popup-layer > * {
+    position: relative;
+    z-index: 1;
+
+    max-width: calc(100vw - 40px);
+    max-height: calc(100dvh - 40px);
+}
+
+/* =========================================================
+   PASS DEVICE
+   ========================================================= */
+
+.battle .pass-device-overlay {
     position: fixed;
     inset: 0;
     z-index: 10000;
+
     padding: 20px;
+
     display: flex;
     align-items: center;
     justify-content: center;
-    background: rgba(7, 11, 15, .96);
+
+    background:
+        rgba(7, 11, 15, 0.96);
 }
 
-.pass-device-dialog {
+.battle .pass-device-dialog {
     width: min(420px, 100%);
     padding: 30px;
+
     display: flex;
     flex-direction: column;
     align-items: center;
-    border: 2px solid #777064;
-    border-radius: 12px;
-    background: #18232e;
-    color: #f4efe3;
+
+    border: 1px solid #68645b;
+    border-radius: 8px;
+
+    background:
+        linear-gradient(
+            145deg,
+            #1c252d,
+            #141b21
+        );
+
+    color: #f0eee8;
+
+    box-shadow:
+        0 20px 48px rgba(0, 0, 0, 0.48);
+
     text-align: center;
 }
 
-.pass-device-icon {
+.battle .pass-device-icon {
     margin-bottom: 10px;
-    color: #e5cc67;
+
+    color: var(--champion-gold);
+
     font-size: 42px;
-    font-weight: bold;
+    font-weight: 900;
 }
 
-.pass-device-dialog h2 {
+.battle .pass-device-dialog h2 {
     margin: 0 0 18px;
+
     font-size: 30px;
 }
 
-.pass-device-dialog p {
+.battle .pass-device-dialog p {
     margin: 5px 0;
+
     color: #c8d0d8;
 }
 
-.pass-player-name {
+.battle .pass-player-name {
     margin: 8px 0 16px;
-    color: #e5cc67;
+
+    color: var(--champion-gold);
     font-size: 25px;
 }
 
-.pass-warning {
+.battle .pass-warning {
     max-width: 320px;
     margin-bottom: 20px !important;
+
     font-size: 12px;
 }
 
-.pass-device-dialog button {
+.battle .pass-device-dialog button {
     width: min(280px, 100%);
     padding: 13px 18px;
-    border: 2px solid #9b9383;
-    border-radius: 7px;
-    background: #f4efe3;
+
+    border: 1px solid #77736a;
+    border-radius: 5px;
+
+    background: #e7e4dc;
     color: #222;
+
     cursor: pointer;
-    font-weight: bold;
+    font-weight: 800;
 }
 
-.finished-observation-label {
-    width: 100%;
-    padding: 12px 8px;
-    border: 1px solid #59636d;
-    border-radius: 6px;
-    background: rgba(255, 255, 255, .05);
-    color: #c8d0d8;
-    font-size: 10px;
-    font-weight: bold;
-    text-align: center;
-    text-transform: uppercase;
-    letter-spacing: .8px;
-}
 
-.tournament-champion-result {
+/* =========================================================
+   TOURNAMENT RESULTS
+   ========================================================= */
+
+.battle .tournament-champion-result {
     padding: 8px 0;
+
     display: flex;
     flex-direction: column;
     align-items: center;
     gap: 8px;
 }
 
-.champion-kicker {
-    color: #e5cc67;
+.battle .champion-kicker {
+    color: var(--champion-gold);
+
     font-size: 9px;
     font-weight: 900;
     letter-spacing: 1.6px;
 }
 
-.card-action-panel .champion-heading {
+.battle .card-action-panel .champion-heading {
     margin: 2px 0 4px;
+
     color: #f4efe3;
+
     font-size: 28px;
     text-transform: uppercase;
-    text-shadow: 0 0 15px rgba(229, 204, 103, .25);
 }
 
-.champion-title {
+.battle .champion-title {
     width: 100%;
     margin: 4px 0 8px;
     padding: 11px 14px;
-    border: 1px solid #b69d55;
-    border-radius: 7px;
-    background: rgba(229, 204, 103, .1);
-    color: #e5cc67;
+
+    border: 1px solid #a88f4d;
+    border-radius: 5px;
+
+    background:
+        rgba(214, 182, 93, 0.12);
+
+    color: var(--champion-gold);
+
     font-size: 17px;
     font-weight: 900;
     letter-spacing: 1.2px;
-    box-shadow: 0 0 15px rgba(229, 204, 103, .12);
 }
 
-.champion-quote {
+.battle .champion-quote {
     width: 100%;
     margin-top: 5px;
     padding: 11px 12px;
-    border-left: 3px solid #e5cc67;
-    background: rgba(255, 255, 255, .04);
+
+    border-left:
+        3px solid var(--champion-gold);
+
+    background:
+        rgba(255, 255, 255, 0.035);
+
     color: #c8d0d8;
+
     font-size: 11px;
     font-style: italic;
     line-height: 1.4;
 }
 
-/* Guided tutorial targets */
 
-.tutorial-target {
+/* =========================================================
+   TUTORIAL ATTENTION SYSTEM
+
+   Gold always overrides normal interaction colors.
+   Non-target UI can later be dimmed using tutorial-disabled.
+   ========================================================= */
+
+.battle .tutorial-focus {
     position: relative;
-    z-index: 5;
-    outline: 3px solid #e5cc67;
-    outline-offset: 4px;
-    box-shadow: 0 0 20px rgba(229, 204, 103, .5);
-    animation: tutorialPulse 1.2s ease-in-out infinite alternate;
+    z-index: 20;
+
+    outline:
+        3px solid var(--tutorial-gold) !important;
+    outline-offset: -3px;
+
+    box-shadow:
+        inset 0 0 22px rgba(255, 224, 120, 0.16),
+        0 0 17px rgba(255, 224, 120, 0.52) !important;
+
+    animation:
+        battleTutorialFocusPulse
+        1.15s
+        ease-in-out
+        infinite alternate !important;
 }
 
-.tutorial-disabled {
-    pointer-events: none;
-    filter: grayscale(.8);
-    opacity: .45;
+.battle .deck.tutorial-focus,
+.battle .discard.tutorial-focus {
+    z-index: 30;
+
+    border-color:
+        var(--tutorial-gold) !important;
+
+    outline:
+        3px solid var(--tutorial-gold) !important;
+    outline-offset: 5px !important;
+
+    filter: none !important;
+    opacity: 1 !important;
+
+    box-shadow:
+        0 0 0 2px rgba(8, 10, 12, 0.92),
+        0 0 0 6px rgba(255, 224, 120, 0.42),
+        0 0 24px rgba(255, 224, 120, 0.66) !important;
 }
 
-.tutorial-finish-label {
+.battle .hand-area.tutorial-focus {
+    z-index: 105;
+}
+
+.battle .tutorial-replacement-choice,
+.battle .tutorial-hand-card-target {
+    position: relative;
+    z-index: 25;
+
+    padding: 4px;
+
+    border:
+        3px solid var(--tutorial-gold) !important;
+    border-radius: 8px;
+
+    background:
+        rgba(255, 224, 120, 0.10);
+
+    outline:
+        2px solid var(--tutorial-gold) !important;
+    outline-offset: 3px;
+
+    box-shadow:
+        0 0 0 2px rgba(8, 10, 12, 0.92),
+        0 0 0 6px rgba(255, 224, 120, 0.40),
+        0 0 24px rgba(255, 224, 120, 0.66) !important;
+
+    animation:
+        battleTutorialChoicePulse
+        0.85s
+        ease-in-out
+        infinite alternate !important;
+}
+
+.battle .tutorial-hand-card-target .hand-card,
+.battle .hand-card.tutorial-hand-card-target {
+    border-color:
+        var(--tutorial-gold) !important;
+
+    outline:
+        3px solid var(--tutorial-gold) !important;
+    outline-offset: 4px !important;
+
+    box-shadow:
+        0 0 0 2px rgba(8, 10, 12, 0.92),
+        0 0 0 6px rgba(255, 224, 120, 0.40),
+        0 0 24px rgba(255, 224, 120, 0.66) !important;
+}
+
+.battle .tutorial-nonreplacement-choice,
+.battle .tutorial-hand-card-disabled,
+.battle .tutorial-disabled {
+    filter:
+        grayscale(0.90)
+        brightness(0.42) !important;
+
+    opacity: 0.34 !important;
+
+    pointer-events: none !important;
+}
+
+.battle .tutorial-finish-label {
     width: 100%;
     padding: 11px;
+
     border: 1px solid #4f9364;
-    border-radius: 6px;
-    background: rgba(81, 199, 132, .08);
+    border-radius: 5px;
+
+    background:
+        rgba(81, 199, 132, 0.08);
+
     color: #81c784;
+
     font-size: 10px;
-    font-weight: bold;
+    font-weight: 800;
     text-align: center;
 }
 
-@@keyframes tutorialPulse {
+/* ---------- TUTORIAL-ONLY SCALE ATTENTION ---------- */
+
+/*
+   Scaling is reserved for compact targets that can grow without
+   distorting the battlefield: cards, buttons, deck/discard piles,
+   phase chips, and small tutorial choices.
+*/
+
+.battle .tutorial-hand-card-target,
+.battle .tutorial-replacement-choice,
+.battle .deck.tutorial-focus,
+.battle .discard.tutorial-focus,
+.battle button.tutorial-focus,
+.battle .phase.tutorial-focus,
+.battle .attack-shell.tutorial-focus,
+.battle .character-shell.tutorial-focus {
+    transform-origin: center;
+
+    animation:
+        battleTutorialSmallTargetPulse
+        0.90s
+        ease-in-out
+        infinite alternate !important;
+}
+
+/* Large UI regions glow but never scale. */
+
+.battle.tutorial-focus,
+.battle .hand-area.tutorial-focus,
+.battle .log-panel.tutorial-focus,
+.battle .enemy-side.tutorial-focus,
+.battle .player-side.tutorial-focus,
+.battle .phase-bar.tutorial-focus {
+    transform: none !important;
+}
+
+@@keyframes battleTutorialSmallTargetPulse {
     from {
-        outline-color: rgba(229, 204, 103, .55);
-        box-shadow: 0 0 8px rgba(229, 204, 103, .2);
+        transform: scale(1);
     }
 
     to {
-        outline-color: #e5cc67;
-        box-shadow: 0 0 22px rgba(229, 204, 103, .6);
+        transform: scale(1.025);
     }
 }
 
-@@media (max-width: 1100px) {
-    .battle,
-    .battle.log-collapsed {
-        grid-template-columns: minmax(0, 1fr) 250px;
+@@keyframes battleTutorialFocusPulse {
+    from {
+        box-shadow:
+            inset 0 0 14px rgba(255, 224, 120, 0.10),
+            0 0 8px rgba(255, 224, 120, 0.30);
     }
 
-    .turn-details {
-        left: 12px;
-    }
-
-    .turn-owner {
-        right: 12px;
-    }
-
-    .phase {
-        padding: 7px 11px;
-        font-size: 13px;
+    to {
+        box-shadow:
+            inset 0 0 28px rgba(255, 224, 120, 0.20),
+            0 0 21px rgba(255, 224, 120, 0.68);
     }
 }
+
+@@keyframes battleTutorialChoicePulse {
+    from {
+        filter: brightness(1);
+    }
+
+    to {
+        filter: brightness(1.12);
+    }
+}
+
+
+/* =========================================================
+   COMPACT DESKTOP
+   ========================================================= */
+
+@@media (max-height: 820px) and (min-width: 901px) {
+    .battle {
+        --phase-row-height: 64px;
+        --hand-row-height: 64px;
+
+        min-height: 590px;
+    }
+
+    .battle .side {
+        padding-top: 10px;
+        padding-bottom: 10px;
+    }
+
+    .battle .phase {
+        min-width: 90px;
+        padding: 7px 12px;
+
+        font-size: 11px;
+    }
+
+    .battle .enemy-side > .player-info,
+    .battle .player-row > .player-info {
+        width: 190px;
+
+        transform:
+            translateY(-50%)
+            scale(0.92);
+
+        transform-origin: left center;
+    }
+
+    .battle:has(.phase.utility.active)
+    .hand-area .hand {
+        transform:
+            translateY(-102px)
+            scale(0.94);
+    }
+
+    .battle:has(.phase.utility.active)
+    .hand-area::after {
+        height: 168px;
+    }
+
+    .battle:has(.phase.utility.active)
+    .hand-area .hand-label {
+        top: -90px;
+    }
+
+    .battle:has(
+        .phase:is(
+            .placement,
+            .attack,
+            .end
+        ).active
+    )
+    .hand-area:hover:has(.hand-card:not(.empty))
+    .hand {
+        transform:
+            translateY(-102px)
+            scale(0.94);
+    }
+}
+
+
+/* =========================================================
+   MEDIUM DESKTOP
+   ========================================================= */
+
+@@media (max-width: 1180px) and (min-width: 901px) {
+    .battle {
+        --log-width: 270px;
+    }
+
+    .battle .log-header {
+        grid-template-columns:
+            minmax(0, 1fr)
+            auto
+            auto
+            34px;
+
+        gap: 4px;
+    }
+
+    .battle .log-header h2 {
+        font-size: 15px;
+    }
+
+    .battle .copy-log-button,
+    .battle .copy-replay-button {
+        padding-inline: 5px;
+
+        font-size: 7px;
+    }
+
+    .battle .log-toggle {
+        width: 34px;
+        min-width: 34px;
+    }
+
+    .battle .turn-details {
+        left: 14px;
+    }
+
+    .battle .turn-owner {
+        right: 14px;
+    }
+
+    .battle .phases {
+        gap: 13px;
+    }
+
+    .battle .phase {
+        min-width: 82px;
+        padding-inline: 10px;
+
+        font-size: 11px;
+    }
+
+    .battle .phase:not(:last-child)::after {
+        right: -10px;
+    }
+
+    .battle .enemy-side > .player-info,
+    .battle .player-row > .player-info {
+        left: 8px;
+    }
+
+    .battle .piles {
+        right: 4px;
+    }
+
+    .battle .enemy-side > .field,
+    .battle .player-field {
+        width: min(
+            560px,
+            calc(100% - 390px)
+        );
+    }
+}
+
+
+/* =========================================================
+   TABLET AND NARROW LAYOUT
+   ========================================================= */
 
 @@media (max-width: 900px) {
-    .placement-card-choices {
-        flex-wrap: wrap;
-    }
-
-    .placement-picker-panel {
-        width: min(760px, calc(100vw - 40px));
-    }
-
     .battle,
     .battle.log-collapsed {
+        --hand-row-height: auto;
+
         height: auto;
-        min-height: calc(100vh - 60px);
+        min-height:
+            calc(100dvh - var(--header-offset));
+
         grid-template-columns: 1fr;
-        grid-template-rows: auto auto auto auto auto;
+        grid-template-rows:
+            auto
+            auto
+            auto
+            auto
+            minmax(340px, auto);
+
         overflow: visible;
     }
 
-    .enemy-side { grid-column: 1; grid-row: 1; min-height: 230px; }
-    .phase-bar { grid-column: 1; grid-row: 2; min-height: 90px; }
-    .player-side { grid-column: 1; grid-row: 3; min-height: 250px; }
-    .hand-area { grid-column: 1; grid-row: 4; min-height: 190px; overflow-x: auto; }
-    .log-panel { grid-column: 1; grid-row: 5; min-height: 370px; border-left: 0; border-top: 3px solid #090c10; }
+    .battle .enemy-side {
+        grid-column: 1;
+        grid-row: 1;
 
-    .turn-details,
-    .turn-owner {
-        position: static;
+        min-height: 300px;
     }
 
-    .phase-bar {
+    .battle .phase-bar {
+        grid-column: 1;
+        grid-row: 2;
+
+        min-height: 94px;
+        padding: 10px 16px;
+
         flex-wrap: wrap;
         justify-content: space-between;
         gap: 10px;
     }
 
-    .phases {
-        order: 3;
-        width: 100%;
-    }
-}
+    .battle .player-side {
+        grid-column: 1;
+        grid-row: 3;
 
-@@media (max-width: 700px) {
-    .character-picker-panel {
-        width: min(440px, calc(100vw - 30px));
+        min-height: 320px;
     }
 
-    .character-picker-choices,
-    .character-choice {
-        width: 100%;
-    }
+    .battle .hand-area {
+        grid-column: 1;
+        grid-row: 4;
 
-    .side {
-        padding: 14px;
-    }
+        min-height: 190px;
 
-    .enemy-side > :first-child,
-    .player-info,
-    .piles {
-        position: static;
-    }
-
-    .enemy-side,
-    .player-row {
-        flex-direction: column;
-        gap: 14px;
-    }
-
-    .piles {
-        margin-top: 12px;
-    }
-
-    .hand {
-        justify-content: flex-start;
         overflow-x: auto;
     }
 
-    .hand-label {
-        position: static;
-        flex-shrink: 0;
+    .battle .log-panel {
+        grid-column: 1;
+        grid-row: 5;
+
+        min-height: 430px;
+
+        border-top: 1px solid var(--line);
+        border-left: 0;
     }
 
-    .phase {
+    .battle .turn-details,
+    .battle .turn-owner {
+        position: static;
+    }
+
+    .battle .phases {
+        order: 3;
+
+        width: 100%;
+    }
+
+    .battle .phase {
+        min-width: 0;
+
         flex: 1;
-        padding: 7px 4px;
-        font-size: 10px;
+    }
+
+    .battle .enemy-side > .player-info,
+    .battle .player-row > .player-info {
+        position: absolute;
+        left: 18px;
+
+        width: 196px;
+    }
+
+    .battle .enemy-side > .field,
+    .battle .player-field {
+        width: min(
+            560px,
+            calc(100% - 390px)
+        );
+    }
+
+    .battle .hand {
+        transform: none;
+
+        opacity: 1;
+        filter: none;
+    }
+
+    .battle .hand-area::after {
+        display: none;
+    }
+
+    .battle .hand-card.empty {
+        height: auto !important;
+        min-height: initial !important;
+
+        align-self: stretch;
+    }
+
+    .battle .placement-card-choices {
+        flex-wrap: wrap;
+    }
+
+    .battle .placement-picker-panel {
+        width: min(
+            760px,
+            calc(100vw - 40px)
+        );
+    }
+}
+
+
+/* =========================================================
+   MOBILE
+   ========================================================= */
+
+@@media (max-width: 700px) {
+    .battle .side {
+        padding: 14px 12px;
+    }
+
+    .battle .enemy-side,
+    .battle .player-row {
+        flex-direction: column;
+        gap: 16px;
+    }
+
+    .battle .enemy-side,
+    .battle .player-side {
+        padding-top: 18px;
+        padding-bottom: 18px;
+    }
+
+    .battle .enemy-side > .player-info,
+    .battle .player-row > .player-info {
+        position: static;
+
+        width: min(320px, 100%);
+
+        transform: none;
+    }
+
+    .battle .enemy-side > .field,
+    .battle .player-field {
+        width: 100%;
+        max-width: 100%;
+
+        justify-content: flex-start;
+
+        overflow-x: auto;
+        overflow-y: visible;
+
+        padding:
+            14px
+            8px
+            24px;
+    }
+
+    .battle .field {
+        gap: 14px;
+    }
+
+    .battle .piles {
+        position: static;
+
+        margin-top: 10px;
+
+        transform: none;
+    }
+
+    .battle .phase-bar {
+        align-items: stretch;
+    }
+
+    .battle .turn-details,
+    .battle .turn-owner {
+        align-self: center;
+    }
+
+    .battle .turn-details {
+        padding-left: 9px;
+    }
+
+    .battle .turn-details strong {
+        font-size: 15px;
+    }
+
+    .battle .initiative-owner {
+        font-size: 8px;
+    }
+
+    .battle .turn-owner {
+        padding: 6px 8px;
+
+        font-size: 9px;
+    }
+
+    .battle .phases {
+        gap: 5px;
+    }
+
+    .battle .phase {
+        padding: 8px 3px;
+
+        font-size: 9px;
+    }
+
+    .battle .phase:not(:last-child)::after {
+        display: none;
+    }
+
+    .battle .hand-area {
+        min-height: 185px;
+
+        padding:
+            32px
+            12px
+            10px;
+
+        justify-content: flex-start;
+    }
+
+    .battle .hand-label {
+        left: 16px;
+        top: 10px;
+
+        transform: none;
+    }
+
+    .battle .hand {
+        justify-content: flex-start;
+
+        overflow-x: auto;
+
+        padding-bottom: 6px;
+    }
+
+    .battle .character-picker-panel {
+        width: min(
+            440px,
+            calc(100vw - 24px)
+        );
+
+        min-width: 0;
+    }
+
+    .battle .character-picker-choices,
+    .battle .character-choice {
+        width: 100%;
+    }
+
+    .battle .card-action-overlay {
+        padding: 12px;
+    }
+
+    .battle .card-action-panel {
+        width: min(420px, 100%);
+        max-height: calc(100dvh - 24px);
+
+        padding: 20px 16px;
+    }
+}
+
+
+/* =========================================================
+   VERY SMALL SCREENS
+   ========================================================= */
+
+@@media (max-width: 480px) {
+    .battle .log-header {
+        grid-template-columns:
+            minmax(0, 1fr)
+            auto
+            auto
+            34px;
+
+        gap: 3px;
+    }
+
+    .battle .log-header h2 {
+        font-size: 14px;
+    }
+
+    .battle .copy-log-button,
+    .battle .copy-replay-button {
+        padding-inline: 4px;
+
+        font-size: 6px;
+    }
+
+    .battle .turn-details,
+    .battle .turn-owner {
+        width: 100%;
+
+        align-items: center;
+
         text-align: center;
     }
-}
-.tutorial-focus {
-    position: relative;
-    z-index: 20;
-    outline: 4px solid #e5cc67;
-    outline-offset: -4px;
-    box-shadow:
-        inset 0 0 24px rgba(229, 204, 103, .18),
-        0 0 12px rgba(229, 204, 103, .45),
-        0 0 32px rgba(229, 204, 103, .28);
-    animation:
-        tutorialFocusPulse
-        1.15s
-        ease-in-out
-        infinite alternate;
-}
 
-.deck.tutorial-focus,
-.discard.tutorial-focus {
-    z-index: 30;
-    outline: 4px solid #ffe078;
-    outline-offset: 6px;
-    filter: none;
-    opacity: 1;
-    box-shadow:
-        0 0 0 3px rgba(0, 0, 0, .48),
-        0 0 18px rgba(255, 224, 120, .75),
-        0 0 38px rgba(229, 204, 103, .42);
-}
-.hand-area.tutorial-focus {
-    z-index: 25;
-    outline: 5px solid #ffe078;
-    outline-offset: -7px;
-    box-shadow:
-        inset 0 0 30px rgba(229, 204, 103, .18),
-        0 0 18px rgba(255, 224, 120, .65),
-        0 0 40px rgba(229, 204, 103, .32);
-}
-.log-panel.tutorial-focus {
-    outline-offset: -5px;
-}
+    .battle .turn-details {
+        padding:
+            0
+            0
+            7px;
 
-@@keyframes tutorialFocusPulse {
-    from {
-        outline-color:
-            rgba(229, 204, 103, .65);
-
-        box-shadow:
-            inset 0 0 15px rgba(229, 204, 103, .10),
-            0 0 8px rgba(229, 204, 103, .28),
-            0 0 18px rgba(229, 204, 103, .18);
+        border-left: 0;
+        border-bottom:
+            2px solid rgba(214, 182, 93, 0.58);
     }
 
-    to {
-        outline-color:
-            #ffe078;
-
-        box-shadow:
-            inset 0 0 30px rgba(229, 204, 103, .23),
-            0 0 18px rgba(229, 204, 103, .60),
-            0 0 42px rgba(229, 204, 103, .36);
-    }
-}
-.tutorial-replacement-choice {
-    position: relative;
-    z-index: 2;
-    padding: 5px;
-    border: 3px solid #ffe078;
-    border-radius: 11px;
-    background: rgba(229, 204, 103, .12);
-    box-shadow:
-        0 0 0 3px rgba(0, 0, 0, .45),
-        0 0 18px rgba(255, 224, 120, .72),
-        0 0 36px rgba(229, 204, 103, .42);
-    animation:
-        tutorialReplacementPulse
-        .85s
-        ease-in-out
-        infinite alternate;
-}
-.tutorial-nonreplacement-choice {
-    filter: grayscale(.85);
-    opacity: .38;
-    pointer-events: none;
-}
-
-@@keyframes tutorialReplacementPulse {
-    from {
-        transform: scale(1);
-        border-color: rgba(255, 224, 120, .7);
-        box-shadow:
-            0 0 0 3px rgba(0, 0, 0, .4),
-            0 0 10px rgba(255, 224, 120, .4);
+    .battle .phases {
+        display: grid;
+        grid-template-columns:
+            1fr
+            1fr;
     }
 
-    to {
-        transform: scale(1.045);
-        border-color: #ffe078;
-        box-shadow:
-            0 0 0 3px rgba(0, 0, 0, .48),
-            0 0 22px rgba(255, 224, 120, .85),
-            0 0 42px rgba(229, 204, 103, .48);
-    }
-}
-.tutorial-hand-card-target {
-    position: relative;
-    z-index: 25;
-    padding: 4px;
-    border: 4px solid #ffe078;
-    border-radius: 11px;
-    background: rgba(229, 204, 103, .1);
-    box-shadow:
-        0 0 0 3px rgba(0, 0, 0, .45),
-        0 0 18px rgba(255, 224, 120, .78),
-        0 0 38px rgba(229, 204, 103, .44);
-    animation:
-        tutorialHandCardPulse
-        .85s
-        ease-in-out
-        infinite alternate;
-}
-
-.tutorial-hand-card-disabled {
-    filter: grayscale(.72);
-    opacity: .46;
-    pointer-events: none;
-}
-
-@@keyframes tutorialHandCardPulse {
-    from {
-        transform: scale(1);
-        border-color:
-            rgba(255, 224, 120, .7);
+    .battle .phase {
+        width: 100%;
     }
 
-    to {
-        transform: scale(1.045);
-        border-color:
-            #ffe078;
+    .battle .replay-buttons {
+        display: grid;
+        grid-template-columns:
+            1fr
+            1fr;
+    }
+
+    .battle .replay-buttons button {
+        width: 100%;
     }
 }
 </style>
+
 @code
 {
-    // ============================================================
     // 1. STATE / UI FIELDS
-    // ============================================================
 
     private bool logCollapsed, botIsActing, coinFlipAcknowledged, showLeaveMatchDialog;
+    private bool logCopied, replayCopied;
     private bool showCoinFlipDialog = true;
     private bool showPassDeviceDialog, allowNavigation, showZeroEnergyDialog;
-    private bool showZeroEnergyWarning, logCopied, surrendered, observingFinishedMatch;
+    private bool showZeroEnergyWarning, surrendered, observingFinishedMatch;
     private bool finishedTournamentMatch, showDeckAction, showCharacterPicker;
     private bool showFatiguedAttackActions, awaitingWandererEntry;
 
@@ -1892,13 +3914,34 @@ else
     private bool showDiscardForEnergyPicker;
     private int? discardForEnergyUtilitySlot;
 
+    [SupplyParameterFromQuery(Name = "replay")]
+    public bool Replay { get; set; }
 
-    // ============================================================
+    [SupplyParameterFromQuery(Name = "p1Deck")]
+    public int P1DeckIndex { get; set; }
+
+    [SupplyParameterFromQuery(Name = "p2Deck")]
+    public int P2DeckIndex { get; set; }
+
+    private ReplayMatchState? replayState;
+    private MatchState? liveMatchBeforeReplay;
+    private bool replayInitialized;
+
+private bool IsReplayMode =>
+    Replay &&
+    replayState != null;    
+
     // 2. LIFECYCLE / INITIALIZATION
-    // ============================================================
 
     protected override void OnInitialized()
     {
+
+        if (Replay)
+    {
+        InitializeReplay();
+        return;
+    }
+
         if (Session.CurrentMatch == null)
         {
             allowNavigation = true;
@@ -1935,11 +3978,258 @@ else
             "redPandaBattle.scrollLogToBottom",
             battleLogElement);
     }
+    private void InitializeReplay()
+{
+    if (replayInitialized)
+    {
+        return;
+    }
 
+    replayInitialized = true;
 
-    // ============================================================
+    string? replayData =
+        Session.PendingReplay;
+
+    if (string.IsNullOrWhiteSpace(replayData))
+    {
+        allowNavigation = true;
+        Navigation.NavigateTo("/simulator");
+        return;
+    }
+
+    List<BattleLogEntry> events;
+
+    try
+    {
+        events =
+            BattleLog.ImportReplay(
+                replayData)
+            .ToList();
+    }
+    catch
+    {
+        allowNavigation = true;
+        Navigation.NavigateTo("/simulator");
+        return;
+    }
+
+    if (events.Count == 0)
+    {
+        allowNavigation = true;
+        Navigation.NavigateTo("/simulator");
+        return;
+    }
+
+    if (P1DeckIndex < 0 ||
+        P1DeckIndex >= DeckManager.Decks.Count ||
+        P2DeckIndex < 0 ||
+        P2DeckIndex >= DeckManager.Decks.Count)
+    {
+        allowNavigation = true;
+        Navigation.NavigateTo("/simulator");
+        return;
+    }
+
+    Deck? player1Deck =
+        DeckManager.GetDeck(P1DeckIndex);
+
+    Deck? player2Deck =
+        DeckManager.GetDeck(P2DeckIndex);
+
+    if (player1Deck == null ||
+        player2Deck == null)
+    {
+        allowNavigation = true;
+        Navigation.NavigateTo("/simulator");
+        return;
+    }
+
+    string? recordedP1Fingerprint =
+        GetReplayDeckFingerprint(
+            replayData,
+            1);
+
+    string? recordedP2Fingerprint =
+        GetReplayDeckFingerprint(
+            replayData,
+            2);
+
+    string actualP1Fingerprint =
+        BattleLog.CreateDeckFingerprint(
+            player1Deck);
+
+    string actualP2Fingerprint =
+        BattleLog.CreateDeckFingerprint(
+            player2Deck);
+
+    if (string.IsNullOrWhiteSpace(
+            recordedP1Fingerprint) ||
+        string.IsNullOrWhiteSpace(
+            recordedP2Fingerprint) ||
+        !string.Equals(
+            recordedP1Fingerprint,
+            actualP1Fingerprint,
+            StringComparison.OrdinalIgnoreCase) ||
+        !string.Equals(
+            recordedP2Fingerprint,
+            actualP2Fingerprint,
+            StringComparison.OrdinalIgnoreCase))
+    {
+        allowNavigation = true;
+        Navigation.NavigateTo("/simulator");
+        return;
+    }
+
+    Player player1 =
+        new Player
+        {
+            Name = "Player 1",
+            IsBot = false,
+            Deck =
+                DeckCloner.Clone(
+                    player1Deck)
+        };
+
+    Player player2 =
+        new Player
+        {
+            Name = "Player 2",
+            IsBot = false,
+            Deck =
+                DeckCloner.Clone(
+                    player2Deck)
+        };
+
+    liveMatchBeforeReplay =
+        Session.CurrentMatch;
+
+    bool playerOneStarts =
+        events.FirstOrDefault()?.PlayerIndex != 2;
+
+    replayState =
+        new ReplayMatchState(
+            player1,
+            player2,
+            playerOneStarts,
+            events);
+
+    replayState.RebuildToCurrentEvent();
+
+    Session.CurrentMatch =
+        replayState.Match;
+
+    showCoinFlipDialog = false;
+    coinFlipAcknowledged = true;
+    showPassDeviceDialog = false;
+    botIsActing = false;
+    allowNavigation = true;
+
+    Session.PendingReplay = null;
+
+    StateHasChanged();
+}
+private static string? GetReplayDeckFingerprint(
+    string replay,
+    int playerIndex)
+{
+    string prefix =
+        $"DECK|{playerIndex}|";
+
+    string? line =
+        replay
+            .Split(
+                new[] { '\r', '\n' },
+                StringSplitOptions.RemoveEmptyEntries)
+            .FirstOrDefault(
+                value =>
+                    value.StartsWith(
+                        prefix,
+                        StringComparison.Ordinal));
+
+    if (line == null)
+    {
+        return null;
+    }
+
+    string[] parts =
+        line.Split('|');
+
+    if (parts.Length < 5)
+    {
+        return null;
+    }
+
+    return parts[4];
+}
+private IReadOnlyList<BattleLogEntry>
+    GetDisplayedBattleLog()
+{
+    if (!IsReplayMode)
+    {
+        return BattleLog.GetPhaseActions();
+    }
+
+    return replayState!
+        .Events
+        .Take(replayState.CurrentEventIndex)
+        .Where(entry => entry.ShowInLog)
+        .ToList()
+        .AsReadOnly();
+}
+private void ReplayStart()
+{
+    if (!IsReplayMode)
+        return;
+
+    replayState!.JumpToStart();
+    replayState.RebuildToCurrentEvent();
+
+    RefreshReplayDisplay();
+}
+
+private void ReplayPrevious()
+{
+    if (!IsReplayMode)
+        return;
+
+    if (!replayState!.MovePrevious())
+        return;
+
+    replayState.RebuildToCurrentEvent();
+
+    RefreshReplayDisplay();
+}
+
+private void ReplayNext()
+{
+    if (!IsReplayMode)
+        return;
+
+    if (!replayState!.MoveNext())
+        return;
+
+    replayState.RebuildToCurrentEvent();
+
+    RefreshReplayDisplay();
+}
+
+private void ReplayEnd()
+{
+    if (!IsReplayMode)
+        return;
+
+    replayState!.JumpToEnd();
+    replayState.RebuildToCurrentEvent();
+
+    RefreshReplayDisplay();
+}
+
+private void RefreshReplayDisplay()
+{
+    StateHasChanged();
+}
+
     // 3. TUTORIAL STATE / HELPERS
-    // ============================================================
 
     private bool IsGuidedTutorialBattle =>
         Session.Tutorial.IsActive &&
@@ -2130,10 +4420,7 @@ else
                TutorialAllowsCard(card);
     }
 
-
-    // ============================================================
     // 4. MAIN TURN / PHASE FLOW
-    // ============================================================
 
     private bool CanContinuePhase(
         Player player)
@@ -2159,13 +4446,7 @@ else
             return false;
         }
 
-        /*
-            DSA tutorials require at least one deployed
-            Attack before leaving the Placement Phase.
 
-            This creates an empty hand slot so the later
-            recycle and End Phase draw remain visible.
-        */
         if (IsDsaTutorialBattle &&
             match.CurrentPhase == MatchPhase.Placement &&
             !HasDeployedAttack(player))
@@ -2197,13 +4478,7 @@ else
         Player player =
             GetPresentedPlayer();
 
-        /*
-            Use the exact same condition as the button.
-
-            This prevents the UI from enabling Continue
-            while the handler silently rejects the click
-            through a different condition.
-        */
+        
         if (!CanContinuePhase(player))
             return;
 
@@ -2221,10 +4496,6 @@ else
         PhaseManager.CompleteCurrentPlayerPhase(
             match);
 
-        /*
-            Advance the Tutorial using the action captured
-            before the real phase changed.
-        */
         if (IsGuidedTutorialBattle &&
             actionBeforePhaseChange ==
                 TutorialAction.ContinuePhase)
@@ -2232,6 +4503,8 @@ else
             NotifyTutorialAction(
                 TutorialAction.ContinuePhase);
         }
+
+        await ResolveAutomaticEndPhase(match);
 
         if (MatchManager.IsMatchOver(
                 match.Player1,
@@ -2248,14 +4521,11 @@ else
             return;
         }
 
-        /*
-            If Stack Placement begins immediately after the
-            human phase transition, resolve it before Bot
-            processing only when the human is now acting.
-        */
         await RunAutomaticHumanPlacementIfNeeded();
 
         await RunBotIfNeeded();
+
+        await ResolveAutomaticEndPhase(match);
 
         if (MatchManager.IsMatchOver(
                 match.Player1,
@@ -2265,10 +4535,6 @@ else
             return;
         }
 
-        /*
-            The Bot may have advanced the match to a new
-            human Stack Placement Phase.
-        */
         await RunAutomaticHumanPlacementIfNeeded();
 
         await HandleTutorialPhaseTransition(
@@ -2276,6 +4542,44 @@ else
             previousTurn);
 
         StateHasChanged();
+    }
+
+    private async Task ResolveAutomaticEndPhase(
+        MatchState match)
+    {
+        const int maximumEndResolutions = 4;
+        int resolutionCount = 0;
+
+        while (!match.IsCompleted &&
+               !MatchManager.IsMatchOver(
+                   match.Player1,
+                   match.Player2) &&
+               match.CurrentPhase == MatchPhase.End &&
+               resolutionCount < maximumEndResolutions)
+        {
+            int turnBefore =
+                match.TurnNumber;
+
+            TutorialAction tutorialActionBeforeEnd =
+                RequiredTutorialAction;
+
+            PhaseManager.CompleteCurrentPlayerPhase(
+                match);
+
+            if (IsGuidedTutorialBattle &&
+                tutorialActionBeforeEnd ==
+                    TutorialAction.ContinuePhase)
+            {
+                NotifyTutorialAction(
+                    TutorialAction.ContinuePhase);
+            }
+
+            await HandleTutorialPhaseTransition(
+                MatchPhase.End,
+                turnBefore);
+
+            resolutionCount++;
+        }
     }
 
     private async Task HandleTutorialPhaseTransition(
@@ -2298,11 +4602,8 @@ else
             await ResolveDsaRecycleDemonstration();
         }
     }
-
-
-    // ============================================================
+    
     // 5. BOT TURN HANDLING
-    // ============================================================
 
     private async Task RunBotIfNeeded()
     {
@@ -2369,7 +4670,7 @@ else
                         break;
 
                     case MatchPhase.End:
-                        await BotThinkingDelay();
+                        // End is an automatic resolution phase.
                         break;
                 }
 
@@ -2388,13 +4689,6 @@ else
                     phaseBefore,
                     turnBefore);
 
-                /*
-                    DSA tutorials demonstrate one complete turn.
-
-                    After the Bot finishes Turn 1 End Phase,
-                    Initiative swaps and Turn 2 begins. Stop the
-                    Bot here so it cannot perform Turn 2 Utility.
-                */
                 if (IsDsaTutorialBattle &&
                     match.TurnNumber > turnBefore)
                 {
@@ -2404,6 +4698,8 @@ else
 
                 StateHasChanged();
             }
+
+            await ResolveAutomaticEndPhase(match);
         }
         finally
         {
@@ -2595,10 +4891,7 @@ else
         StateHasChanged();
     }
 
-
-    // ============================================================
     // 6. UTILITY PHASE
-    // ============================================================
 
     private bool CanSelectHandCard(
         Player player,
@@ -2775,10 +5068,6 @@ else
             return;
         }
 
-        /*
-            Discard For Energy requires the player
-            to choose another card from their hand first.
-        */
         if (card.Name == "Discard For Energy")
         {
             discardForEnergyUtilitySlot =
@@ -3192,11 +5481,7 @@ else
                 "No deck action available."
         };
 
-
-    // ============================================================
     // 7. PLACEMENT PHASE
-    // ============================================================
-
     private bool CanSelectPlacementAttack(
         Player player)
     {
@@ -3528,11 +5813,6 @@ else
 
         showFatiguedAttackActions = false;
 
-        /*
-            PlacementManager removes the Fatigued card.
-            Keep the selected field slot so the Attack
-            picker can now choose its replacement.
-        */
         StateHasChanged();
     }
 
@@ -3594,11 +5874,6 @@ else
 
     private void CloseCharacterPicker()
     {
-        /*
-            During the informational Wanderer-inspection
-            step, closing the picker would hide the card
-            required by the next deployment step.
-        */
         if (IsLearnToPlayBattle &&
             RequiredTutorialAction ==
                 TutorialAction.Acknowledge &&
@@ -3688,123 +5963,8 @@ else
         StateHasChanged();
     }
 
-
-    // ============================================================
     // 8. ATTACK PHASE / CHARACTER ABILITIES
-    // ============================================================
 
-    private bool CanInteractWithAttack(
-        Player player,
-        int slot)
-    {
-        MatchState? match =
-            Session.CurrentMatch;
-
-        if (match == null ||
-            IsBattleFinished ||
-            botIsActing ||
-            match.GetActingPlayer() != player ||
-            slot is not (1 or 2))
-        {
-            return false;
-        }
-
-        Card? attack =
-            slot == 1
-                ? player.AttackSlot1
-                : player.AttackSlot2;
-
-        if (match.CurrentPhase ==
-            MatchPhase.Placement)
-        {
-            if (IsDsaTutorialBattle)
-                return attack == null;
-
-            if (!IsGuidedTutorialBattle)
-                return true;
-
-            if (RequiredTutorialAction ==
-                TutorialAction.ResolveWandererEntry)
-            {
-                return attack != null;
-            }
-
-            if (RequiredTutorialAction ==
-                    TutorialAction.ReplaceAttack &&
-                IsLearnToPlayBattle)
-            {
-                return
-                    attack != null &&
-                    string.Equals(
-                        attack.Id,
-                        "AP4",
-                        StringComparison.OrdinalIgnoreCase);
-            }
-
-            if (RequiredTutorialAction ==
-                    TutorialAction.RestAttack &&
-                IsLearnToPlayBattle)
-            {
-                return
-                    attack != null &&
-                    TutorialAllowsCard(attack);
-            }
-
-            if (RequiredTutorialAction ==
-                TutorialAction.DeployAttack)
-            {
-                return attack == null;
-            }
-
-            return false;
-        }
-
-        if (match.CurrentPhase !=
-                MatchPhase.Attack ||
-            attack == null)
-        {
-            return false;
-        }
-
-        if (IsGuidedTutorialBattle &&
-            RequiredTutorialAction !=
-                TutorialAction.UseAttack)
-        {
-            return false;
-        }
-
-        if (IsLearnToPlayBattle &&
-            !TutorialAllowsCard(attack))
-        {
-            return false;
-        }
-
-        bool fatigued =
-            slot == 1
-                ? player.IsFatiguedSlot1
-                : player.IsFatiguedSlot2;
-
-        bool resting =
-            slot == 1
-                ? player.IsRestingSlot1
-                : player.IsRestingSlot2;
-
-        bool used =
-            slot == 1
-                ? player.AttackSlot1UsedThisPhase
-                : player.AttackSlot2UsedThisPhase;
-
-        int useCost =
-            slot == 1
-                ? player.AttackSlot1TotalUses
-                : player.AttackSlot2TotalUses;
-
-        return
-            !fatigued &&
-            !resting &&
-            !used &&
-            player.Energy >= useCost;
-    }
 
     private void HandleAttackCardClick(
         int slot)
@@ -3865,54 +6025,6 @@ else
         StateHasChanged();
     }
 
-    private bool CanInteractWithCharacter(
-        Player player)
-    {
-        MatchState? match =
-            Session.CurrentMatch;
-
-        if (match == null ||
-            IsBattleFinished ||
-            botIsActing ||
-            match.GetActingPlayer() != player)
-        {
-            return false;
-        }
-
-        if (match.CurrentPhase ==
-            MatchPhase.Placement)
-        {
-            if (!IsGuidedTutorialBattle)
-                return true;
-
-            return RequiredTutorialAction is
-                TutorialAction.DeployCharacter or
-                TutorialAction.ReplaceCharacter;
-        }
-
-        if (match.CurrentPhase !=
-                MatchPhase.Attack ||
-            player.ActiveCharacter == null)
-        {
-            return false;
-        }
-
-        if (IsGuidedTutorialBattle &&
-            RequiredTutorialAction !=
-                TutorialAction.UseCharacterAbility)
-        {
-            return false;
-        }
-
-        if (player.CharacterNewlyDeployed ||
-            player.AbilityUsedThisPhase ||
-            player.AbilityCooldownRemaining > 0)
-        {
-            return false;
-        }
-
-        return CanAffordCharacterAbility(player);
-    }
 
     private void HandleCharacterCardClick()
     {
@@ -4007,10 +6119,7 @@ else
         StateHasChanged();
     }
 
-
-    // ============================================================
-    // 9. DSA / DECK STRUCTURE TUTORIAL
-    // ============================================================
+    // 9. DSA / DECK STRUCTURE TUTORIAL  
 
     private void PrepareDsaTutorialBattle()
     {
@@ -4089,13 +6198,6 @@ else
         {
             return;
         }
-
-        /*
-            Empty only runtime storage. The field and hand
-            remain visible, while the saved discard cards
-            demonstrate how this deck structure receives
-            recycled cards.
-        */
         while (player.Deck.RuntimeStorage.Count > 0)
         {
             player.Deck.RuntimeStorage.Draw();
@@ -4120,12 +6222,6 @@ else
 
         int recycledCount =
             dsaRecycleCardCount;
-
-        /*
-            If cards remain in discard, the normal End
-            draw did not need them. Recycle them now
-            through the real structure's Add operation.
-        */
         if (player.DiscardPile.Count > 0)
         {
             List<Card> recycled =
@@ -4148,10 +6244,6 @@ else
         }
         else
         {
-            /*
-                DrawUntilHandSize already recycled the
-                discard pile during the real End Phase.
-            */
             BattleLog.WriteSystem(
                 GetRecycleLogMessage(
                     player.Deck.Structure,
@@ -4197,11 +6289,8 @@ else
         return
             $"{count} discarded card(s) recycled into {destination}.";
     }
-
-
-    // ============================================================
+    
     // 10. MATCH COMPLETION / SURRENDER
-    // ============================================================
 
     private bool IsBattleFinished
     {
@@ -4451,10 +6540,8 @@ else
         Navigation.NavigateTo("/");
     }
 
-
-    // ============================================================
     // 11. TOURNAMENT FLOW
-    // ============================================================
+  
 
     private bool IsTournamentMatch =>
         Session.Tournament.IsActive &&
@@ -4500,10 +6587,7 @@ else
         Navigation.NavigateTo("/tournament");
     }
 
-
-    // ============================================================
     // 12. NAVIGATION / POPUPS
-    // ============================================================
 
     private void HandleNavigationAway(
         LocationChangingContext context)
@@ -4546,10 +6630,7 @@ else
         discardForEnergyUtilitySlot = null;
     }
 
-
-    // ============================================================
     // 13. BATTLE LOG
-    // ============================================================
 
     private async Task ToggleLog()
     {
@@ -4592,13 +6673,22 @@ else
         };
     }
 
-    private async Task CopyBattleLog()
+private async Task CopyVisibleBattleLog()
 {
-    string replay = BattleLog.ExportReplay();
+    IReadOnlyList<BattleLogEntry> entries =
+        GetDisplayedBattleLog();
+
+    string log =
+        string.Join(
+            Environment.NewLine,
+            entries.Select(entry =>
+                string.IsNullOrWhiteSpace(entry.Label)
+                    ? entry.Message
+                    : $"{entry.Label}: {entry.Message}"));
 
     await JS.InvokeVoidAsync(
         "navigator.clipboard.writeText",
-        replay);
+        log);
 
     logCopied = true;
 
@@ -4611,20 +6701,43 @@ else
     await InvokeAsync(StateHasChanged);
 }
 
+private async Task CopyReplay()
+{
+    string replay =
+        BattleLog.ExportReplay();
 
-    // ============================================================
+    await JS.InvokeVoidAsync(
+        "navigator.clipboard.writeText",
+        replay);
+
+    replayCopied = true;
+
+    await InvokeAsync(StateHasChanged);
+
+    await Task.Delay(1500);
+
+    replayCopied = false;
+
+    await InvokeAsync(StateHasChanged);
+}
+
+
+    
     // 14. PRESENTED PLAYER / MATCH MODE
-    // ============================================================
+    
 
     private bool IsPassAndPlay()
-    {
-        if (Session.CurrentMatch == null)
-            return false;
+{
+    if (IsReplayMode)
+        return false;
 
-        return
-            !Session.CurrentMatch.Player1.IsBot &&
-            !Session.CurrentMatch.Player2.IsBot;
-    }
+    if (Session.CurrentMatch == null)
+        return false;
+
+    return
+        !Session.CurrentMatch.Player1.IsBot &&
+        !Session.CurrentMatch.Player2.IsBot;
+}
 
     private Player GetPresentedPlayer()
     {
@@ -4649,10 +6762,7 @@ else
             : match.Player1;
     }
 
-
-    // ============================================================
     // 15. UI / PHASE / TURN DISPLAY HELPERS
-    // ============================================================
 
     private RenderFragment PhaseBox(
         string name,
@@ -4778,49 +6888,245 @@ else
                 false
         };
     }
-
-    private bool HasLegalPlacementAction(
-        Player player)
+    private bool CanInteractWithAttack(
+    Player player,
+    int slot)
+{
+    if (Session.CurrentMatch == null ||
+        IsBattleFinished ||
+        botIsActing)
     {
-        if (HasUnresolvedFatigue(player))
-            return true;
-
-        foreach (HandSlot slot in player.HandSlots)
-        {
-            Card? card =
-                slot.CardInSlot;
-
-            if (card == null)
-                continue;
-
-            if (card.Type == CardType.Character)
-            {
-                int cost =
-                    player.CharacterDefeatedSinceLastPlacement
-                        ? 0
-                        : player.ActiveCharacter != null
-                            ? 4
-                            : card.Cost;
-
-                if (player.Energy >= cost)
-                    return true;
-            }
-
-            if (card.Type == CardType.Attack)
-            {
-                int cost =
-                    card.Cost;
-
-                if (player.DiscountActive)
-                    cost = Math.Max(0, cost - 1);
-
-                if (player.Energy >= cost)
-                    return true;
-            }
-        }
-
         return false;
     }
+
+    MatchState match =
+        Session.CurrentMatch;
+
+    if (match.GetActingPlayer() != player)
+    {
+        return false;
+    }
+
+    if (slot != 1 &&
+        slot != 2)
+    {
+        return false;
+    }
+
+    if (match.CurrentPhase == MatchPhase.Placement)
+    {
+        return HasLegalPlacementAttackAction(
+            player,
+            slot);
+    }
+
+    if (match.CurrentPhase != MatchPhase.Attack)
+    {
+        return false;
+    }
+
+    Card? attack =
+        slot == 1
+            ? player.AttackSlot1
+            : player.AttackSlot2;
+
+    if (attack == null)
+    {
+        return false;
+    }
+
+    bool fatigued =
+        slot == 1
+            ? player.IsFatiguedSlot1
+            : player.IsFatiguedSlot2;
+
+    bool resting =
+        slot == 1
+            ? player.IsRestingSlot1
+            : player.IsRestingSlot2;
+
+    bool usedThisPhase =
+        slot == 1
+            ? player.AttackSlot1UsedThisPhase
+            : player.AttackSlot2UsedThisPhase;
+
+    int useCost =
+        slot == 1
+            ? player.AttackSlot1TotalUses
+            : player.AttackSlot2TotalUses;
+
+    return
+        !fatigued &&
+        !resting &&
+        !usedThisPhase &&
+        player.Energy >= useCost;
+}
+
+
+private bool HasLegalPlacementAttackAction(
+    Player player,
+    int fieldSlot)
+{
+    if (fieldSlot != 1 &&
+        fieldSlot != 2)
+    {
+        return false;
+    }
+
+    bool isFatigued =
+        fieldSlot == 1
+            ? player.IsFatiguedSlot1
+            : player.IsFatiguedSlot2;
+
+    /*
+     * A Fatigued Attack must still be resolved through
+     * Rest, Emergency Rest, or Replace.
+     */
+    if (isFatigued)
+    {
+        return true;
+    }
+
+    foreach (HandSlot handSlot in player.HandSlots)
+    {
+        Card? card =
+            handSlot.CardInSlot;
+
+        if (card == null ||
+            card.Type != CardType.Attack)
+        {
+            continue;
+        }
+
+        int cost =
+            card.Cost;
+
+        if (player.DiscountActive)
+        {
+            cost =
+                Math.Max(
+                    0,
+                    cost - 1);
+        }
+
+        if (player.Energy >= cost)
+        {
+            return true;
+        }
+    }
+
+    return false;
+}
+
+
+private bool CanInteractWithCharacter(
+    Player player)
+{
+    if (Session.CurrentMatch == null ||
+        IsBattleFinished ||
+        botIsActing)
+    {
+        return false;
+    }
+
+    MatchState match =
+        Session.CurrentMatch;
+
+    if (match.GetActingPlayer() != player)
+    {
+        return false;
+    }
+
+    if (match.CurrentPhase == MatchPhase.Placement)
+    {
+        return HasLegalPlacementCharacterAction(
+            player);
+    }
+
+    if (match.CurrentPhase != MatchPhase.Attack)
+    {
+        return false;
+    }
+
+    if (player.ActiveCharacter == null)
+    {
+        return false;
+    }
+
+    if (player.CharacterNewlyDeployed ||
+        player.AbilityUsedThisPhase ||
+        player.AbilityCooldownRemaining > 0)
+    {
+        return false;
+    }
+
+    return CanAffordCharacterAbility(
+        player);
+}
+
+
+private bool HasLegalPlacementCharacterAction(
+    Player player)
+{
+    foreach (HandSlot handSlot in player.HandSlots)
+    {
+        Card? card =
+            handSlot.CardInSlot;
+
+        if (card == null ||
+            card.Type != CardType.Character)
+        {
+            continue;
+        }
+
+        int cost;
+
+        if (player.CharacterDefeatedSinceLastPlacement)
+        {
+            cost = 0;
+        }
+        else if (player.ActiveCharacter != null)
+        {
+            cost = 4;
+        }
+        else
+        {
+            cost =
+                card.Cost;
+        }
+
+        if (player.Energy >= cost)
+        {
+            return true;
+        }
+    }
+
+    return false;
+}
+
+
+private bool HasLegalPlacementAction(
+    Player player)
+{
+    bool slot1ActionAvailable =
+        HasLegalPlacementAttackAction(
+            player,
+            1);
+
+    bool slot2ActionAvailable =
+        HasLegalPlacementAttackAction(
+            player,
+            2);
+
+    bool characterActionAvailable =
+        HasLegalPlacementCharacterAction(
+            player);
+
+    return
+        slot1ActionAvailable ||
+        slot2ActionAvailable ||
+        characterActionAvailable;
+}
 
     private bool HasLegalAttackAction(
         Player player)
@@ -4851,10 +7157,7 @@ else
         return slot1 || slot2 || ability;
     }
 
-
-    // ============================================================
     // 16. ATTACK / CHARACTER HIGHLIGHT HELPERS
-    // ============================================================
 
     private bool ShouldHighlightAttack(
         Player player,
@@ -5078,10 +7381,7 @@ else
         return false;
     }
 
-
-    // ============================================================
     // 17. TUTORIAL VISUAL HIGHLIGHTS
-    // ============================================================
 
     private string GetTutorialFocusClass(
         params string[] targets)
@@ -5216,10 +7516,7 @@ else
         return "";
     }
 
-
-    // ============================================================
     // 18. NAVIGATION STATE / EXTERNAL NAVIGATION HELPERS
-    // ============================================================
 
     private bool ShouldConfirmExternalNavigation =>
         Session.CurrentMatch != null &&

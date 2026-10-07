@@ -2,446 +2,1019 @@
 
 @if (Slot.IsEmpty)
 {
-    <div class="hand-card empty">
-
-        <span class="empty-title">
-            EMPTY
-        </span>
-
-        <small>
-            Slot @Slot.SlotNumber
-        </small>
-
+    <div class="hand-empty-card">
+        <span>EMPTY</span>
+        <small>Slot @Slot.SlotNumber</small>
     </div>
 }
 else
 {
     Card card = Slot.CardInSlot!;
 
-<div class="hand-card @GetTypeClass(card) @GetInteractionClass()"
-     @onclick="HandleClick">
-
-        <div class="type-accent"></div>
-
-        <div class="card-header">
-
-            <strong class="card-name">
-                @card.Name
-            </strong>
-
-            <span class="card-type">
-                @card.Type
-            </span>
-
-        </div>
-
-        <div class="card-divider"></div>
-
-
-        <div class="cost-row">
-
-            <span class="stat-label">
-                COST
-            </span>
-
-            <span class="cost-value">
-                @card.Cost
-            </span>
-
-        </div>
-
-
+    <div class="hand-card-wrap @GetInteractionClass()"
+         @onclick="HandleClick">
         @if (card.Type == CardType.Attack)
         {
-            <div class="stats-area">
-
-                <div class="stat-box">
-
-                    <span class="stat-label">
-                        DAMAGE
+            <article class="hand-attack-card @GetArchetypeClass(card)">
+                <header class="attack-header">
+                    <strong class="attack-title">@card.Name</strong>
+                    <span class="attack-chip @GetArchetypeClass(card)">
+                        <span aria-hidden="true">@GetAttackMark(card)</span>
+                        @GetAttackTypeLabel(card)
                     </span>
+                </header>
 
-                    <strong>
-                        @card.Damage
-                    </strong>
-
+                <div class="attack-primary-stats">
+                    <div class="attack-stat damage-stat">
+                        <span>DAMAGE</span>
+                        <strong>@card.Damage</strong>
+                    </div>
+                    <div class="attack-stat hits-stat">
+                        <span>HITS</span>
+                        <strong>@card.Hits</strong>
+                    </div>
                 </div>
 
-                <div class="stat-box">
+                @if (GetAttackTraits(card).Count > 0)
+                {
+                    <div class="attack-traits">
+                        @foreach (HandAttackTrait trait in GetAttackTraits(card))
+                        {
+                            <div class="attack-trait @trait.CssClass">
+                                <span aria-hidden="true">@trait.Icon</span>
+                                <strong>@trait.Label</strong>
+                            </div>
+                        }
+                    </div>
+                }
 
-                    <span class="stat-label">
-                        HITS
-                    </span>
-
-                    <strong>
-                        @card.Hits
-                    </strong>
-
-                </div>
-
-            </div>
+                <footer class="attack-footer">
+                    <div class="attack-footer-item">
+                        <span>DEPLOY COST</span>
+                        <strong><b class="energy-icon">◆</b>@card.Cost</strong>
+                    </div>
+                    <div class="attack-footer-item">
+                        <span>BASE USES</span>
+                        <strong>2 / 2</strong>
+                    </div>
+                </footer>
+            </article>
         }
-
-
-        @if (card.Type == CardType.Character)
+        else if (card.Type == CardType.Character)
         {
-            <div class="stats-area">
-
-                <div class="stat-box">
-
-                    <span class="stat-label">
-                        HP
-                    </span>
-
-                    <strong class="hp-value">
-                        @card.HpValue
-                    </strong>
-
+            <article class="hand-character-card">
+                <div class="hand-ability-rail" aria-hidden="true">
+                    <span class="entry-rail"></span>
+                    <span class="passive-rail"></span>
+                    <span class="active-rail"></span>
                 </div>
 
-                <div class="stat-box">
-
-                    <span class="stat-label">
-                        SHIELD
+                <header class="character-header">
+                    <strong class="character-title">@card.Name</strong>
+                    <span class="character-chip @GetCharacterArchetypeClass(card)">
+                        @card.Archetype
                     </span>
+                </header>
 
-                    <strong class="shield-value">
-                        @card.ShieldValue
-                    </strong>
-
+                <div class="character-art">
+                    <span aria-hidden="true">@GetCharacterMark(card)</span>
                 </div>
 
-            </div>
+                <div class="character-deploy-cost" title="Deployment cost">
+                    <span class="energy-icon">◆</span>
+                    <strong>@card.Cost</strong>
+                </div>
+
+                <footer class="character-values">
+                    <div class="character-orb hp-orb" title="Base HP">
+                        <span aria-hidden="true">♥</span>
+                        <strong>@card.HpValue</strong>
+                    </div>
+                    <div class="character-orb shield-orb" title="Base Shield">
+                        <span class="shield-symbol" aria-hidden="true">⬢</span>
+                        <strong>@card.ShieldValue</strong>
+                    </div>
+                </footer>
+            </article>
+
+            <aside class="hand-character-info" aria-label="Character ability information">
+                <div class="info-heading">
+                    <strong>@card.Name</strong>
+                    <span>@card.Archetype Character</span>
+                </div>
+                <section class="info-ability entry-info">
+                    <strong>ENTRY · @CharacterInfo.GetEntryName(card)</strong>
+                    <span>@CharacterInfo.GetEntryDescription(card)</span>
+                </section>
+                <div class="info-divider"></div>
+                <section class="info-ability passive-info">
+                    <strong>PASSIVE · @CharacterInfo.GetPassiveName(card)</strong>
+                    <span>@CharacterInfo.GetPassiveDescription(card)</span>
+                </section>
+                <div class="info-divider"></div>
+                <section class="info-ability active-info">
+                    <strong>ACTIVE · @CharacterInfo.GetActiveName(card)</strong>
+                    <span>@CharacterInfo.GetActiveDescription(card)</span>
+                    <div class="active-meta">
+                        <span>Cost: @CharacterInfo.GetActiveCost(card) Energy</span>
+                        <span>Cooldown: @card.AbilityCooldown</span>
+                    </div>
+                </section>
+            </aside>
         }
-
-
-        @if (card.Type == CardType.Utility)
+        else
         {
-            <div class="utility-area">
+            <article class="hand-utility-card @GetUtilityArchetypeClass(card)">
+                <header class="utility-header">
+                    <strong class="utility-title">@card.Name</strong>
+                    <span class="utility-chip">
+                        <span aria-hidden="true">✦</span>
+                        UTILITY
+                    </span>
+                </header>
 
-                <span class="utility-label">
-                    UTILITY
-                </span>
+                <div class="utility-art" aria-label="@card.Name icon">
+                    <span aria-hidden="true">@GetUtilityIcon(card)</span>
+                </div>
 
-                <small>
-                    Click for actions
-                </small>
+                <div class="utility-effect">
+                    @UtilityInfo.GetDescription(card)
+                </div>
 
-            </div>
+<footer class="utility-footer">
+    <span class="utility-cost-label">
+        DEPLOY COST
+    </span>
+
+    <strong class="utility-cost-value">
+        <b class="energy-icon">◆</b>
+        @card.Cost
+    </strong>
+</footer>
+            </article>
         }
-
-
-        <div class="slot-number">
-            SLOT @Slot.SlotNumber
-        </div>
-
     </div>
 }
 
-
 <style>
-    .hand-card {
+    .hand-card-wrap {
         position: relative;
-
-        width: 140px;
-        min-height: 150px;
-
-        box-sizing: border-box;
-        flex-shrink: 0;
-
-        padding: 10px;
-
-        overflow: hidden;
-
-        border: 2px solid #655d51;
+        width: clamp(152px, 10vw, 176px);
+        height: clamp(210px, 13.7vw, 238px);
+        flex: 0 0 auto;
+        overflow: visible;
+        border: 2px solid #7f7668;
         border-radius: 10px;
-
-        background:
-            linear-gradient(
-                145deg,
-                #fff9e9 0%,
-                #eee4cd 100%
-            );
-
-        color: #25221d;
-
-        display: flex;
-        flex-direction: column;
-
-        text-align: center;
-
-        box-shadow:
-            0 4px 10px rgba(0, 0, 0, 0.22);
-
-        transition:
-            transform 0.14s ease,
-            border-color 0.14s ease,
-            box-shadow 0.14s ease,
-            filter 0.14s ease,
-            opacity 0.14s ease;
+        background: #f4efe3;
+        color: #22262a;
+        box-shadow: 0 6px 14px rgba(0, 0, 0, .27);
+        transition: transform .14s ease, border-color .14s ease,
+                    box-shadow .14s ease, filter .14s ease, opacity .14s ease;
     }
 
-
-    /* CARD TYPE ACCENT */
-
-    .type-accent {
-        position: absolute;
-
-        top: 0;
-        left: 0;
-
-        width: 100%;
-        height: 5px;
-    }
-
-.hand-character .type-accent {
-    background: #c94a4f;
-}
-
-.hand-attack .type-accent {
-    background: #d47a32;
-}
-
-.hand-utility .type-accent {
-    background: #6655c7;
-}
-
-    /* HEADER */
-
-    .card-header {
-        min-height: 40px;
-
-        margin-top: 3px;
-
-        display: flex;
-        flex-direction: column;
-
-        align-items: center;
-        justify-content: center;
-    }
-
-    .card-name {
-        font-size: 13px;
-        line-height: 1.1;
-
-        overflow-wrap: normal;
-        word-break: normal;
-    }
-
-    .card-type {
-        margin-top: 4px;
-
-        color: #766d60;
-
-        font-size: 8px;
-        font-weight: bold;
-
-        text-transform: uppercase;
-        letter-spacing: 0.7px;
-    }
-
-    .card-divider {
-        height: 1px;
-
-        margin: 4px 0 7px;
-
-        background: rgba(65, 58, 48, 0.25);
-    }
-
-
-    /* COST */
-
-    .cost-row {
-        display: flex;
-
-        justify-content: space-between;
-        align-items: center;
-
-        padding: 0 3px 6px;
-    }
-
-    .stat-label {
-        color: #6c6358;
-
-        font-size: 8px;
-        font-weight: bold;
-
-        letter-spacing: 0.5px;
-    }
-
-    .cost-value {
-        min-width: 24px;
-
-        padding: 2px 6px;
-
-        border-radius: 8px;
-
-        background: rgba(160, 65, 221, 0.12);
-        color: #9735d3;
-
-        font-size: 14px;
-        font-weight: bold;
-    }
-
-
-    /* ATTACK / CHARACTER STATS */
-
-    .stats-area {
-        display: grid;
-        grid-template-columns: 1fr 1fr;
-
-        gap: 6px;
-
-        margin-top: 2px;
-    }
-
-    .stat-box {
-        min-height: 40px;
-
-        padding: 4px;
-
-        display: flex;
-        flex-direction: column;
-
-        align-items: center;
-        justify-content: center;
-
-        border-radius: 7px;
-
-        background: rgba(67, 58, 48, 0.07);
-    }
-
-    .stat-box strong {
-        margin-top: 2px;
-
-        font-size: 14px;
-    }
-
-    .hp-value {
-        color: #c6313b;
-    }
-
-    .shield-value {
-        color: #27894a;
-    }
-
-
-    /* UTILITY */
-
-    .utility-area {
-        margin-top: 3px;
-
-        padding: 9px 6px;
-
-        display: flex;
-        flex-direction: column;
-
-        gap: 2px;
-
-        border-radius: 7px;
-
-        background: rgba(102, 85, 199, 0.10);
-    }
-
-    .utility-label {
-        color: #5a49aa;
-
-        font-size: 10px;
-        font-weight: bold;
-
-        letter-spacing: 0.6px;
-    }
-
-    .utility-area small {
-        color: #716a78;
-
-        font-size: 8px;
-    }
-
-
-    /* SLOT */
-
-    .slot-number {
-        margin-top: auto;
-        padding-top: 7px;
-
-        color: #857c70;
-
-        font-size: 8px;
-        font-weight: bold;
-
-        letter-spacing: 0.5px;
-    }
-
-
-    /* CLICKABLE / USABLE */
-
-    .hand-card.clickable {
+    .hand-card-wrap.clickable {
         cursor: pointer;
     }
 
-    .hand-card.clickable:hover {
-        transform: translateY(-5px);
-
+    .hand-card-wrap.clickable:hover {
+        z-index: 40;
+        transform: translateY(-7px);
         border-color: #c7b98f;
-
-        box-shadow:
-            0 8px 16px rgba(0, 0, 0, 0.30);
+        box-shadow: 0 11px 22px rgba(0, 0, 0, .34);
     }
 
-
-    /* DISABLED / UNUSABLE */
-
-    .hand-card.disabled {
+    .hand-card-wrap.disabled {
         cursor: default;
-
-        filter: grayscale(0.8);
-        opacity: 0.53;
-
-        box-shadow:
-            0 2px 5px rgba(0, 0, 0, 0.16);
+        filter: grayscale(.72);
+        opacity: .53;
     }
 
-    .hand-card.disabled .type-accent {
-        background: #888888;
+   .hand-empty-card {
+    width: clamp(132px, 8.8vw, 150px);
+    height: 64px;
+
+    box-sizing: border-box;
+    align-self: flex-end;
+    flex: 0 0 auto;
+
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 4px;
+
+    border: 2px dashed rgba(255, 255, 255, .28);
+    border-radius: 10px;
+
+    background: rgba(255, 255, 255, .035);
+    color: rgba(255, 255, 255, .45);
+}
+
+
+    .hand-empty-card span {
+        font-size: 11px;
+        font-weight: 900;
     }
 
-    .hand-card.disabled .cost-value,
-    .hand-card.disabled .hp-value,
-    .hand-card.disabled .shield-value,
-    .hand-card.disabled .utility-label {
-        color: #666666;
+    .hand-empty-card small {
+        font-size: 8px;
+        opacity: .7;
     }
 
+    /* ==================== ATTACK ==================== */
 
-    /* EMPTY SLOT */
+    .hand-attack-card,
+    .hand-utility-card {
+        position: absolute;
+        inset: 0;
+        min-width: 0;
+        min-height: 0;
+        padding: 4px 7px 9px 10px;
+        display: flex;
+        flex-direction: column;
+        gap: 6px;
+        overflow: hidden;
+        border-radius: 8px;
+        background: linear-gradient(155deg, #fffaf0 0%, #eee5d3 100%);
+    }
+    .hand-utility-card {
+    padding-bottom: 9px;
+}
 
-    .hand-card.empty {
+    .hand-attack-card::before,
+    .hand-utility-card::before {
+        content: "";
+        position: absolute;
+        inset: 0 auto 0 0;
+        width: 5px;
+        background: #717981;
+    }
+
+    .hand-attack-card.archetype-magic::before {
+        background: #386fc8;
+    }
+
+    .hand-attack-card.archetype-physical::before {
+        background: #c84f4f;
+    }
+
+    .attack-header {
+        width: 100%;
+        min-width: 0;
+        min-height: 49px;
+        padding: 1px 2px 0;
+        display: grid;
+        grid-template-rows: minmax(18px, auto) 23px;
+        justify-items: center;
+        align-items: center;
+        gap: 5px;
+        text-align: center;
+    }
+
+    .attack-title {
+        width: 100%;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+        padding-top: 2px;
+        font-size: clamp(12px, .84vw, 15px);
+        line-height: 1.25;
+    }
+
+    .attack-chip {
+        min-height: 23px;
+        padding: 4px 10px 4px 8px;
+        display: inline-flex;
         align-items: center;
         justify-content: center;
+        gap: 6px;
+        border-radius: 999px;
+        color: #fff;
+        font-size: 7px;
+        font-weight: 900;
+        line-height: 1;
+        letter-spacing: .48px;
+        text-transform: uppercase;
+        white-space: nowrap;
+    }
 
+    .attack-chip.archetype-magic {
+        background: #386fc8;
+    }
+
+    .attack-chip.archetype-physical {
+        background: #b94747;
+    }
+
+    .attack-chip.archetype-neutral {
+        background: #666e76;
+    }
+
+    .attack-chip > span {
+        width: 13px;
+        font-size: 9px;
+    }
+
+    .attack-primary-stats {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 6px;
+    }
+
+    .attack-stat {
+        min-width: 0;
+        min-height: 46px;
+        padding: 5px 4px;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        border: 1px solid rgba(65, 58, 48, .1);
+        border-radius: 7px;
+        background: rgba(67, 58, 48, .07);
+    }
+
+    .attack-stat span,
+    .attack-footer-item > span,
+    .utility-footer div > span {
+        color: #716b63;
+        font-size: 6px;
+        font-weight: 900;
+        letter-spacing: .7px;
+        white-space: nowrap;
+    }
+
+    .attack-stat strong {
+        margin-top: 1px;
+        font-size: 17px;
+        line-height: 1;
+    }
+
+    .damage-stat strong {
+        color: #bf3f47;
+    }
+
+    .hits-stat strong {
+        color: #3479aa;
+    }
+
+    .attack-traits {
+        min-height: 32px;
+        display: flex;
+        flex-wrap: wrap;
+        align-items: center;
+        justify-content: center;
         gap: 5px;
-
-        border: 2px dashed rgba(255, 255, 255, 0.28);
-
-        background: rgba(255, 255, 255, 0.035);
-
-        box-shadow: none;
-
-        color: rgba(255, 255, 255, 0.45);
     }
 
-    .empty-title {
+    .attack-trait {
+        padding: 4px 8px;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        gap: 5px;
+        border: 1px solid rgba(79, 74, 68, .24);
+        border-radius: 7px;
+        background: rgba(67, 58, 48, .085);
+        color: #443e38;
+    }
+
+    .attack-trait > span {
+        width: 19px;
+        height: 19px;
+        display: grid;
+        place-items: center;
+        border-radius: 50%;
         font-size: 11px;
-        font-weight: bold;
+        font-weight: 900;
     }
 
-    .hand-card.empty small {
+    .attack-trait strong {
+        font-size: 7.5px;
+        line-height: 1;
+        letter-spacing: .42px;
+        text-transform: uppercase;
+        white-space: nowrap;
+    }
+
+    .trait-piercing > span {
+        color: #2876a8;
+        background: rgba(40, 118, 168, .13);
+    }
+
+    .trait-multi-hit > span {
+        color: #7359b4;
+        background: rgba(115, 89, 180, .13);
+    }
+
+    .trait-instant-fatigue > span {
+        color: #bd424a;
+        background: rgba(189, 66, 74, .13);
+    }
+
+    .attack-footer {
+        margin-top: auto;
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 7px;
+    }
+
+    .attack-footer-item {
+        min-height: 42px;
+        padding: 7px 4px 6px;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        gap: 3px;
+        border: 1px solid rgba(65, 58, 48, .15);
+        border-radius: 7px;
+        background: rgba(67, 58, 48, .065);
+    }
+
+    .attack-footer-item strong {
+        display: inline-flex;
+        align-items: center;
+        gap: 3px;
+        color: #364049;
+        font-size: 12px;
+        line-height: 1;
+    }
+
+    .attack-footer-item:first-child strong {
+        color: #71329a;
+    }
+
+    .energy-icon {
+        color: #9b45d2;
+        font-size: 11px;
+        font-style: normal;
+    }
+
+    /* ==================== CHARACTER ==================== */
+
+    .hand-character-card {
+        position: absolute;
+        inset: 0;
+        z-index: 2;
+        padding: 7px 12px 9px 10px;
+        display: flex;
+        flex-direction: column;
+        gap: 7px;
+        overflow: hidden;
+        border-radius: 8px;
+        background: linear-gradient(155deg, #fffaf0 0%, #eee4cf 100%);
+    }
+
+    .hand-ability-rail {
+        position: absolute;
+        inset: 0 0 0 auto;
+        z-index: 3;
+        width: 7px;
+        display: grid;
+        grid-template-rows: 1fr 1fr 1fr;
+    }
+
+    .entry-rail {
+        background: #e4a82f;
+    }
+
+    .passive-rail {
+        background: #8c58c7;
+    }
+
+    .active-rail {
+        background: #35c759;
+    }
+
+    .character-header {
+        min-width: 0;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        gap: 4px;
+        text-align: center;
+    }
+
+    .character-title {
+        width: 100%;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+        font-size: clamp(14px, .95vw, 17px);
+        line-height: 1.2;
+    }
+
+    .character-chip {
+        padding: 4px 9px;
+        border-radius: 999px;
+        color: #fff;
+        font-size: 7px;
+        font-weight: 900;
+        line-height: 1;
+        letter-spacing: .5px;
+        text-transform: uppercase;
+    }
+
+    .character-chip.magic {
+        background: #3475d2;
+    }
+
+    .character-chip.physical {
+        background: #b94747;
+    }
+
+    .character-chip.neutral {
+        background: #6c747c;
+    }
+
+    .character-art {
+        min-height: 0;
+        flex: 1;
+        margin-bottom: 3px;
+        display: grid;
+        place-items: center;
+        overflow: hidden;
+        border: 1px solid rgba(81, 70, 52, .18);
+        border-radius: 8px 8px 3px 3px;
+        background:
+            radial-gradient(
+                circle at 50% 48%,
+                rgba(214, 182, 93, .22),
+                transparent 58%
+            ),
+            repeating-linear-gradient(
+                135deg,
+                rgba(70, 58, 42, .045) 0,
+                rgba(70, 58, 42, .045) 1px,
+                transparent 1px,
+                transparent 7px
+            ),
+            rgba(82, 67, 45, .055);
+    }
+
+    .character-art > span {
+        color: rgba(136, 103, 38, .48);
+        font-size: 42px;
+        font-weight: 900;
+        line-height: 1;
+    }
+
+    /* Vertical Character deployment-cost pill */
+
+    .character-deploy-cost {
+        position: absolute;
+        left: 50%;
+        bottom: 2px;
+        z-index: 6;
+
+        width: 30px;
+        height: 48px;
+        padding: 3px 0;
+
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        gap: 2px;
+
+        box-sizing: border-box;
+
+        border: 2px solid #66566f;
+        border-radius: 15px 15px 8px 8px;
+
+        background:
+            linear-gradient(
+                180deg,
+                #f4e4ff 0%,
+                #b786d2 100%
+            );
+
+        color: #4f2368;
+
+        box-shadow:
+            inset 0 1px 0 rgba(255, 255, 255, .55),
+            0 3px 7px rgba(0, 0, 0, .25);
+
+        transform: translateX(-50%);
+    }
+
+    .character-deploy-cost .energy-icon {
+        color: #8e3fc0;
+        font-size: 10px;
+        line-height: 1;
+    }
+
+    .character-deploy-cost strong {
+        color: #4f2368;
+        font-size: 16px;
+        font-weight: 950;
+        line-height: 1;
+    }
+
+    .character-values {
+        position: relative;
+        z-index: 5;
+        height: 0;
+    }
+
+    .character-orb {
+        position: absolute;
+        bottom: -7px;
+        width: 49px;
+        height: 49px;
+        display: grid;
+        place-items: center;
+        overflow: hidden;
+        border: 3px solid #5e5549;
+        border-radius: 50% 50% 10px 10px;
+        box-shadow:
+            inset 0 2px 0 rgba(255, 255, 255, .75),
+            0 4px 8px rgba(0, 0, 0, .32);
+    }
+
+    .hp-orb {
+        left: -3px;
+        background: linear-gradient(180deg, #f7dade, #c93d4b);
+    }
+
+    .shield-orb {
+        right: -3px;
+        background: linear-gradient(180deg, #dbeafa, #3d7db4);
+    }
+
+    .character-orb > span {
+        position: absolute;
+        top: 4px;
+        left: 50%;
+        color: rgba(255, 255, 255, .88);
+        font-size: 10px;
+        transform: translateX(-50%);
+    }
+
+    .character-orb .shield-symbol {
+        font-size: 12px;
+    }
+
+    .character-orb strong {
+        position: relative;
+        z-index: 2;
+        margin-top: 8px;
+        color: #fff;
+        font-size: 23px;
+        font-weight: 950;
+        line-height: 1;
+        text-shadow:
+            0 1px 0 rgba(0, 0, 0, .48),
+            0 2px 4px rgba(0, 0, 0, .32);
+    }
+
+    /* Character information window: leave this section intact */
+
+    .hand-character-info {
+        position: absolute !important;
+        top: 50% !important;
+        left: calc(100% + 12px) !important;
+        z-index: 100 !important;
+        width: 310px !important;
+        height: auto !important;
+        max-height: 280px;
+        padding: 12px 14px !important;
+        display: flex !important;
+        flex-direction: column !important;
+        align-items: stretch !important;
+        gap: 7px !important;
+        overflow-x: hidden !important;
+        overflow-y: auto !important;
+        border: 2px solid #766b5b !important;
+        border-radius: 10px !important;
+        background: linear-gradient(155deg, #fffaf0, #eee4cf) !important;
+        color: #25211d !important;
+        box-shadow: 0 15px 34px rgba(0, 0, 0, .48) !important;
+        opacity: 0;
+        visibility: hidden;
+        transform: translateY(-50%) translateX(-5px);
+        pointer-events: none;
+        transition:
+            opacity .14s ease,
+            transform .14s ease,
+            visibility .14s ease;
+    }
+
+    .hand-card-wrap:hover > .hand-character-info,
+    .hand-card-wrap:focus-within > .hand-character-info {
+        opacity: 1;
+        visibility: visible;
+        transform: translateY(-50%) translateX(0);
+    }
+
+    .info-heading {
+        display: flex !important;
+        flex-direction: column !important;
+        align-items: center !important;
+        gap: 1px !important;
+        text-align: center;
+    }
+
+    .info-heading strong {
+        font-size: 16px;
+        font-weight: 900;
+        line-height: 1.1;
+    }
+
+    .info-heading span {
+        color: #746c62;
+        font-size: 9px;
+        font-weight: 850;
+        letter-spacing: .45px;
+        text-transform: uppercase;
+    }
+
+    .info-ability {
+        display: flex !important;
+        flex-direction: column !important;
+        gap: 4px !important;
+        text-align: left;
+    }
+
+    .info-ability strong {
+        font-size: 13px;
+        font-weight: 900;
+        line-height: 1.1;
+    }
+
+    .info-ability > span {
+        color: #5f5951;
+        font-size: 12px;
+        font-weight: 650;
+        line-height: 1.32;
+    }
+
+    .entry-info strong {
+        color: #a96f0a;
+    }
+
+    .passive-info strong {
+        color: #7440a7;
+    }
+
+    .active-info strong {
+        color: #187b43;
+    }
+
+    .info-divider {
+        width: 100%;
+        height: 1px;
+        background: rgba(72, 63, 50, .18);
+    }
+
+    .active-meta {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 4px;
+    }
+
+    .active-meta span {
+        padding: 3px 5px;
+        border-radius: 5px;
+        background: rgba(75, 63, 47, .09);
+        color: #514b44;
+        font-size: 9px;
+        font-weight: 850;
+        white-space: nowrap;
+    }
+
+    /* ==================== UTILITY ==================== */
+
+    .hand-utility-card::before {
+        width: 6px;
+        background: #45976a;
+    }
+
+    .utility-header {
+        min-height: 48px;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        gap: 5px;
+        text-align: center;
+    }
+
+    .utility-title {
+        width: 100%;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+        font-size: clamp(12px, .84vw, 15px);
+    }
+
+    .utility-chip {
+        min-height: 23px;
+        padding: 4px 10px 4px 8px;
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+        border-radius: 999px;
+        background: #438e63;
+        color: #fff;
+        font-size: 7px;
+        font-weight: 900;
+        letter-spacing: .55px;
+    }
+
+    .utility-art {
+        min-height: 59px;
+        flex: 1;
+        display: grid;
+        place-items: center;
+        border: 1px solid rgba(65, 58, 48, .12);
+        border-radius: 8px;
+        background:
+            radial-gradient(
+                circle at 50% 45%,
+                rgba(69, 151, 106, .18),
+                transparent 63%
+            ),
+            repeating-linear-gradient(
+                135deg,
+                rgba(67, 58, 48, .035) 0,
+                rgba(67, 58, 48, .035) 1px,
+                transparent 1px,
+                transparent 7px
+            ),
+            rgba(67, 58, 48, .045);
+    }
+
+    .utility-art > span {
+        font-size: 43px;
+        line-height: 1;
+        filter: drop-shadow(0 4px 4px rgba(0, 0, 0, .16));
+    }
+
+    .utility-effect {
+        min-height: 39px;
+        padding: 6px 7px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        border: 1px solid rgba(65, 58, 48, .11);
+        border-radius: 7px;
+        background: rgba(67, 58, 48, .06);
+        color: #514b44;
         font-size: 8px;
-        opacity: 0.7;
+        font-weight: 700;
+        line-height: 1.25;
+        text-align: center;
+    }
+
+.utility-footer {
+    width: 100%;
+    min-height: 31px;
+    margin-top: auto;
+    padding: 4px 9px;
+
+    box-sizing: border-box;
+
+    display: grid;
+    grid-template-columns: 1fr auto;
+    align-items: center;
+    gap: 8px;
+
+    border: 1px solid rgba(65, 58, 48, .15);
+    border-radius: 7px;
+
+    background:
+        linear-gradient(
+            180deg,
+            rgba(120, 84, 145, .08) 0%,
+            rgba(120, 84, 145, .14) 100%
+        );
+}
+
+.utility-cost-label {
+    color: #716b63;
+
+    font-size: 6px;
+    font-weight: 900;
+    line-height: 1;
+    letter-spacing: .7px;
+    text-align: left;
+    text-transform: uppercase;
+}
+
+.utility-cost-value {
+    min-width: 38px;
+
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 4px;
+
+    color: #71329a;
+
+    font-size: 15px;
+    font-weight: 950;
+    line-height: 1;
+}
+
+.utility-cost-value .energy-icon {
+    color: #9b45d2;
+
+    font-size: 9px;
+    font-style: normal;
+    line-height: 1;
+}
+
+.utility-cost-label {
+    color: #716b63;
+
+    font-size: 7px;
+    font-weight: 900;
+    line-height: 1;
+    letter-spacing: .75px;
+    text-align: left;
+    text-transform: uppercase;
+}
+
+.utility-cost-value {
+    min-width: 47px;
+
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 5px;
+
+    color: #71329a;
+
+    font-size: 17px;
+    font-weight: 950;
+    line-height: 1;
+}
+
+.utility-cost-value .energy-icon {
+    color: #9b45d2;
+
+    font-size: 12px;
+    font-style: normal;
+    line-height: 1;
+}
+
+    @@media (max-height: 820px) and (min-width: 901px) {
+        .hand-card-wrap {
+    height: 204px;
+}
+
+.hand-empty-card {
+    height: 58px;
+}
+
+        .hand-attack-card,
+        .hand-utility-card {
+            gap: 5px;
+        }
+
+        .attack-stat {
+            min-height: 43px;
+        }
+
+        .attack-footer-item {
+            min-height: 38px;
+        }
+
+        .character-art > span {
+            font-size: 36px;
+        }
+
+        .character-orb {
+            width: 44px;
+            height: 44px;
+        }
+
+        .character-orb strong {
+            font-size: 20px;
+        }
+
+        .character-deploy-cost {
+            bottom: 1px;
+            width: 27px;
+            height: 43px;
+            padding: 3px 0;
+        }
+
+        .character-deploy-cost strong {
+            font-size: 14px;
+        }
+
+        .character-deploy-cost .energy-icon {
+            font-size: 9px;
+        }
+
+        .utility-effect {
+            font-size: 7.5px;
+        }
     }
 </style>
-
 
 @code {
     [Parameter]
@@ -456,11 +1029,11 @@ else
     [Parameter]
     public EventCallback<HandSlot> OnCardClicked { get; set; }
 
+    private sealed record HandAttackTrait(string Label, string Icon, string CssClass);
 
     private async Task HandleClick()
     {
-        if (!IsClickable ||
-            Slot.IsEmpty)
+        if (!IsClickable || Slot.IsEmpty)
         {
             return;
         }
@@ -468,38 +1041,114 @@ else
         await OnCardClicked.InvokeAsync(Slot);
     }
 
-
-   private static string GetTypeClass(
-    Card card)
-{
-    return card.Type switch
+    private string GetInteractionClass()
     {
-        CardType.Character =>
-            "hand-character",
+        if (IsClickable)
+        {
+            return "clickable";
+        }
 
-        CardType.Attack =>
-            "hand-attack",
+        if (IsDisplayOnly)
+        {
+            return "display-only";
+        }
 
-        CardType.Utility =>
-            "hand-utility",
-
-        _ =>
-            ""
-    };
-}
-private string GetInteractionClass()
-{
-    if (IsClickable)
-    {
-        return "clickable";
+        return "disabled";
     }
 
-    if (IsDisplayOnly)
+    private static string GetArchetypeClass(Card card) =>
+        card.Archetype switch
+        {
+            Archetype.Magic => "archetype-magic",
+            Archetype.Physical => "archetype-physical",
+            _ => "archetype-neutral"
+        };
+
+    private static string GetCharacterArchetypeClass(Card card) =>
+        card.Archetype switch
+        {
+            Archetype.Magic => "magic",
+            Archetype.Physical => "physical",
+            _ => "neutral"
+        };
+
+    private static string GetUtilityArchetypeClass(Card card) =>
+        card.Archetype switch
+        {
+            Archetype.Magic => "utility-magic",
+            Archetype.Physical => "utility-physical",
+            _ => "utility-neutral"
+        };
+
+    private static string GetAttackTypeLabel(Card card) =>
+        card.Archetype switch
+        {
+            Archetype.Magic => "Magic Attack",
+            Archetype.Physical => "Physical Attack",
+            _ => "Neutral Attack"
+        };
+
+    private static string GetAttackMark(Card card)
     {
-        return "display-only";
+        if (card.IsPiercing)
+        {
+            return "◆";
+        }
+
+        if (card.Hits > 1)
+        {
+            return "✦";
+        }
+
+        return card.Archetype switch
+        {
+            Archetype.Magic => "✧",
+            Archetype.Physical => "▲",
+            _ => "●"
+        };
     }
 
-    return "disabled";
-}
+    private static IReadOnlyList<HandAttackTrait> GetAttackTraits(Card card)
+    {
+        List<HandAttackTrait> traits = new();
 
+        if (card.IsPiercing)
+        {
+            traits.Add(new("Piercing", "◆", "trait-piercing"));
+        }
+
+        if (card.Hits > 1)
+        {
+            traits.Add(new("Multi-Hit", "✦", "trait-multi-hit"));
+        }
+
+        if (card.InstantFatigue)
+        {
+            traits.Add(new("Instant Fatigue", "!", "trait-instant-fatigue"));
+        }
+
+        return traits;
+    }
+
+    private static string GetCharacterMark(Card card) =>
+        card.Archetype switch
+        {
+            Archetype.Magic => "✦",
+            Archetype.Physical => "▲",
+            _ => "◆"
+        };
+
+    private static string GetUtilityIcon(Card card) =>
+        card.Name switch
+        {
+            "Energy Potion" => "🧪",
+            "Energy Drain" => "🔋",
+            "Attack Amplifier" => "📈",
+            "Defensive Stance" => "⬢",
+            "Shield Booster" => "⬢",
+            "Fortify" => "🏰",
+            "Discount Coupon" => "🎟",
+            "Discard For Energy" => "♻",
+            _ => "✦"
+        };
 }

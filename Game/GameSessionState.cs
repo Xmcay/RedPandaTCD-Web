@@ -13,14 +13,18 @@ public class GameSessionState
 
     public Deck? TrainingBotDeck { get; set; }
 
+    // Current live battle.
     public MatchState? CurrentMatch { get; set; }
 
-    // Grand Tournament progress for the current app session.
-public TournamentState Tournament { get; } =
-new TournamentState();
+    // Replay data waiting to be opened by Battle.razor.
+    public string? PendingReplay { get; set; }
 
-public TutorialState Tutorial { get; } =
-    new TutorialState();
+    // Grand Tournament progress for the current app session.
+    public TournamentState Tournament { get; } =
+        new TournamentState();
+
+    public TutorialState Tutorial { get; } =
+        new TutorialState();
 
     public void ResetTraining()
     {

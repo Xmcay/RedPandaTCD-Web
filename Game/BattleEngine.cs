@@ -8,32 +8,46 @@ public static class BattleEngine
         GameMode mode,
         bool? forcePlayerOneStarts = null)
     {
+        // Clear any previous battle/replay log state.
         BattleLog.ClearPhaseActions();
+
+        // Initialize both players and prepare their decks.
         MatchManager.InitializePlayer(
-    player1,
-    1);
+            player1,
+            1);
 
-MatchManager.InitializePlayer(
-    player2,
-    2);
+        MatchManager.InitializePlayer(
+            player2,
+            2);
 
-bool playerOneStarts =
-    forcePlayerOneStarts ??
-    GameRandom.Instance.Next(2) == 0;
+        // Register the exact decks used for this match.
+        // ExportReplay() will include these fingerprints
+        // so replay loading can verify exact deck identity.
+        BattleLog.SetReplayDeck(
+            1,
+            player1.Deck);
 
-Player initiativePlayer =
-    playerOneStarts
-        ? player1
-        : player2;
+        BattleLog.SetReplayDeck(
+            2,
+            player2.Deck);
 
-BattleLog.WriteSystem(
-    $"{initiativePlayer.Name} won the coin flip!");
+        bool playerOneStarts =
+            forcePlayerOneStarts ??
+            GameRandom.Instance.Next(2) == 0;
 
-BattleLog.WriteSystem(
-    $"Initiative → {initiativePlayer.Name}");
+        Player initiativePlayer =
+            playerOneStarts
+                ? player1
+                : player2;
 
-BattleLog.WriteSystem(
-    "Turn 1 begins.");
+        BattleLog.WriteSystem(
+            $"{initiativePlayer.Name} won the coin flip!");
+
+        BattleLog.WriteSystem(
+            $"Initiative → {initiativePlayer.Name}");
+
+        BattleLog.WriteSystem(
+            "Turn 1 begins.");
 
         MatchState state =
             new MatchState(
@@ -43,61 +57,62 @@ BattleLog.WriteSystem(
 
         return state;
     }
-public static Player? CompleteMatch(
-    MatchState state)
-{
-    if (!MatchManager.IsMatchOver(
-            state.Player1,
-            state.Player2))
-    {
-        return null;
-    }
 
-    if (state.IsCompleted)
-    {
-        return MatchManager.GetWinner(
-            state.Player1,
-            state.Player2);
-    }
 
-    if (MatchManager.IsDraw(
-            state.Player1,
-            state.Player2))
+    public static Player? CompleteMatch(
+        MatchState state)
     {
+        if (!MatchManager.IsMatchOver(
+                state.Player1,
+                state.Player2))
+        {
+            return null;
+        }
+
+        if (state.IsCompleted)
+        {
+            return MatchManager.GetWinner(
+                state.Player1,
+                state.Player2);
+        }
+
+        if (MatchManager.IsDraw(
+                state.Player1,
+                state.Player2))
+        {
+            state.IsCompleted = true;
+            state.IsDraw = true;
+
+            BattleLog.Write(
+                "Both players reached 0 Energy. The match ended in a Draw.");
+
+            return null;
+        }
+
+        Player? winner =
+            MatchManager.GetWinner(
+                state.Player1,
+                state.Player2);
+
+        if (winner == null)
+        {
+            return null;
+        }
+
         state.IsCompleted = true;
-        state.IsDraw = true;
+        state.IsDraw = false;
 
-        BattleLog.Write(
-            "Both players reached 0 Energy. The match ended in a Draw.");
+        winner.Wins++;
 
-        return null;
+        if (winner == state.Player1)
+        {
+            state.Player2.Losses++;
+        }
+        else
+        {
+            state.Player1.Losses++;
+        }
+
+        return winner;
     }
-
-    Player? winner =
-        MatchManager.GetWinner(
-            state.Player1,
-            state.Player2);
-
-    if (winner == null)
-    {
-        return null;
-    }
-
-    state.IsCompleted = true;
-    state.IsDraw = false;
-
-    winner.Wins++;
-
-    if (winner == state.Player1)
-    {
-        state.Player2.Losses++;
-    }
-    else
-    {
-        state.Player1.Losses++;
-    }
-
-    return winner;
-}
-
 }

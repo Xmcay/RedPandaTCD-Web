@@ -1,35 +1,24 @@
 @using RedPandaTCD_Web.Game
 
 <div class="field-card-wrap">
-
-    <div class="badges">
-
-        @if (Attack != null)
-        {
-            @if (Owner.TemporaryAttackBonus > 0)
+    @if (Attack != null && RuntimeBadges.Count > 0)
+    {
+        <div class="effect-badge-rail" aria-label="Active effects">
+            @foreach (BattleStatus status in RuntimeBadges)
             {
-                <span class="badge attack-badge">
-                    +@Owner.TemporaryAttackBonus ATK
+                <span class="effect-badge @BattleStatusManager.GetToneCssClass(status)"
+                      title="@status.Detail">
+                    @status.Label
                 </span>
             }
-
-            @if (Attack.IsPiercing)
-            {
-                <span class="badge piercing-badge">
-                    PIERCING
-                </span>
-            }
-        }
-
-    </div>
+        </div>
+    }
 
     @if (Attack == null)
     {
-      <div class="attack-shell placeholder @(IsClickable ? "clickable" : "") @PlacementHighlightClass"
-     @onclick="HandleClick">
-
+        <div class="attack-shell placeholder @(IsClickable ? "clickable" : "") @PlacementHighlightClass"
+             @onclick="HandleClick">
             <div class="empty-card-body">
-
                 <span class="placeholder-title">
                     Attack @Slot
                 </span>
@@ -37,38 +26,32 @@
                 <span class="placeholder-subtitle">
                     Empty Slot
                 </span>
-
             </div>
-
-            <div class="empty-status-rail"></div>
-
         </div>
     }
     else
     {
         <div class="attack-shell occupied @StateClass @(IsClickable ? "clickable" : "") @(HighlightAttackAction ? "attack-action-ready" : "") @PlacementHighlightClass"
-     @onclick="HandleClick">
-
-            <div class="field-card">
-
-                <div class="card-header">
-
+             @onclick="HandleClick">
+            <article class="field-card @ArchetypeClass">
+                <header class="card-header">
                     <strong class="card-title">
                         @Attack.Name
                     </strong>
 
-                    <span class="card-type">
-                        ATTACK
+                    <span class="archetype-chip @ArchetypeClass">
+                        <span class="archetype-symbol" aria-hidden="true">
+                            @GetArtMark()
+                        </span>
+
+                        <span>
+                            @GetArchetypeLabel()
+                        </span>
                     </span>
+                </header>
 
-                </div>
-
-                <div class="card-divider"></div>
-
-                <div class="stat-row">
-
-                    <div class="stat-box">
-
+                <div class="primary-stats">
+                    <div class="primary-stat damage-stat">
                         <span class="stat-label">
                             DAMAGE
                         </span>
@@ -76,11 +59,9 @@
                         <strong class="stat-value">
                             @Attack.Damage
                         </strong>
-
                     </div>
 
-                    <div class="stat-box">
-
+                    <div class="primary-stat hits-stat">
                         <span class="stat-label">
                             HITS
                         </span>
@@ -88,776 +69,679 @@
                         <strong class="stat-value">
                             @Attack.Hits
                         </strong>
-
                     </div>
-
                 </div>
 
-                <div class="runtime-row">
+                @if (IdentityTraits.Count > 0)
+                {
+                    <div class="identity-features" aria-label="Attack identity">
+                        @foreach (AttackIdentityTrait trait in IdentityTraits)
+                        {
+                            <div class="identity-feature @trait.CssClass">
+                                <span class="identity-feature-icon" aria-hidden="true">
+                                    @trait.Icon
+                                </span>
 
-                    <div class="runtime-item">
+                                <strong class="identity-feature-label">
+                                    @trait.Label
+                                </strong>
+                            </div>
+                        }
+                    </div>
+                }
 
+                <footer class="runtime-row">
+                    <div class="runtime-item energy-item">
                         <span class="runtime-label">
                             NEXT USE
                         </span>
 
-                        <strong>
-                            @TotalUses Energy
+                        <strong class="runtime-value">
+                            <span class="energy-symbol">◆</span>
+                            @TotalUses
                         </strong>
-
                     </div>
 
-                    <div class="runtime-item">
-
+                    <div class="runtime-item uses-item">
                         <span class="runtime-label">
                             USES
                         </span>
 
-                        <strong>
+                        <strong class="runtime-value">
                             @UsesRemaining / 2
                         </strong>
-
                     </div>
+                </footer>
 
-                </div>
-
-            </div>
-
-            <div class="status-rail">
-
-                <div class="rail-section archetype-rail @ArchetypeClass">
-                    <span>
-                        @Attack.Archetype
-                    </span>
-                </div>
-
-                <div class="rail-section state-rail @StateRailClass">
-                    <span>
+                @if (IsFatigued || IsResting || UsedThisPhase)
+                {
+                    <div class="card-state @StateClass">
                         @StateText
-                    </span>
-                </div>
-
-            </div>
-
+                    </div>
+                }
+            </article>
         </div>
     }
-
 </div>
 
 <style>
-
     .field-card-wrap {
-        width: clamp(145px, 9.5vw, 170px);
-        min-height: clamp(180px, 12vw, 205px);
+        position: relative;
+        width: clamp(160px, 10.5vw, 184px);
+        min-height: clamp(224px, 14.6vw, 252px);
+
+        display: flex;
+        align-items: center;
+        justify-content: center;
+
+        flex-shrink: 0;
+        overflow: visible;
+        transform: translateY(25px);
+    }
+
+    /* =====================================================
+       LIVE EFFECT BADGES
+       ===================================================== */
+
+    .effect-badge-rail {
+        position: absolute;
+        left: 50%;
+        bottom: calc(100% - 13px);
+        z-index: 30;
+
+        width: max-content;
+        max-width: 190px;
+
+        display: flex;
+        flex-wrap: wrap;
+        justify-content: center;
+        gap: 4px;
+
+        transform: translateX(-50%);
+        pointer-events: none;
+    }
+
+    .effect-badge {
+        min-height: 19px;
+        padding: 4px 7px;
+
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+
+        border: 1px solid currentColor;
+        border-radius: 999px;
+
+        background: #111820;
+        color: #dce5eb;
+
+        box-shadow:
+            0 4px 10px rgba(0, 0, 0, 0.42);
+
+        font-size: 7px;
+        font-weight: 900;
+        line-height: 1;
+        letter-spacing: 0.55px;
+        text-transform: uppercase;
+        white-space: nowrap;
+    }
+
+    .effect-badge.status-attack {
+        color: #84dcfb;
+        background: #102330;
+    }
+
+    .effect-badge.status-positive {
+        color: #91d8a1;
+        background: #13241a;
+    }
+
+    .effect-badge.status-energy {
+        color: #d09cff;
+        background: #21152c;
+    }
+
+    .effect-badge.status-warning {
+        color: #ffad71;
+        background: #2b1b11;
+    }
+
+    .effect-badge.status-danger {
+        color: #ff8e8e;
+        background: #2d1518;
+    }
+
+    .effect-badge.status-neutral {
+        color: #c0c8cf;
+        background: #1a2026;
+    }
+
+    /* =====================================================
+       SHELL
+       ===================================================== */
+
+    .attack-shell {
+        position: relative;
+
+        width: clamp(152px, 10vw, 176px);
+        height: clamp(210px, 13.7vw, 238px);
+
+        flex-shrink: 0;
+        overflow: visible;
+
+        border: 2px solid #7f7668;
+        border-radius: 10px;
+
+        background: #f4efe3;
+        color: #202326;
+
+        box-shadow:
+            0 6px 14px rgba(0, 0, 0, 0.27);
+
+        transition:
+            border-color 0.14s ease,
+            box-shadow 0.14s ease,
+            filter 0.14s ease;
+    }
+
+    .attack-shell.occupied.clickable {
+        cursor: pointer;
+    }
+
+    .attack-shell.occupied.clickable:hover {
+        filter: brightness(1.025);
+    }
+
+    /* Interaction borders are intentionally owned by Battle.razor. */
+
+    .field-card {
+        position: absolute;
+        inset: 0;
+
+        min-width: 0;
+        min-height: 0;
+        padding:
+            4px
+            7px
+            9px
+            10px;
+
+        display: flex;
+        flex-direction: column;
+        gap: 6px;
+
+        overflow: hidden;
+        border-radius: 8px;
+
+        background:
+            linear-gradient(
+                155deg,
+                #fffaf0 0%,
+                #eee5d3 100%
+            );
+
+        color: #22262a;
+    }
+
+    .field-card::before {
+        content: "";
+
+        position: absolute;
+        inset: 0 auto 0 0;
+
+        width: 5px;
+        background: #737b83;
+    }
+
+    .field-card.archetype-magic::before {
+        background: #386fc8;
+    }
+
+    .field-card.archetype-physical::before {
+        background: #c84f4f;
+    }
+
+    .field-card.archetype-neutral::before {
+        background: #717981;
+    }
+
+    /* =====================================================
+       HEADER
+       ===================================================== */
+
+    .card-header {
+        width: 100%;
+        min-width: 0;
+        min-height: 49px;
+        padding: 1px 2px 0;
+
+        display: grid;
+        grid-template-rows: minmax(18px, auto) 23px;
+        justify-items: center;
+        align-items: center;
+        gap: 5px;
+
+        text-align: center;
+    }
+
+    .card-title {
+        width: 100%;
+        max-width: 100%;
+
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+
+        padding-top: 2px;
+
+        font-size: clamp(12px, 0.84vw, 15px);
+        line-height: 1.25;
+        text-align: center;
+    }
+
+    .archetype-chip {
+        width: fit-content;
+        max-width: calc(100% - 12px);
+        min-height: 23px;
+        padding: 4px 10px 4px 8px;
+
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        gap: 6px;
+
+        overflow: hidden;
+        border-radius: 999px;
+
+        color: #ffffff;
+
+        font-size: 7px;
+        font-weight: 900;
+        line-height: 1;
+        letter-spacing: 0.48px;
+        text-transform: uppercase;
+        white-space: nowrap;
+    }
+
+    .archetype-symbol {
+        width: 13px;
+        height: 13px;
+
+        display: grid;
+        place-items: center;
+        flex: 0 0 13px;
+
+        font-size: 9px;
+        line-height: 1;
+    }
+
+    .archetype-chip.archetype-magic {
+        background: #386fc8;
+    }
+
+    .archetype-chip.archetype-physical {
+        background: #b94747;
+    }
+
+    .archetype-chip.archetype-neutral {
+        background: #666e76;
+    }
+
+    /* =====================================================
+       PRIMARY STATS
+       ===================================================== */
+
+    .primary-stats {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 6px;
+    }
+
+    .primary-stat {
+        min-width: 0;
+        min-height: 46px;
+        padding: 5px 4px;
 
         display: flex;
         flex-direction: column;
         align-items: center;
         justify-content: center;
 
-        flex-shrink: 0;
+        border: 1px solid rgba(65, 58, 48, 0.10);
+        border-radius: 7px;
+
+        background: rgba(67, 58, 48, 0.07);
     }
 
+    .stat-label,
+    .runtime-label {
+        color: #716b63;
 
-    /* COMPLETE ATTACK CARD */
-
-    .attack-shell {
-        width: clamp(135px, 9vw, 160px);
-        height: clamp(158px, 10.5vw, 180px);
-
-        position: relative;
-
-        display: grid;
-        grid-template-columns: minmax(0, 1fr) 3px;
-
-        border: 2px solid #8a8170;
-        border-radius: 9px;
-
-        overflow: visible;
-
-        background: #f4efe3;
-        color: #222222;
-
-        box-shadow:
-            0 3px 8px rgba(0, 0, 0, 0.20);
-
-        flex-shrink: 0;
-    }
-
-
-    /* MAIN CARD BODY */
-
-    .field-card {
-        min-width: 0;
-        min-height: 0;
-
-        padding: 9px;
-
-        display: flex;
-        flex-direction: column;
-
-        overflow: hidden;
-
-        border-radius: 7px 0 0 7px;
-
-        background: #f4efe3;
-        color: #222222;
-
-        text-align: center;
-        font-size: 10px;
-    }
-
-
-    .card-header {
-        display: flex;
-        flex-direction: column;
-        align-items: center;
-    }
-
-
-    .card-title {
-        font-size: 12px;
-        line-height: 1.15;
-    }
-
-
-    .card-type {
-        margin-top: 3px;
-
-        color: #8b674b;
-
-        font-size: 8px;
-        font-weight: bold;
-        letter-spacing: 1px;
-    }
-
-
-    .card-divider {
-        height: 1px;
-
-        margin: 7px 2px;
-
-        background: #d0c7b5;
-    }
-
-
-    /* DAMAGE + HITS */
-
-    .stat-row {
-        display: grid;
-        grid-template-columns: 1fr 1fr;
-
-        gap: 5px;
-    }
-
-
-    .stat-box {
-        padding: 5px 3px;
-
-        display: flex;
-        flex-direction: column;
-
-        border-radius: 6px;
-
-        background: #e9e2d2;
-    }
-
-
-    .stat-label {
-        color: #69645c;
-
-        font-size: 7px;
-        font-weight: bold;
+        font-size: 6px;
+        font-weight: 900;
         letter-spacing: 0.7px;
+        white-space: nowrap;
     }
-
 
     .stat-value {
-        margin-top: 2px;
+        margin-top: 1px;
 
-        font-size: 14px;
+        font-size: 17px;
+        line-height: 1;
     }
 
+    .damage-stat .stat-value {
+        color: #bf3f47;
+    }
 
-    /* NEXT USE + USES */
+    .hits-stat .stat-value {
+        color: #3479aa;
+    }
 
-    .runtime-row {
-        margin-top: 6px;
+    /* =====================================================
+       PERMANENT ATTACK IDENTITY
+       ===================================================== */
 
-        display: grid;
-        grid-template-columns: 1fr 1fr;
+    .identity-features {
+        min-height: 32px;
 
+        display: flex;
+        flex-wrap: wrap;
+        align-items: center;
+        justify-content: center;
         gap: 5px;
     }
 
+    .identity-feature {
+        min-width: 0;
+        padding: 4px 8px;
+
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        gap: 5px;
+
+        border: 1px solid rgba(79, 74, 68, 0.24);
+        border-radius: 7px;
+
+        background: rgba(67, 58, 48, 0.085);
+        color: #443e38;
+    }
+
+    .identity-feature-icon {
+        width: 19px;
+        height: 19px;
+
+        display: grid;
+        place-items: center;
+        flex: 0 0 auto;
+
+        border-radius: 50%;
+
+        background: rgba(48, 57, 64, 0.11);
+        color: #315f80;
+
+        font-size: 11px;
+        font-weight: 900;
+        line-height: 1;
+    }
+
+    .identity-feature-label {
+        font-size: 7.5px;
+        line-height: 1;
+        letter-spacing: 0.42px;
+        text-align: center;
+        text-transform: uppercase;
+        white-space: nowrap;
+    }
+
+    .identity-feature.trait-piercing .identity-feature-icon {
+        color: #2876a8;
+        background: rgba(40, 118, 168, 0.13);
+    }
+
+    .identity-feature.trait-multi-hit .identity-feature-icon {
+        color: #7359b4;
+        background: rgba(115, 89, 180, 0.13);
+    }
+
+    .identity-feature.trait-instant-fatigue .identity-feature-icon {
+        color: #bd424a;
+        background: rgba(189, 66, 74, 0.13);
+    }
+
+    /* =====================================================
+       RUNTIME VALUES
+       ===================================================== */
+
+    .runtime-row {
+        margin-top: auto;
+
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 7px;
+    }
 
     .runtime-item {
         min-width: 0;
+        min-height: 42px;
+        padding: 7px 4px 6px;
 
         display: flex;
         flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        gap: 3px;
 
-        line-height: 1.25;
+        border: 1px solid rgba(65, 58, 48, 0.15);
+        border-radius: 7px;
+
+        background: rgba(67, 58, 48, 0.065);
     }
 
+    .runtime-value {
+        display: inline-flex;
+        align-items: center;
+        gap: 3px;
 
-    .runtime-item strong {
-        font-size: 9px;
-
+        font-size: 12px;
+        line-height: 1;
         white-space: nowrap;
     }
 
-
-    .runtime-label {
-        margin-bottom: 2px;
-
-        color: #777066;
-
-        font-size: 7px;
-        font-weight: bold;
-        letter-spacing: 0.5px;
-
-        white-space: nowrap;
+    .energy-symbol {
+        color: #9b45d2;
+        font-size: 11px;
     }
 
-
-    /* 3PX STATUS ACCENT */
-
-    .status-rail {
-        position: relative;
-
-        min-width: 0;
-
-        display: grid;
-        grid-template-rows: 1fr 1fr;
-
-        overflow: visible;
+    .energy-item .runtime-value {
+        color: #71329a;
     }
 
-
-    .rail-section {
-        position: relative;
-
-        min-height: 0;
-
-        overflow: visible;
+    .uses-item .runtime-value {
+        color: #364049;
     }
 
+    /* =====================================================
+       CURRENT STATE STRIP
+       ===================================================== */
 
-    .rail-section + .rail-section {
-        border-top: 0.5px solid rgba(255, 255, 255, 0.70);
-    }
-
-
-    .archetype-rail {
-        margin-top: 2px;
-        border-radius: 0 4px 0 0;
-    }
-
-
-    .state-rail {
-        margin-bottom: 2px;
-        border-radius: 0 0 4px 0;
-    }
-
-
-    /*
-        Hidden while the card is resting.
-
-        On hover the labels expand to the RIGHT,
-        outside the card, without covering its stats.
-    */
-
-    .rail-section span {
+    .card-state {
         position: absolute;
+        left: 7px;
+        right: 7px;
+        bottom: 5px;
+        z-index: 2;
 
-        left: 100%;
-        top: 50%;
+        padding: 3px 5px;
 
-        width: 0;
-        height: 100%;
+        border-radius: 4px;
 
-        padding: 0;
+        color: #ffffff;
 
+        font-size: 6px;
+        font-weight: 900;
+        line-height: 1;
+        letter-spacing: 0.7px;
+        text-align: center;
+        text-transform: uppercase;
+    }
+
+    .card-state.fatigued {
+        background: #b9363d;
+    }
+
+    .card-state.resting {
+        background: #3478a8;
+    }
+
+    .card-state.used {
+        background: #69727a;
+    }
+
+    /* Leave footer room when a state strip is present. */
+
+    .attack-shell.fatigued .runtime-row,
+    .attack-shell.resting .runtime-row,
+    .attack-shell.used .runtime-row {
+        margin-bottom: 16px;
+    }
+
+    /* =====================================================
+       EMPTY FIELD SLOT
+       ===================================================== */
+
+    .attack-shell.placeholder {
         display: flex;
         align-items: center;
         justify-content: center;
 
-        overflow: hidden;
-
-        border: 0 solid rgba(255, 255, 255, 0.45);
-
-        color: transparent;
-
-        font-size: 8px;
-        font-weight: bold;
-        letter-spacing: 0.3px;
-
-        white-space: nowrap;
-
-        writing-mode: vertical-rl;
-        text-orientation: mixed;
-
-        transform: translateY(-50%);
-
-        opacity: 0;
-
-        transition:
-            width 0.14s ease,
-            padding 0.14s ease,
-            opacity 0.10s ease,
-            color 0.10s ease,
-            border-width 0.14s ease;
-    }
-
-
-    .attack-shell:hover .rail-section span {
-        width: 22px;
-
-        padding: 3px 0;
-
-        border-width: 1px;
-        border-left-width: 0;
-
-        color: white;
-
-        opacity: 1;
-
-        background: inherit;
-
-        box-shadow:
-            3px 2px 6px rgba(0, 0, 0, 0.25);
-
-        z-index: 20;
-    }
-
-
-    /* One attached vertical hover panel */
-
-    .archetype-rail span {
-        border-radius: 0 7px 0 0;
-    }
-
-
-    .state-rail span {
-        border-radius: 0 0 7px 0;
-    }
-
-
-    /* ARCHETYPE COLORS */
-
-    .archetype-magic {
-        background: #356fc4;
-    }
-
-
-    .archetype-physical {
-        background: #b84747;
-    }
-
-
-    .archetype-neutral {
-        background: #666d75;
-    }
-
-
-    .archetype-magic span {
-        border-color: #6fa2ed;
-    }
-
-
-    .archetype-physical span {
-        border-color: #e17b7b;
-    }
-
-
-    .archetype-neutral span {
-        border-color: #9299a1;
-    }
-
-
-    /* ATTACK STATE COLORS */
-
-    .state-ready {
-        background: #2e7d32;
-    }
-
-
-    .state-used {
-        background: #666d75;
-    }
-
-
-    .state-fatigued {
-        background: #b83232;
-    }
-
-
-    .state-resting {
-        background: #2468a2;
-    }
-
-
-    .state-ready span {
-        border-color: #72ce78;
-    }
-
-
-    .state-fatigued span {
-        border-color: #e06c6c;
-    }
-
-
-    .state-resting span {
-        border-color: #70a8d8;
-    }
-
-
-    /* FATIGUED / RESTING CARD BORDER */
-
-    .attack-shell.fatigued {
-        border-color: #c62828;
-    }
-
-
-    .attack-shell.resting {
-        border-color: #1565c0;
-    }
-
-
-    /* EMPTY ATTACK SLOT */
-
-    .attack-shell.placeholder {
         border-style: dashed;
-        border-color: rgba(255, 255, 255, 0.35);
+        border-color: rgba(255, 255, 255, 0.28);
 
-        background: rgba(255, 255, 255, 0.04);
-        color: rgba(255, 255, 255, 0.45);
+        background: rgba(255, 255, 255, 0.035);
+        color: rgba(255, 255, 255, 0.46);
 
         box-shadow: none;
     }
 
+    .attack-shell.placeholder.clickable {
+        cursor: pointer;
+    }
 
     .empty-card-body {
         display: flex;
         flex-direction: column;
         align-items: center;
         justify-content: center;
+        gap: 5px;
+
+        text-align: center;
     }
-
-
-    .empty-status-rail {
-        background: rgba(255, 255, 255, 0.025);
-    }
-
 
     .placeholder-title {
         font-size: 11px;
-        font-weight: bold;
+        font-weight: 900;
     }
-
 
     .placeholder-subtitle {
-        margin-top: 5px;
-
-        font-size: 8px;
+        font-size: 7px;
+        font-weight: 800;
+        letter-spacing: 0.7px;
         text-transform: uppercase;
-        letter-spacing: 0.6px;
     }
 
+    @@media (max-height: 820px) and (min-width: 901px) {
+        .field-card-wrap {
+            min-height: 218px;
+        }
 
-    /*
-        EMPTY + CLICKABLE
+        .attack-shell {
+            height: 204px;
+        }
 
-        Bright green means:
-        "You can deploy an Attack here right now."
-    */
+        .field-card {
+            gap: 5px;
+            padding:
+                9px
+                9px
+                9px
+                14px;
+        }
 
-/*
-    PLACEMENT STATE COLORS
+        .primary-stat {
+            min-height: 43px;
+        }
 
-    GREEN = empty slot can receive an Attack
-    GOLD  = deployed Attack can be replaced
-    RED   = Fatigued Attack must be resolved
-*/
-
-/* EMPTY + DEPLOYABLE */
-
-.attack-shell.placement-deploy {
-    cursor: pointer;
-
-    border: 3px solid #35d05b;
-
-    box-shadow:
-        0 0 8px rgba(53, 208, 91, 0.55),
-        0 0 16px rgba(53, 208, 91, 0.20);
-
-    transition:
-        transform 0.14s ease,
-        border-color 0.14s ease,
-        box-shadow 0.14s ease;
-}
-
-.attack-shell.placement-deploy:hover {
-    transform: translateY(-5px);
-
-    border-color: #61f27f;
-
-    box-shadow:
-        0 0 12px rgba(53, 208, 91, 0.80),
-        0 0 22px rgba(53, 208, 91, 0.28),
-        0 8px 16px rgba(0, 0, 0, 0.30);
-}
-
-
-/* OCCUPIED + REPLACEABLE */
-
-.placement-replace {
-    position: relative;
-    z-index: 15;
-    outline: 4px solid #ffe078;
-    outline-offset: 5px;
-    box-shadow:
-        0 0 0 3px rgba(0, 0, 0, .5),
-        0 0 18px rgba(255, 224, 120, .8),
-        0 0 38px rgba(229, 204, 103, .48);
-    animation:
-        replacementTargetPulse
-        .85s
-        ease-in-out
-        infinite alternate;
-}
-
-@@keyframes replacementTargetPulse {
-    from {
-        transform: scale(1);
+        .runtime-item {
+            min-height: 38px;
+        }
     }
-
-    to {
-        transform: scale(1.045);
-    }
-}
-
-.attack-shell.placement-replace:hover {
-    transform: translateY(-5px);
-
-    border-color: #f5df7f;
-
-    box-shadow:
-        0 0 12px rgba(229, 204, 103, 0.82),
-        0 0 22px rgba(229, 204, 103, 0.28),
-        0 8px 16px rgba(0, 0, 0, 0.30);
-}
-
-
-/* FATIGUED + MUST RESOLVE */
-
-.attack-shell.placement-fatigued {
-    cursor: pointer;
-
-    border: 3px solid #ef5350;
-
-    box-shadow:
-        0 0 9px rgba(239, 83, 80, 0.72),
-        0 0 20px rgba(239, 83, 80, 0.30);
-
-    transition:
-        transform 0.14s ease,
-        border-color 0.14s ease,
-        box-shadow 0.14s ease;
-}
-
-.attack-shell.placement-fatigued:hover {
-    transform: translateY(-5px);
-
-    border-color: #ff7774;
-
-    box-shadow:
-        0 0 13px rgba(239, 83, 80, 0.95),
-        0 0 24px rgba(239, 83, 80, 0.35),
-        0 8px 16px rgba(0, 0, 0, 0.30);
-}
-
-
-    /*
-        OCCUPIED + CLICKABLE
-
-        Interactive for replacement, rest, attack, etc.
-    */
-
-    .attack-shell.occupied.clickable {
-        cursor: pointer;
-
-        transition:
-            transform 0.14s ease,
-            border-color 0.14s ease,
-            box-shadow 0.14s ease;
-    }
-
-
-    .attack-shell.occupied.clickable:hover {
-        transform: translateY(-4px);
-
-        box-shadow:
-            0 7px 14px rgba(0, 0, 0, 0.30);
-    }
-
-
-    /*
-        ATTACK PHASE ACTION
-
-        Orange means:
-        "This Attack can be used right now."
-    */
-
-    .attack-shell.occupied.attack-action-ready {
-        border: 3px solid #f0a13a;
-
-        box-shadow:
-            0 0 8px rgba(240, 161, 58, 0.55),
-            0 0 16px rgba(240, 161, 58, 0.20);
-    }
-
-
-    .attack-shell.occupied.attack-action-ready:hover {
-        transform: translateY(-5px);
-
-        border-color: #ffb955;
-
-        box-shadow:
-            0 0 12px rgba(240, 161, 58, 0.80),
-            0 0 22px rgba(240, 161, 58, 0.30),
-            0 8px 16px rgba(0, 0, 0, 0.30);
-    }
-
-
-    /* BUFF / EFFECT BADGES */
-
-    .badges {
-        min-height: 25px;
-
-        display: flex;
-        justify-content: center;
-        align-items: center;
-
-        gap: 4px;
-
-        margin-bottom: 4px;
-    }
-
-
-    .badge {
-        padding: 3px 7px;
-
-        border-radius: 10px;
-
-        color: white;
-
-        font-size: 8px;
-        font-weight: bold;
-
-        white-space: nowrap;
-    }
-
-
-    .attack-badge {
-        background: #3367d6;
-    }
-
-
-    .piercing-badge {
-        background: #7c4d9e;
-    }
-
 </style>
 
 @code {
-
     [Parameter]
     public Player Owner { get; set; } = default!;
-
 
     [Parameter]
     public int Slot { get; set; }
 
-
     [Parameter]
     public bool IsClickable { get; set; }
 
-
     [Parameter]
     public bool HighlightAttackAction { get; set; }
-
 
     [Parameter]
     public EventCallback<int> OnCardClicked { get; set; }
 
     [Parameter]
-public string PlacementHighlightClass { get; set; } = "";
-
+    public string PlacementHighlightClass { get; set; } = "";
 
     private Card? Attack =>
         Slot == 1
             ? Owner.AttackSlot1
-            : Owner.AttackSlot2;
-
+            : Slot == 2
+                ? Owner.AttackSlot2
+                : null;
 
     private bool IsFatigued =>
         Slot == 1
             ? Owner.IsFatiguedSlot1
-            : Owner.IsFatiguedSlot2;
-
+            : Slot == 2 && Owner.IsFatiguedSlot2;
 
     private bool IsResting =>
         Slot == 1
             ? Owner.IsRestingSlot1
-            : Owner.IsRestingSlot2;
-
+            : Slot == 2 && Owner.IsRestingSlot2;
 
     private bool UsedThisPhase =>
         Slot == 1
             ? Owner.AttackSlot1UsedThisPhase
-            : Owner.AttackSlot2UsedThisPhase;
-
+            : Slot == 2 && Owner.AttackSlot2UsedThisPhase;
 
     private int UsesRemaining =>
         Slot == 1
             ? Owner.AttackSlot1UsesRemaining
-            : Owner.AttackSlot2UsesRemaining;
-
+            : Slot == 2
+                ? Owner.AttackSlot2UsesRemaining
+                : 0;
 
     private int TotalUses =>
         Slot == 1
             ? Owner.AttackSlot1TotalUses
-            : Owner.AttackSlot2TotalUses;
-
+            : Slot == 2
+                ? Owner.AttackSlot2TotalUses
+                : 0;
 
     private string StateClass =>
         IsFatigued
             ? "fatigued"
             : IsResting
                 ? "resting"
-                : "";
-
-
-    private string ArchetypeClass =>
-        Attack?.Archetype switch
-        {
-            Archetype.Magic => "archetype-magic",
-            Archetype.Physical => "archetype-physical",
-            _ => "archetype-neutral"
-        };
-
-
-    private string StateRailClass =>
-        IsFatigued
-            ? "state-fatigued"
-            : IsResting
-                ? "state-resting"
                 : UsedThisPhase
-                    ? "state-used"
-                    : "state-ready";
-
+                    ? "used"
+                    : "ready";
 
     private string StateText =>
         IsFatigued
@@ -865,9 +749,120 @@ public string PlacementHighlightClass { get; set; } = "";
             : IsResting
                 ? "Resting"
                 : UsedThisPhase
-                    ? "Used"
+                    ? "Used This Phase"
                     : "Ready";
 
+    private string ArchetypeClass =>
+        Attack?.Archetype switch
+        {
+            Archetype.Magic =>
+                "archetype-magic",
+
+            Archetype.Physical =>
+                "archetype-physical",
+
+            _ =>
+                "archetype-neutral"
+        };
+
+    /*
+       Runtime badges intentionally exclude permanent Attack traits.
+       Piercing, Multi-Hit, and Instant Fatigue are printed on the
+       card face because those traits define the card itself.
+    */
+    private IReadOnlyList<BattleStatus> RuntimeBadges =>
+        BattleStatusManager
+            .GetAttackStatuses(
+                Owner,
+                Slot)
+            .Where(status =>
+                status.Key is
+                    "temporary-attack-bonus" or
+                    "resting" or
+                    "fatigued")
+            .ToList();
+
+    private sealed record AttackIdentityTrait(
+        string Label,
+        string Icon,
+        string CssClass);
+
+    private IReadOnlyList<AttackIdentityTrait> IdentityTraits
+    {
+        get
+        {
+            List<AttackIdentityTrait> traits = new();
+
+            if (Attack == null)
+            {
+                return traits;
+            }
+
+            if (Attack.IsPiercing)
+            {
+                traits.Add(
+                    new AttackIdentityTrait(
+                        "Piercing",
+                        "◆",
+                        "trait-piercing"));
+            }
+
+            if (Attack.Hits > 1)
+            {
+                traits.Add(
+                    new AttackIdentityTrait(
+                        "Multi-Hit",
+                        "✦",
+                        "trait-multi-hit"));
+            }
+
+            if (Attack.InstantFatigue)
+            {
+                traits.Add(
+                    new AttackIdentityTrait(
+                        "Instant Fatigue",
+                        "!",
+                        "trait-instant-fatigue"));
+            }
+
+            return traits;
+        }
+    }
+
+    private string GetArchetypeLabel()
+    {
+        return Attack?.Archetype switch
+        {
+            Archetype.Magic => "Magic Attack",
+            Archetype.Physical => "Physical Attack",
+            _ => "Neutral Attack"
+        };
+    }
+
+    private string GetArtMark()
+    {
+        if (Attack == null)
+        {
+            return "";
+        }
+
+        if (Attack.IsPiercing)
+        {
+            return "◆";
+        }
+
+        if (Attack.Hits > 1)
+        {
+            return "✦";
+        }
+
+        return Attack.Archetype switch
+        {
+            Archetype.Magic => "✧",
+            Archetype.Physical => "▲",
+            _ => "●"
+        };
+    }
 
     private async Task HandleClick()
     {
@@ -876,6 +871,7 @@ public string PlacementHighlightClass { get; set; } = "";
             return;
         }
 
-        await OnCardClicked.InvokeAsync(Slot);
+        await OnCardClicked.InvokeAsync(
+            Slot);
     }
 }

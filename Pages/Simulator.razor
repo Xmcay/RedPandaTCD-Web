@@ -267,8 +267,8 @@
                         </h2>
 
                         <p>
-                            Paste a structured Red Panda replay to inspect
-                            the recorded match.
+                            Paste structured Red Panda replay data to
+                            validate and open the recorded match.
                         </p>
                     </div>
 
@@ -376,8 +376,8 @@
                                 </h3>
 
                                 <p>
-                                    The replay data passed the current
-                                    replay validation checks.
+                                    The replay passed exact deck identity
+                                    and event validation.
                                 </p>
                             </div>
 
@@ -491,14 +491,18 @@
                         <div class="replay-ready-box">
 
                             <strong>
-                                Replay data is ready.
+                                Replay verified.
                             </strong>
 
                             <span>
-                                The next step is to open this recording in
-                                the actual Battle screen and reconstruct
-                                the recorded board state.
+                                The selected decks exactly match the decks
+                                recorded in this replay.
                             </span>
+
+                            <button class="open-replay-button"
+                                    @onclick="OpenReplayInBattle">
+                                Open Replay in Battle
+                            </button>
 
                         </div>
 
@@ -891,7 +895,8 @@
 }
 
 .primary-replay-button,
-.secondary-replay-button {
+.secondary-replay-button,
+.open-replay-button {
     padding: 10px 17px;
     border-radius: 6px;
     cursor: pointer;
@@ -1059,10 +1064,10 @@
 
 .replay-ready-box {
     margin-top: 16px;
-    padding: 12px;
+    padding: 14px;
     display: flex;
     flex-direction: column;
-    gap: 4px;
+    gap: 6px;
     border: 1px solid #4e8d61;
     border-left: 4px solid #81c784;
     border-radius: 6px;
@@ -1077,6 +1082,19 @@
 .replay-ready-box span {
     color: #aeb8c0;
     font-size: 9px;
+}
+
+.open-replay-button {
+    align-self: flex-start;
+    margin-top: 7px;
+    border: 2px solid #9b9383;
+    background: #f4efe3;
+    color: #222;
+}
+
+.open-replay-button:hover {
+    border-color: #e5cc67;
+    background: #fff9e9;
 }
 
 .page-tutorial-target {
@@ -1121,6 +1139,10 @@
 
     .replay-summary-header {
         flex-direction: column;
+    }
+
+    .open-replay-button {
+        width: 100%;
     }
 }
 </style>
@@ -1442,6 +1464,16 @@
                 bot2,
                 GameMode.BotMatch);
 
+        // Explicitly register the exact runtime decks
+        // used by this simulated match for replay export.
+        BattleLog.SetReplayDeck(
+            1,
+            bot1.Deck);
+
+        BattleLog.SetReplayDeck(
+            2,
+            bot2.Deck);
+
         int simulationSteps =
             0;
 
@@ -1697,17 +1729,72 @@
                 0,
                 DeckManager.Decks.Count - 1);
 
-        /*
-            The current BattleLog replay format records the
-            deck structure for individual replay events.
+        Deck selectedPlayer1Deck =
+            DeckManager.Decks[
+                replayPlayer1DeckIndex];
 
-            We validate that all recorded deck structures are
-            compatible with the selected decks before accepting
-            the replay.
+        Deck selectedPlayer2Deck =
+            DeckManager.Decks[
+                replayPlayer2DeckIndex];
 
-            Exact deck identity will be enforced once the replay
-            header carries the deck identity/fingerprint.
-        */
+        string? recordedPlayer1Fingerprint =
+            GetRecordedDeckFingerprint(
+                replayInput,
+                1);
+
+        string? recordedPlayer2Fingerprint =
+            GetRecordedDeckFingerprint(
+                replayInput,
+                2);
+
+        if (string.IsNullOrWhiteSpace(
+                recordedPlayer1Fingerprint) ||
+            string.IsNullOrWhiteSpace(
+                recordedPlayer2Fingerprint))
+        {
+            replayError =
+                "This replay does not contain complete deck identity " +
+                "metadata. Copy a new replay using the current " +
+                "Copy Replay button.";
+
+            return;
+        }
+
+        string selectedPlayer1Fingerprint =
+            BattleLog.CreateDeckFingerprint(
+                selectedPlayer1Deck);
+
+        string selectedPlayer2Fingerprint =
+            BattleLog.CreateDeckFingerprint(
+                selectedPlayer2Deck);
+
+        if (!string.Equals(
+                recordedPlayer1Fingerprint,
+                selectedPlayer1Fingerprint,
+                StringComparison.OrdinalIgnoreCase))
+        {
+            replayError =
+                $"Replay mismatch: Player 1 is not using the exact " +
+                $"deck recorded in this replay. " +
+                $"Recorded deck: {GetRecordedDeckName(replayInput, 1)}. " +
+                $"Selected deck: {selectedPlayer1Deck.Name}.";
+
+            return;
+        }
+
+        if (!string.Equals(
+                recordedPlayer2Fingerprint,
+                selectedPlayer2Fingerprint,
+                StringComparison.OrdinalIgnoreCase))
+        {
+            replayError =
+                $"Replay mismatch: Player 2 is not using the exact " +
+                $"deck recorded in this replay. " +
+                $"Recorded deck: {GetRecordedDeckName(replayInput, 2)}. " +
+                $"Selected deck: {selectedPlayer2Deck.Name}.";
+
+            return;
+        }
 
         DeckStructure? player1Structure =
             GetRecordedDeckStructure(
@@ -1719,23 +1806,14 @@
                 imported,
                 2);
 
-        Deck selectedPlayer1Deck =
-            DeckManager.Decks[
-                replayPlayer1DeckIndex];
-
-        Deck selectedPlayer2Deck =
-            DeckManager.Decks[
-                replayPlayer2DeckIndex];
-
         if (player1Structure.HasValue &&
             player1Structure.Value !=
                 selectedPlayer1Deck.Structure)
         {
             replayError =
-                $"Replay mismatch: Player 1 recorded " +
-                $"deck structure is " +
-                $"{GetStructureName(player1Structure.Value)}, " +
-                $"but the selected deck uses " +
+                $"Replay mismatch: Player 1 recorded deck structure is " +
+                $"{GetStructureName(player1Structure.Value)}, but the " +
+                $"selected deck uses " +
                 $"{GetStructureName(selectedPlayer1Deck.Structure)}.";
 
             return;
@@ -1746,10 +1824,9 @@
                 selectedPlayer2Deck.Structure)
         {
             replayError =
-                $"Replay mismatch: Player 2 recorded " +
-                $"deck structure is " +
-                $"{GetStructureName(player2Structure.Value)}, " +
-                $"but the selected deck uses " +
+                $"Replay mismatch: Player 2 recorded deck structure is " +
+                $"{GetStructureName(player2Structure.Value)}, but the " +
+                $"selected deck uses " +
                 $"{GetStructureName(selectedPlayer2Deck.Structure)}.";
 
             return;
@@ -1760,6 +1837,76 @@
 
         replayLoaded =
             true;
+    }
+
+    private static string? GetRecordedDeckFingerprint(
+        string replay,
+        int playerIndex)
+    {
+        string prefix =
+            $"DECK|{playerIndex}|";
+
+        string? line =
+            replay
+                .Split(
+                    new[] { '\r', '\n' },
+                    StringSplitOptions.RemoveEmptyEntries)
+                .FirstOrDefault(
+                    value =>
+                        value.StartsWith(
+                            prefix,
+                            StringComparison.Ordinal));
+
+        if (line == null)
+        {
+            return null;
+        }
+
+        string[] parts =
+            line.Split(
+                '|');
+
+        if (parts.Length < 5)
+        {
+            return null;
+        }
+
+        return parts[4];
+    }
+
+    private static string GetRecordedDeckName(
+        string replay,
+        int playerIndex)
+    {
+        string prefix =
+            $"DECK|{playerIndex}|";
+
+        string? line =
+            replay
+                .Split(
+                    new[] { '\r', '\n' },
+                    StringSplitOptions.RemoveEmptyEntries)
+                .FirstOrDefault(
+                    value =>
+                        value.StartsWith(
+                            prefix,
+                            StringComparison.Ordinal));
+
+        if (line == null)
+        {
+            return "Unknown deck";
+        }
+
+        string[] parts =
+            line.Split(
+                '|');
+
+        if (parts.Length < 3)
+        {
+            return "Unknown deck";
+        }
+
+        return parts[2];
     }
 
     private static DeckStructure? GetRecordedDeckStructure(
@@ -1774,6 +1921,23 @@
             .Select(entry =>
                 entry.DeckStructure)
             .FirstOrDefault();
+    }
+
+    private void OpenReplayInBattle()
+    {
+        if (!replayLoaded ||
+            replayEvents.Count == 0)
+        {
+            return;
+        }
+
+        Session.PendingReplay =
+            replayInput;
+
+        Navigation.NavigateTo(
+            $"/battle?replay=true" +
+            $"&p1Deck={replayPlayer1DeckIndex}" +
+            $"&p2Deck={replayPlayer2DeckIndex}");
     }
 
     private void ClearReplay()

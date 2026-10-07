@@ -1,0 +1,422 @@
+@page "/battle"
+@using RedPandaTCD_Web.Game
+@using Microsoft.AspNetCore.Components.Routing
+@using Microsoft.JSInterop
+@inject GameSessionState Session
+@inject NavigationManager Navigation
+@inject IJSRuntime JS
+@layout BattleLayout
+
+<PageTitle>Battle - Red Panda TCD</PageTitle>
+
+<NavigationLock
+    OnBeforeInternalNavigation="HandleNavigationAway"
+    ConfirmExternalNavigation="@ShouldConfirmExternalNavigation" />
+
+@if (Session.CurrentMatch == null)
+{
+    <div class="p-3">
+        <h1>Battle</h1>
+        <p>No active match.</p>
+    </div>
+}
+else
+{
+    var match = Session.CurrentMatch;
+    var player = GetPresentedPlayer();
+    var enemy = GetPresentedOpponent();
+
+<div class="battle @(logCollapsed ? "log-collapsed" : "") @GetTutorialFocusClass("battle-board")">
+
+        <section class="side enemy-side @GetTutorialFocusClass("enemy-field", "enemy-character")">
+
+            <PlayerInfo
+                Player="enemy"
+                Title="Enemy"
+                ShowHandCount="true" />
+
+            <div class="field">
+                <AttackCard Owner="enemy" Slot="1" />
+                <CharacterCard Owner="enemy" />
+                <AttackCard Owner="enemy" Slot="2" />
+            </div>
+        </section>
+
+<section class="phase-bar @GetTutorialFocusClass("phase-bar", "phase-utility", "phase-placement", "phase-attack", "phase-end", "initiative")">
+            <div class="turn-details">
+                <strong>Turn @match.TurnNumber</strong>
+
+                <span class="initiative-owner">
+                    Initiative → @match.GetFirstPlayer().Name
+                </span>
+            </div>
+
+            <div class="phases">
+                @PhaseBox("Utility", MatchPhase.Utility, "utility")
+                @PhaseBox("Placement", MatchPhase.Placement, "placement")
+                @PhaseBox("Attack", MatchPhase.Attack, "attack")
+                @PhaseBox("End", MatchPhase.End, "end")
+            </div>
+
+            <div class="turn-owner @GetTurnOwnerClass(player)">
+                <span>@GetTurnOwnerText(player)</span>
+            </div>
+        </section>
+
+       <section class="side player-side @GetTutorialFocusClass("player-field", "player-energy", "player-character", "wanderer-entry")">
+
+            <div class="player-row">
+
+                <PlayerInfo
+                    Player="player"
+                    Title="Player"
+                    ShowUtilityActions="true" />
+
+                <div class="field player-field">
+                    <AttackCard
+                        Owner="player"
+                        Slot="1"
+                        IsClickable="@CanInteractWithAttack(player, 1)"
+                        HighlightAttackAction="@ShouldHighlightAttack(player, 1)"
+                        PlacementHighlightClass="@GetAttackPlacementHighlight(player, 1)"
+                        OnCardClicked="HandleAttackCardClick" />
+
+                    <CharacterCard
+                        Owner="player"
+                        IsClickable="@CanInteractWithCharacter(player)"
+                        HighlightAttackAction="@ShouldHighlightCharacterAbility(player)"
+                        PlacementHighlightClass="@GetCharacterPlacementHighlight(player)"
+                        OnCardClicked="HandleCharacterCardClick" />
+
+                    <AttackCard
+                        Owner="player"
+                        Slot="2"
+                        IsClickable="@CanInteractWithAttack(player, 2)"
+                        HighlightAttackAction="@ShouldHighlightAttack(player, 2)"
+                        PlacementHighlightClass="@GetAttackPlacementHighlight(player, 2)"
+                        OnCardClicked="HandleAttackCardClick" />
+                </div>
+
+<div class="piles">
+
+    <div class="@GetDeckClass(player)"
+         @onclick="() => SelectDeckAction(player)">
+
+        <strong>DECK</strong>
+
+        <span class="pile-number">
+            @(player.Deck.RuntimeStorage?.Count ?? 0)
+        </span>
+
+        <small class="deck-structure">
+            @GetDeckStructureName(
+                player.Deck.Structure)
+        </small>
+    </div>
+
+    <div class="discard @GetTutorialFocusClass("discard-pile")">
+        <strong>DISCARD</strong>
+
+        <span class="pile-number">
+            @player.DiscardPile.Count
+        </span>
+    </div>
+
+</div>
+
+            </div>
+        </section>
+            <aside class="log-panel @GetTutorialFocusClass("battle-log")">
+            <div class="log-header">
+                @if (!logCollapsed)
+                {
+                    <h2>Battle Log</h2>
+
+                  <button class="copy-log-button"
+        @onclick="CopyVisibleBattleLog">
+    @(logCopied ? "Copied!" : "Copy Log")
+</button>
+
+<button class="copy-log-button"
+        @onclick="CopyReplay">
+    @(replayCopied ? "Copied!" : "Copy Replay")
+</button>
+                }
+
+                <button class="log-toggle"
+                        @onclick="ToggleLog">
+                    @(logCollapsed ? "◀" : "▶")
+                </button>
+            </div>
+
+            @if (!logCollapsed)
+            {
+                <div class="log" @ref="battleLogElement">
+                    @if (GetDisplayedBattleLog().Count == 0)
+                    {
+                        <span class="muted">No actions yet.</span>
+                    }
+                    else
+                    {
+                        @foreach (BattleLogEntry entry in GetDisplayedBattleLog())
+                        {
+                            <div class="log-entry @GetLogPhaseClass(entry)">
+                                <span class="log-phase">@entry.Label</span>
+                                <span class="log-action">@entry.Message</span>
+                            </div>
+                        }
+                    }
+                </div>
+            }
+
+            <div class="match-controls">
+    @if (IsReplayMode)
+    {
+        <div class="replay-controls">
+
+            <div class="replay-status">
+                @(replayState?.IsFinished == true
+                    ? "Replay Finished"
+                    : "Replay")
+            </div>
+
+            <div class="replay-buttons">
+
+                <button
+                    disabled="@(replayState == null)"
+                    @onclick="ReplayStart">
+                    Start
+                </button>
+
+                <button
+                    disabled="@(replayState == null ||
+                                 replayState.CurrentEventIndex <= 0)"
+                    @onclick="ReplayPrevious">
+                    Previous
+                </button>
+
+                <button
+                    disabled="@(replayState == null ||
+                                 replayState.IsFinished)"
+                    @onclick="ReplayNext">
+                    Next
+                </button>
+
+                <button
+                    disabled="@(replayState == null)"
+                    @onclick="ReplayEnd">
+                    End
+                </button>
+
+            </div>
+
+            @if (replayState?.CurrentEvent != null)
+            {
+                <div class="replay-current-event">
+                    @replayState.CurrentEvent.Message
+                </div>
+            }
+
+        </div>
+    }
+    else if (!IsBattleFinished)
+    {
+        <ContinueButton
+            Disabled="@IsContinueDisabled(player)"
+            IsBusy="@botIsActing"
+            Highlight="@ShouldHighlightContinue(player)"
+            OnClick="ContinuePhase" />
+
+        <button disabled="@IsSurrenderDisabled"
+                @onclick="RequestSurrender">
+            Surrender
+        </button>
+    }
+    else if (observingFinishedMatch)
+    {
+        <div class="finished-observation-label">
+            Match Finished · Observing Board
+        </div>
+    }
+</div>
+        </aside>
+
+        <section class="hand-area @GetTutorialHandFocusClass()">
+            <strong class="hand-label">Your Hand</strong>
+
+            <div class="hand">
+              @foreach (HandSlot slot in player.HandSlots)
+{
+    <div class="@GetTutorialHandCardClass(slot)">
+        <HandCard
+            Slot="slot"
+            IsClickable="@CanSelectHandCard(player, slot)"
+            OnCardClicked="SelectHandCard" />
+    </div>
+}
+            </div>
+        </section>
+
+        @if (selectedHandSlot?.CardInSlot != null)
+        {
+            Card selectedCard = selectedHandSlot.CardInSlot;
+
+            <div class="card-action-overlay"
+     @onclick="RequestCloseHandCard">
+                <div class="card-action-panel"
+                     @onclick:stopPropagation="true">
+
+                    <h3>@selectedCard.Name</h3>
+
+                    <div class="selected-card-meta">
+                        <span>
+                            @selectedCard.Archetype · @selectedCard.Type
+                        </span>
+
+                        <strong>COST @selectedCard.Cost</strong>
+                    </div>
+
+                    @if (selectedCard.Type == CardType.Utility)
+                    {
+                        <div class="utility-description">
+                            <strong>EFFECT</strong>
+
+                            <span>
+                                @UtilityInfo.GetDescription(selectedCard)
+                            </span>
+                        </div>
+
+                        <button disabled="@(!CanPlaySelectedUtility)"
+                                @onclick="PlaySelectedUtility">
+                            Play Utility
+                        </button>
+                    }
+
+                    <button disabled="@(!CanDiscardSelectedCard)"
+                            @onclick="DiscardSelectedCard">
+                        Discard & Draw
+                    </button>
+
+                    <button disabled="@(!CanCloseSelectedHandCard)"
+                            @onclick="RequestCloseHandCard">
+                        Close
+                    </button>
+
+                </div>
+            </div>
+        }
+
+        @if (showDeckActionPanel)
+        {
+            <div class="deck-action-overlay"
+                 @onclick="CloseDeckActionPanel">
+
+                <div class="deck-action-panel"
+                     @onclick:stopPropagation="true">
+
+                    <div class="deck-action-header">
+                        <div>
+                            <span class="deck-action-kicker">
+                                @selectedDeckActionTitle
+                            </span>
+
+                            <h3>@selectedDeckActionHeading</h3>
+                        </div>
+
+                        <button class="panel-close-button"
+                                @onclick="CloseDeckActionPanel">
+                            ×
+                        </button>
+                    </div>
+
+                    <p class="deck-action-description">
+                        @selectedDeckActionDescription
+                    </p>
+
+                    @if (selectedDeckActionMode == DeckActionMode.Peek)
+                    {
+                        <div class="deck-preview-grid">
+                            @foreach (Card card in GetDeckPreviewCards())
+                            {
+                                <div class="deck-preview-card">
+                                    <strong>@card.Name</strong>
+                                    <span>@card.Archetype</span>
+                                    <small>
+                                        @card.Type · Cost @card.Cost
+                                    </small>
+                                </div>
+                            }
+                        </div>
+                    }
+                    else if (selectedDeckActionMode == DeckActionMode.DrawPool)
+                    {
+                        <div class="deck-preview-grid">
+                            @foreach (Card card in GetDrawPoolCards())
+                            {
+                                <div class="deck-preview-card">
+                                    <strong>@card.Name</strong>
+                                    <span>@card.Archetype</span>
+                                    <small>
+                                        @card.Type · Cost @card.Cost
+                                    </small>
+                                </div>
+                            }
+                        </div>
+                    }
+                    else if (selectedDeckActionMode == DeckActionMode.Reorder)
+                    {
+                        <div class="reorder-panel">
+                            <div class="reorder-header">
+                                <strong>Reorder Top Cards</strong>
+                                <span>
+                                    Choose the order from top to bottom.
+                                </span>
+                            </div>
+
+                            <div class="reorder-list">
+                                @foreach (Card card in GetReorderCards())
+                                {
+                                    <button
+                                        class="reorder-card"
+                                        @onclick="() => SelectReorderCard(card)">
+                                        <span class="reorder-position">
+                                            @GetReorderPosition(card)
+                                        </span>
+
+                                        <span class="reorder-card-name">
+                                            @card.Name
+                                        </span>
+
+                                        <span class="reorder-card-meta">
+                                            @card.Archetype · @card.Type
+                                        </span>
+                                    </button>
+                                }
+                            </div>
+
+                            <div class="reorder-actions">
+                                <button
+                                    disabled="@(!CanConfirmReorder)"
+                                    @onclick="ConfirmReorder">
+                                    Confirm Order
+                                </button>
+
+                                <button
+                                    class="secondary"
+                                    @onclick="CancelReorder">
+                                    Cancel
+                                </button>
+                            </div>
+                        </div>
+                    }
+
+                    <div class="deck-action-footer">
+                        <button class="secondary"
+                                @onclick="CloseDeckActionPanel">
+                            Close
+                        </button>
+                    </div>
+
+                </div>
+            </div>
+        }
