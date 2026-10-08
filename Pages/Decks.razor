@@ -211,20 +211,25 @@
 
                         <div class="deck-actions">
 
-                            <button class="view-button"
-                                    @onclick="() => ViewDeck(deckIndex)">
-                                View Deck
-                            </button>
+    <button class="view-button"
+            @onclick="() => ViewDeck(deckIndex)">
+        View Deck
+    </button>
 
-                            @if (!isStarter)
-                            {
-                                <button class="delete-button"
-                                        @onclick="() => AskDeleteDeck(deckIndex)">
-                                    Delete
-                                </button>
-                            }
+    @if (!isStarter)
+    {
+        <button class="edit-button"
+                @onclick="() => EditDeck(deckIndex)">
+            Edit
+        </button>
 
-                        </div>
+        <button class="delete-button"
+                @onclick="() => AskDeleteDeck(deckIndex)">
+            Delete
+        </button>
+    }
+
+</div>
 
                     </article>
                 }
@@ -279,7 +284,6 @@
 
                 </header>
 
-
                 <div class="viewer-structure-info">
 
                     <strong>
@@ -291,7 +295,6 @@
                     </span>
 
                 </div>
-
 
                 <div class="viewer-summary">
 
@@ -324,7 +327,6 @@
 
                 </div>
 
-
                 <div class="viewer-list">
 
                     @for (int i = 0;
@@ -336,97 +338,17 @@
                         Card card =
                             viewedDeck.Cards[cardIndex];
 
-                        <div class="viewer-card">
-
-                            <div class="viewer-position">
-                                @(cardIndex + 1)
-                            </div>
-
-                            <div class="viewer-card-accent @GetCardTypeClass(card)">
-                            </div>
-
-                            <div class="viewer-card-info">
-
-                                <div class="viewer-card-title">
-
-                                    <strong>
-                                        @card.Name
-                                    </strong>
-
-                                    <span>
-                                        @card.Id
-                                    </span>
-
-                                </div>
-
-                                <small>
-                                    @card.Archetype ·
-                                    @card.Type ·
-                                    Cost @card.Cost
-                                </small>
-
-                                @if (card.Type ==
-                                     CardType.Character)
-                                {
-                                    <span class="viewer-extra">
-                                        HP @card.HpValue ·
-                                        Shield @card.ShieldValue
-                                    </span>
-                                }
-                                else if (card.Type ==
-                                          CardType.Attack)
-                                {
-                                    <span class="viewer-extra">
-                                        @card.Damage Damage ·
-                                        @card.Hits Hit(s)
-
-                                        @if (card.IsPiercing)
-                                        {
-                                            <text>
-                                                · Piercing
-                                            </text>
-                                        }
-
-                                        @if (card.InstantFatigue)
-                                        {
-                                            <text>
-                                                · Instant Fatigue
-                                            </text>
-                                        }
-                                    </span>
-                                }
-                                else if (card.Type ==
-                                          CardType.Utility)
-                                {
-                                    <span class="viewer-extra">
-                                        @UtilityInfo.GetDescription(card)
-                                    </span>
-                                }
-
-                            </div>
-
-
-                            @if (viewedDeck.Structure ==
-                                 DeckStructure.PriorityQueue)
-                            {
-                                <div class="viewer-priority">
-
-                                    <span>
-                                        PRIORITY
-                                    </span>
-
-                                    <strong>
-                                        @card.Priority
-                                    </strong>
-
-                                </div>
-                            }
-
-                        </div>
+                        <CardBrowseRow
+                            @key="@($"viewer-{cardIndex}-{card.Id}")"
+                            Card="@card"
+                            Position="@(cardIndex + 1)"
+                            Priority="@(viewedDeck.Structure == DeckStructure.PriorityQueue
+                                ? card.Priority
+                                : null)"
+                            ShowCardPreview="true" />
                     }
 
                 </div>
-
 
                 <footer class="viewer-footer">
 
@@ -446,60 +368,6 @@
         </div>
     }
 }
-
-
-@if (deleteDeckIndex != null)
-{
-    int index =
-        deleteDeckIndex.Value;
-
-    if (index >= 0 &&
-        index < DeckManager.Decks.Count)
-    {
-        Deck deckToDelete =
-            DeckManager.Decks[index];
-
-        <div class="deck-overlay"
-             @onclick="CancelDelete">
-
-            <section class="delete-dialog"
-                     @onclick:stopPropagation="true">
-
-                <h2>
-                    Delete Deck?
-                </h2>
-
-                <p>
-                    Permanently delete
-                    <strong>
-                        @deckToDelete.Name
-                    </strong>?
-                </p>
-
-                <p class="delete-warning">
-                    This cannot be undone.
-                </p>
-
-                <div class="delete-actions">
-
-                    <button class="confirm-delete"
-                            @onclick="ConfirmDelete">
-                        Delete
-                    </button>
-
-                    <button @onclick="CancelDelete">
-                        Cancel
-                    </button>
-
-                </div>
-
-            </section>
-
-        </div>
-    }
-}
-
-
 <style>
 
 .decks-page {
@@ -974,7 +842,14 @@
     background: #e5ddcc;
 }
 
+.edit-button {
+    background: #d7c984;
+    color: #222;
+}
 
+.edit-button:hover {
+    background: #e5d695;
+}
 .delete-button {
     background: #43262a;
     color: #efaaaa;
@@ -1819,5 +1694,9 @@
         Navigation.NavigateTo(
             "/");
     }
-
+private void EditDeck(int index)
+{
+    Navigation.NavigateTo(
+        $"/deck-builder?edit={index}");
+}
 }

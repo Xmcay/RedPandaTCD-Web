@@ -18,10 +18,10 @@ public class ReplayMatchState
         CurrentEventIndex >= Events.Count;
 
     public BattleLogEntry? CurrentEvent =>
-        CurrentEventIndex >= 0 &&
-        CurrentEventIndex < Events.Count
-            ? Events[CurrentEventIndex]
-            : null;
+    CurrentEventIndex > 0 &&
+    CurrentEventIndex <= Events.Count
+        ? Events[CurrentEventIndex - 1]
+        : null;
 
     public IReadOnlyList<BattleLogEntry> VisibleEvents =>
         Events
@@ -413,13 +413,44 @@ public class ReplayMatchState
             GetOpponent(player));
     }
 
-    private void ApplyPlacement(
-        Player player,
-        BattleLogEntry entry)
+   private void ApplyPlacement(
+    Player player,
+    BattleLogEntry entry)
+{
+    Console.WriteLine(
+        $"PLACEMENT -> " +
+        $"Player={entry.PlayerIndex} " +
+        $"Card={entry.CardName} " +
+        $"TargetSlot={entry.TargetSlotNumber}");
+
+    if (string.IsNullOrWhiteSpace(
+        entry.CardName))
     {
-        if (string.IsNullOrWhiteSpace(
-            entry.CardName))
+        ApplyStateSnapshot(
+            entry,
+            player,
+            GetOpponent(player));
+
+        return;
+    }
+
+    Card? card =
+        RemoveCardFromHand(
+            player,
+            entry.CardName);
+
+    if (card == null)
+    {
+        card =
+            FindCard(
+                player,
+                entry.CardName);
+
+        if (card == null)
         {
+            Console.WriteLine(
+                $"CARD NOT FOUND -> {entry.CardName}");
+
             ApplyStateSnapshot(
                 entry,
                 player,
@@ -427,184 +458,216 @@ public class ReplayMatchState
 
             return;
         }
+    }
 
-        Card? card =
-            RemoveCardFromHand(
-                player,
-                entry.CardName);
+    if (card.Type ==
+        CardType.Character)
+    {
+        player.ActiveCharacter =
+            card.Clone();
 
-        if (card == null)
+        Console.WriteLine(
+            $"CHARACTER SET -> " +
+            $"{player.Name} " +
+            $"{player.ActiveCharacter?.Name}");
+
+        player.CurrentCharacterHp =
+            entry.CharacterHp ??
+            card.HpValue;
+
+        player.CharacterNewlyDeployed =
+            false;
+    }
+    else if (card.Type ==
+             CardType.Attack)
+    {
+        int slot =
+            entry.TargetSlotNumber ?? 1;
+
+        if (slot == 2)
         {
-            card =
-                FindCard(
-                    player,
-                    entry.CardName);
-
-            if (card == null)
-            {
-                ApplyStateSnapshot(
-                    entry,
-                    player,
-                    GetOpponent(player));
-
-                return;
-            }
-        }
-
-        if (card.Type ==
-            CardType.Character)
-        {
-            player.ActiveCharacter =
+            player.AttackSlot2 =
                 card.Clone();
 
-            player.CurrentCharacterHp =
-                entry.CharacterHp ??
-                card.HpValue;
+            Console.WriteLine(
+                $"ATTACK2 SET -> " +
+                $"{player.Name} " +
+                $"{card.Name}");
 
-            player.CharacterNewlyDeployed =
+            player.AttackSlot2UsesRemaining =
+                2;
+
+            player.AttackSlot2TotalUses =
+                0;
+
+            player.IsFatiguedSlot2 =
+                false;
+
+            player.IsRestingSlot2 =
                 false;
         }
-        else if (card.Type ==
-                 CardType.Attack)
+        else
         {
-            int slot =
-                entry.SlotNumber ?? 1;
+            player.AttackSlot1 =
+                card.Clone();
 
-            if (slot == 2)
-            {
-                player.AttackSlot2 =
-                    card.Clone();
+            Console.WriteLine(
+                $"ATTACK1 SET -> " +
+                $"{player.Name} " +
+                $"{card.Name}");
 
-                player.AttackSlot2UsesRemaining =
-                    2;
+            player.AttackSlot1UsesRemaining =
+                2;
 
-                player.AttackSlot2TotalUses =
-                    0;
+            player.AttackSlot1TotalUses =
+                0;
 
-                player.IsFatiguedSlot2 =
-                    false;
+            player.IsFatiguedSlot1 =
+                false;
 
-                player.IsRestingSlot2 =
-                    false;
-            }
-            else
-            {
-                player.AttackSlot1 =
-                    card.Clone();
-
-                player.AttackSlot1UsesRemaining =
-                    2;
-
-                player.AttackSlot1TotalUses =
-                    0;
-
-                player.IsFatiguedSlot1 =
-                    false;
-
-                player.IsRestingSlot1 =
-                    false;
-            }
+            player.IsRestingSlot1 =
+                false;
         }
-
-        ApplyStateSnapshot(
-            entry,
-            player,
-            GetOpponent(player));
     }
+
+    ApplyStateSnapshot(
+        entry,
+        player,
+        GetOpponent(player));
+}
 
     private void ApplyStateSnapshot(
-        BattleLogEntry entry,
-        Player? actor,
-        Player? target)
+    BattleLogEntry entry,
+    Player? actor,
+    Player? target)
+{
+    Console.WriteLine(
+    $"SNAPSHOT -> " +
+    $"Actor={actor?.Name} " +
+    $"Target={target?.Name} " +
+    $"TargetIndex={entry.TargetPlayerIndex} " +
+    $"Shield={entry.OpponentShield}");
+    
+    if (actor != null)
     {
-        if (actor != null)
+        if (entry.PlayerEnergy.HasValue)
         {
-            if (entry.PlayerEnergy.HasValue)
-            {
-                actor.Energy =
-                    entry.PlayerEnergy.Value;
-            }
-
-            if (entry.PlayerShield.HasValue)
-            {
-                actor.Shield =
-                    entry.PlayerShield.Value;
-            }
-
-            if (entry.CharacterHp.HasValue &&
-                actor.ActiveCharacter != null)
-            {
-                actor.CurrentCharacterHp =
-                    entry.CharacterHp.Value;
-            }
-        }
-
-        if (target != null)
-        {
-            if (entry.OpponentEnergy.HasValue)
-            {
-                target.Energy =
-                    entry.OpponentEnergy.Value;
-            }
-
-            if (entry.OpponentShield.HasValue)
-            {
-                target.Shield =
-                    entry.OpponentShield.Value;
-            }
-        }
-
-        if (entry.TargetPlayerIndex == 1 &&
-            entry.PlayerEnergy.HasValue)
-        {
-            Match.Player1.Energy =
+            actor.Energy =
                 entry.PlayerEnergy.Value;
         }
 
-        if (entry.TargetPlayerIndex == 2 &&
-            entry.PlayerEnergy.HasValue)
+        if (entry.PlayerShield.HasValue)
         {
-            Match.Player2.Energy =
-                entry.PlayerEnergy.Value;
+            actor.Shield =
+                entry.PlayerShield.Value;
         }
 
-        if (entry.TargetPlayerIndex == 1 &&
-            entry.OpponentEnergy.HasValue)
+        if (entry.CharacterHp.HasValue &&
+            actor.ActiveCharacter != null)
         {
-            Match.Player2.Energy =
+            actor.CurrentCharacterHp =
+                entry.CharacterHp.Value;
+        }
+    }
+
+    if (target != null)
+    {
+        if (entry.OpponentEnergy.HasValue)
+        {
+            target.Energy =
                 entry.OpponentEnergy.Value;
         }
 
-        if (entry.TargetPlayerIndex == 2 &&
-            entry.OpponentEnergy.HasValue)
+        if (entry.OpponentShield.HasValue)
         {
-            Match.Player1.Energy =
-                entry.OpponentEnergy.Value;
+            target.Shield =
+                entry.OpponentShield.Value;
         }
+    }
 
-        if (entry.CharacterHp.HasValue)
+    if (entry.TargetPlayerIndex == 1 &&
+        entry.PlayerEnergy.HasValue)
+    {
+        Match.Player1.Energy =
+            entry.PlayerEnergy.Value;
+    }
+
+    if (entry.TargetPlayerIndex == 2 &&
+        entry.PlayerEnergy.HasValue)
+    {
+        Match.Player2.Energy =
+            entry.PlayerEnergy.Value;
+    }
+
+    if (entry.TargetPlayerIndex == 1 &&
+        entry.OpponentEnergy.HasValue)
+    {
+        Match.Player2.Energy =
+            entry.OpponentEnergy.Value;
+    }
+
+    if (entry.TargetPlayerIndex == 2 &&
+        entry.OpponentEnergy.HasValue)
+    {
+        Match.Player1.Energy =
+            entry.OpponentEnergy.Value;
+    }
+
+    /*
+     * Shield reconstruction.
+     */
+
+    if (entry.TargetPlayerIndex == 1 &&
+        entry.PlayerShield.HasValue)
+    {
+        Match.Player1.Shield =
+            entry.PlayerShield.Value;
+    }
+
+    if (entry.TargetPlayerIndex == 2 &&
+        entry.PlayerShield.HasValue)
+    {
+        Match.Player2.Shield =
+            entry.PlayerShield.Value;
+    }
+
+    if (entry.TargetPlayerIndex == 1 &&
+        entry.OpponentShield.HasValue)
+    {
+        Match.Player2.Shield =
+            entry.OpponentShield.Value;
+    }
+
+    if (entry.TargetPlayerIndex == 2 &&
+        entry.OpponentShield.HasValue)
+    {
+        Match.Player1.Shield =
+            entry.OpponentShield.Value;
+    }
+
+    if (entry.CharacterHp.HasValue)
+    {
+        Player? characterOwner =
+            target ??
+            actor;
+
+        if (characterOwner != null &&
+            characterOwner.ActiveCharacter != null)
         {
-            Player? characterOwner =
-                target ??
-                actor;
+            characterOwner.CurrentCharacterHp =
+                entry.CharacterHp.Value;
 
-            if (characterOwner != null &&
-                characterOwner.ActiveCharacter != null)
+            if (characterOwner.CurrentCharacterHp <= 0)
             {
+                characterOwner.ActiveCharacter =
+                    null;
+
                 characterOwner.CurrentCharacterHp =
-                    entry.CharacterHp.Value;
-
-                if (characterOwner.CurrentCharacterHp <= 0)
-                {
-                    characterOwner.ActiveCharacter =
-                        null;
-
-                    characterOwner.CurrentCharacterHp =
-                        0;
-                }
+                    0;
             }
         }
     }
+}
 
     private Player? GetPlayer(
         int playerIndex)

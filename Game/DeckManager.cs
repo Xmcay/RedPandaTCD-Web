@@ -90,5 +90,50 @@ public static bool DeleteDeck(
 
     return true;
 }
+public static bool UpdateDeck(
+    int index,
+    Deck deck,
+    string name,
+    out string errorMessage)
+{
+    InitializeDefaultDecks();
 
+    if (index < 0 ||
+        index >= Decks.Count)
+    {
+        errorMessage =
+            "Deck not found.";
+
+        return false;
+    }
+
+    if (string.IsNullOrWhiteSpace(name))
+    {
+        errorMessage =
+            "Deck name cannot be empty.";
+
+        return false;
+    }
+
+    if (!DeckBuilder.ValidateDeck(
+            deck,
+            out errorMessage))
+    {
+        return false;
+    }
+
+    Deck updatedDeck =
+        DeckCloner.Clone(deck);
+
+    updatedDeck.Name =
+        name.Trim();
+
+    Decks[index] =
+        updatedDeck;
+
+    errorMessage =
+        string.Empty;
+
+    return true;
+}
 }

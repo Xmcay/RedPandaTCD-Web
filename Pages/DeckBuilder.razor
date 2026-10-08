@@ -1,701 +1,298 @@
 @page "/deck-builder"
 @using RedPandaTCD_Web.Game
+@using Microsoft.AspNetCore.Components
 @inject NavigationManager Navigation
 @inject GameSessionState Session
-@using Microsoft.AspNetCore.Components
 
 <PageTitle>Deck Builder - Red Panda TCD</PageTitle>
 
 <div class="builder-page @GetPageTutorialClass("builder-page")">
     <div class="builder-shell">
-
         <header class="builder-header">
             <div>
                 <h1>
-                    @(IsLearnToPlayDeckBuilder
-                        ? "Tutorial Deck Builder"
-                        : "Deck Builder")
-                </h1>
-
-                <p>
-                    @(IsLearnToPlayDeckBuilder
-                        ? "Build the Queue deck you'll use during Learn to Play."
-                        : "Build and save a custom deck.")
-                </p>
+    @(IsLearnToPlayDeckBuilder
+        ? "Tutorial Deck Builder"
+        : EditDeckIndex != null
+            ? "Edit Deck"
+            : "Deck Builder")
+</h1>
+                <p>@(IsLearnToPlayDeckBuilder
+    ? "Save Tutorial Deck & Continue"
+    : EditDeckIndex != null
+        ? "Save Changes"
+        : "Save Deck")</p>
             </div>
-
             <div class="header-actions">
                 @if (IsLearnToPlayDeckBuilder)
                 {
-                    <button @onclick="ExitLearnToPlayBuilder">
-                        Exit Tutorial
-                    </button>
+                    <button @onclick="ExitLearnToPlayBuilder">Exit Tutorial</button>
                 }
                 else
                 {
-                    <button @onclick="GoToDecks">
-                        View Decks
-                    </button>
-
-                    <button @onclick="GoHome">
-                        Main Menu
-                    </button>
+                    <button @onclick="GoToDecks">View Decks</button>
+                    <button @onclick="GoHome">Main Menu</button>
                 }
             </div>
         </header>
 
         <main class="builder-content">
-
-            <!-- AVAILABLE CARDS -->
             <section class="available-panel @GetPageTutorialClass("available-cards")">
-
                 <div class="panel-header">
                     <div>
-                        <h2>
-                            @(IsLearnToPlayDeckBuilder
-                                ? "Next Tutorial Card"
-                                : "Available Cards")
-                        </h2>
-
+                        <h2>Card Finder</h2>
                         <span>
                             @if (IsLearnToPlayDeckBuilder)
                             {
-                                @if (workingDeck.Cards.Count >=
-                                     TutorialManager.LearnToPlayDeckOrder.Count)
-                                {
-                                    <text>ORDER COMPLETE</text>
-                                }
-                                else
-                                {
-                                    <text>
-                                        POSITION @(workingDeck.Cards.Count + 1)
-                                        OF @TutorialManager.LearnToPlayDeckOrder.Count
-                                    </text>
-                                }
+                                <text>@TutorialManager.GetLearnToPlayDeckProgress(workingDeck) · @FilteredCards.Count visible</text>
                             }
                             else
                             {
-                                <text>
-                                    @FilteredCards.Count card(s)
-                                </text>
+                                <text>@FilteredCards.Count card(s)</text>
                             }
                         </span>
                     </div>
                 </div>
 
-                @if (!IsLearnToPlayDeckBuilder)
+                @if (IsLearnToPlayDeckBuilder)
                 {
-                    <div class="@GetPageTutorialClass("card-filters")">
+                    <div class="tutorial-order-guide">@GetTutorialBuilderInstruction()</div>
+                }
 
-                    <input class="search-box"
-                           @bind="searchText"
-                           @bind:event="oninput"
-                           placeholder="Search by card name or ID..." />
-
+                <div class="@GetPageTutorialClass("card-filters")">
+                    <input class="search-box" @bind="searchText" @bind:event="oninput" placeholder="Search by card name or ID..." />
                     <div class="filter-group">
-                        <button class="@GetTypeButtonClass(null)"
-                                @onclick="() => SetTypeFilter(null)">
-                            All
-                        </button>
-
-                        <button class="@GetTypeButtonClass(CardType.Character)"
-                                @onclick="() => SetTypeFilter(CardType.Character)">
-                            Characters
-                        </button>
-
-                        <button class="@GetTypeButtonClass(CardType.Attack)"
-                                @onclick="() => SetTypeFilter(CardType.Attack)">
-                            Attacks
-                        </button>
-
-                        <button class="@GetTypeButtonClass(CardType.Utility)"
-                                @onclick="() => SetTypeFilter(CardType.Utility)">
-                            Utilities
-                        </button>
+                        <button class="@GetTypeButtonClass(null)" @onclick="() => SetTypeFilter(null)">All</button>
+                        <button class="@GetTypeButtonClass(CardType.Character)" @onclick="() => SetTypeFilter(CardType.Character)">Characters</button>
+                        <button class="@GetTypeButtonClass(CardType.Attack)" @onclick="() => SetTypeFilter(CardType.Attack)">Attacks</button>
+                        <button class="@GetTypeButtonClass(CardType.Utility)" @onclick="() => SetTypeFilter(CardType.Utility)">Utilities</button>
                     </div>
-
                     <div class="filter-group">
-                        <button class="@GetArchetypeButtonClass(null)"
-                                @onclick="() => SetArchetypeFilter(null)">
-                            All Archetypes
-                        </button>
-
-                        <button class="@GetArchetypeButtonClass(Archetype.Magic)"
-                                @onclick="() => SetArchetypeFilter(Archetype.Magic)">
-                            Magic
-                        </button>
-
-                        <button class="@GetArchetypeButtonClass(Archetype.Physical)"
-                                @onclick="() => SetArchetypeFilter(Archetype.Physical)">
-                            Physical
-                        </button>
-
-                        <button class="@GetArchetypeButtonClass(Archetype.Neutral)"
-                                @onclick="() => SetArchetypeFilter(Archetype.Neutral)">
-                            Neutral
-                        </button>
+                        <button class="@GetArchetypeButtonClass(null)" @onclick="() => SetArchetypeFilter(null)">All Archetypes</button>
+                        <button class="@GetArchetypeButtonClass(Archetype.Magic)" @onclick="() => SetArchetypeFilter(Archetype.Magic)">Magic</button>
+                        <button class="@GetArchetypeButtonClass(Archetype.Physical)" @onclick="() => SetArchetypeFilter(Archetype.Physical)">Physical</button>
+                        <button class="@GetArchetypeButtonClass(Archetype.Neutral)" @onclick="() => SetArchetypeFilter(Archetype.Neutral)">Neutral</button>
                     </div>
                 </div>
-                }
-                else
-                {
-                    <div class="tutorial-order-guide">
-                        @GetTutorialBuilderInstruction()
-                    </div>
-                }
 
                 <div class="available-list">
-
-                    @if (IsLearnToPlayDeckBuilder &&
-                         FilteredCards.Count == 0)
+                    @foreach (Card card in FilteredCards)
                     {
-                        <div class="tutorial-order-complete">
-                            <strong>
-                                QUEUE ORDER COMPLETE
-                            </strong>
+                        bool tutorialRequired = IsCurrentTutorialCard(card);
+                        bool alreadyAdded = IsTutorialCardAlreadyAdded(card);
+                        bool addDisabled = !CanAddCard(card) || !CanAddTutorialCard(card);
 
-                            <span>
-                                All 12 required cards are in the
-                                correct order. Review the deck,
-                                then save it.
-                            </span>
-                        </div>
+                       <CardBrowseRow
+                        @key="card.Id"
+                        Card="@card"
+                        ShowCardPreview="true"
+                        ShowAdd="true"
+                        AddDisabled="@addDisabled"
+                        AddDisabledTitle="@GetAddDisabledTitle(card)"
+                        OnAdd="RequestAddCard"
+                        TutorialRequired="@tutorialRequired"
+                        Subdued="@(IsLearnToPlayDeckBuilder && !tutorialRequired)"
+                        StatusText="@GetFinderStatusText(card)"
+                        StatusClass="@GetFinderStatusClass(card)"
+                        Expanded="@IsFinderCardExpanded(card)"
+                        ExpandedChanged="@(expanded => SetFinderCardExpanded(card, expanded))" />
                     }
-                    else
-                    {
-                        @foreach (Card card in FilteredCards)
-                        {
-                            <div class="available-card @GetTutorialCardClass(card)">
-
-                                <div class="available-accent @GetTypeClass(card)">
-                                </div>
-
-                                <div class="available-card-main">
-
-                                    <div class="available-card-title">
-                                        <strong>
-                                            @card.Name
-                                        </strong>
-
-                                        <small>
-                                            @card.Id
-                                        </small>
-                                    </div>
-
-                                    <span class="card-meta">
-                                        @card.Archetype ·
-                                        @card.Type ·
-                                        Cost @card.Cost
-                                    </span>
-
-                                    @if (card.Type == CardType.Character)
-                                    {
-                                        <span class="card-extra">
-                                            HP @card.HpValue ·
-                                            Shield @card.ShieldValue
-                                        </span>
-                                    }
-                                    else if (card.Type == CardType.Attack)
-                                    {
-                                        <span class="card-extra">
-                                            @card.Damage Damage ·
-                                            @card.Hits Hit(s)
-                                        </span>
-                                    }
-                                    else if (card.Type == CardType.Utility)
-                                    {
-                                        <span class="card-extra">
-                                            @UtilityInfo.GetDescription(card)
-                                        </span>
-                                    }
-
-                                </div>
-
-                                <button class="add-button"
-                                        disabled="@(
-                                            !CanAddCard(card) ||
-                                            !CanAddTutorialCard(card))"
-                                        @onclick="() => RequestAddCard(card)">
-                                    +
-                                </button>
-
-                            </div>
-                        }
-                    }
-
                 </div>
-
             </section>
 
-            <!-- YOUR DECK -->
             <section class="deck-panel @GetPageTutorialClass("built-deck")">
-
                 <div class="compact-deck-name @GetPageTutorialClass("deck-name")">
-                    <label>
-                        DECK NAME
-                    </label>
-
-                    <input @bind="deckName"
-                           @bind:event="oninput"
-                           placeholder="Enter deck name..."
-                           disabled="@IsLearnToPlayDeckBuilder" />
+                    <label>DECK NAME</label>
+                    <input @bind="deckName" @bind:event="oninput" placeholder="Enter deck name..." disabled="@IsLearnToPlayDeckBuilder" />
                 </div>
 
-               <div class="deck-structure-selector @GetPageTutorialClass("structure-selector")">
-
+                <div class="deck-structure-selector @GetPageTutorialClass("structure-selector")">
                     <div class="structure-selector-header">
-                        <label>
-                            DATA STRUCTURE
-                        </label>
-
-                        <select @bind="selectedStructure"
-                                @bind:after="StructureChanged"
-                                disabled="@IsLearnToPlayDeckBuilder">
-
-                            @foreach (DeckStructure structure
-                                in Enum.GetValues<DeckStructure>())
+                        <label>DATA STRUCTURE</label>
+                        <select @bind="selectedStructure" @bind:after="StructureChanged" disabled="@IsLearnToPlayDeckBuilder">
+                            @foreach (DeckStructure structure in Enum.GetValues<DeckStructure>())
                             {
-                                <option value="@structure">
-                                    @GetStructureName(structure)
-                                </option>
+                                <option value="@structure">@GetStructureName(structure)</option>
                             }
-
                         </select>
                     </div>
-
                     <div class="selected-structure-info">
-                        <strong>
-                            @GetStructureName(selectedStructure)
-                        </strong>
-
-                        <span>
-                            @GetStructureDescription(selectedStructure)
-                        </span>
+                        <strong>@GetStructureName(selectedStructure)</strong>
+                        <span>@GetStructureDescription(selectedStructure)</span>
                     </div>
-
                 </div>
 
                 <div class="panel-header deck-panel-header">
                     <div>
-                        <h2>
-                            Your Deck
-                        </h2>
-
+                        <h2>Your Deck</h2>
                         <span>
                             @if (IsLearnToPlayDeckBuilder)
                             {
-                                <text>
-                                    @workingDeck.Cards.Count /
-                                    @TutorialManager.LearnToPlayDeckOrder.Count
-                                    tutorial cards
-                                </text>
+                                <text>@workingDeck.Cards.Count / @TutorialRequiredCount tutorial cards</text>
                             }
                             else
                             {
-                                <text>
-                                    @workingDeck.Cards.Count cards ·
-                                    10-15 required
-                                </text>
+                                <text>@workingDeck.Cards.Count cards · 10-15 required</text>
                             }
                         </span>
                     </div>
                 </div>
 
                 <div class="deck-summary">
-                    <span>
-                        Characters:
-                        <strong>@CharacterCount</strong>
-                    </span>
-
-                    <span>
-                        Attacks:
-                        <strong>@AttackCount</strong>
-                    </span>
-
-                    <span>
-                        Utilities:
-                        <strong>@UtilityCount / 6</strong>
-                    </span>
+                    <span>Characters: <strong>@CharacterCount</strong></span>
+                    <span>Attacks: <strong>@AttackCount</strong></span>
+                    <span>Utilities: <strong>@UtilityCount / 6</strong></span>
                 </div>
 
                 @if (workingDeck.Cards.Count == 0)
                 {
                     <div class="empty-deck">
-                        <strong>
-                            Deck is empty.
-                        </strong>
-
-                        <span>
-                            @if (IsLearnToPlayDeckBuilder)
-                            {
-                                <text>
-                                    Add the displayed Tutorial card.
-                                </text>
-                            }
-                            else
-                            {
-                                <text>
-                                    Add cards from the library.
-                                </text>
-                            }
-                        </span>
+                        <strong>Deck is empty.</strong>
+                        <span>@(IsLearnToPlayDeckBuilder ? "Find the highlighted Tutorial card in the Card Finder." : "Add cards from the Card Finder.")</span>
                     </div>
                 }
                 else
                 {
                     <div class="deck-list">
-
-                        @for (int i = 0;
-                              i < workingDeck.Cards.Count;
-                              i++)
+                        @for (int i = 0; i < workingDeck.Cards.Count; i++)
                         {
                             int index = i;
+                            Card card = workingDeck.Cards[index];
+                            int? priority = selectedStructure == DeckStructure.PriorityQueue ? card.Priority : null;
 
-                            Card card =
-                                workingDeck.Cards[index];
-
-                            <div class="deck-card">
-
-                                <div class="deck-position">
-                                    @(index + 1)
-                                </div>
-
-                                <div class="deck-card-info">
-                                    <strong>
-                                        @card.Name
-                                    </strong>
-
-                                    <span>
-                                        @card.Id ·
-                                        @card.Archetype ·
-                                        @card.Type
-                                    </span>
-
-                                    @if (selectedStructure ==
-                                         DeckStructure.PriorityQueue)
-                                    {
-                                        <small class="priority-label">
-                                            Priority @card.Priority
-                                        </small>
-                                    }
-                                </div>
-
-                                <div class="deck-card-actions">
-
-                                    @if (UsesManualOrder &&
-                                         !IsLearnToPlayDeckBuilder)
-                                    {
-                                        <button disabled="@(index == 0)"
-                                                title="Move Up"
-                                                @onclick="() => MoveCardUp(index)">
-                                            ↑
-                                        </button>
-
-                                        <button disabled="@(
-                                                    index ==
-                                                    workingDeck.Cards.Count - 1)"
-                                                title="Move Down"
-                                                @onclick="() => MoveCardDown(index)">
-                                            ↓
-                                        </button>
-                                    }
-
-                                    @if (!IsLearnToPlayDeckBuilder)
-                                    {
-                                        <button class="remove-button"
-                                                title="Remove"
-                                                @onclick="() => RemoveCard(index)">
-                                            ×
-                                        </button>
-                                    }
-                                    else
-                                    {
-                                        <span class="tutorial-order-lock"
-                                              title="This card is locked into the required Tutorial Queue order.">
-                                            LOCKED
-                                        </span>
-                                    }
-
-                                </div>
-
-                            </div>
+                           <CardBrowseRow
+                            @key="@($"deck-{index}-{card.Id}")"
+                            Card="@card"
+                            Position="@(index + 1)"
+                            Priority="@priority"
+                            ShowCardPreview="false"
+                            ShowMoveControls="@(UsesManualOrder && !IsLearnToPlayDeckBuilder)"
+                            DisableMoveUp="@(index == 0)"
+                            DisableMoveDown="@(index == workingDeck.Cards.Count - 1)"
+                            OnMoveUp="@(() => MoveCardUp(index))"
+                            OnMoveDown="@(() => MoveCardDown(index))"
+                            ShowRemove="@(!IsLearnToPlayDeckBuilder)"
+                            OnRemove="@(() => RemoveCard(index))"
+                            StatusText="@(IsLearnToPlayDeckBuilder ? "ADDED" : "")"
+                            StatusClass="@(IsLearnToPlayDeckBuilder ? "complete" : "")"
+                            Expanded="@(expandedDeckCardIndex == index)"
+                            ExpandedChanged="@(expanded => SetDeckCardExpanded(index, expanded))" />
                         }
-
                     </div>
                 }
 
                 <div class="validation-box @GetDisplayedValidationClass() @GetPageTutorialClass("deck-summary")">
-                    <strong>
-                        DECK STATUS
-                    </strong>
-
-                    <span>
-                        @(IsLearnToPlayDeckBuilder
-                            ? TutorialValidationMessage
-                            : ValidationMessage)
-                    </span>
+                    <strong>DECK STATUS</strong>
+                    <span>@(IsLearnToPlayDeckBuilder ? TutorialValidationMessage : ValidationMessage)</span>
                 </div>
 
                 <button class="save-button @GetPageTutorialClass("save-deck")"
-                        disabled="@(
-                            IsLearnToPlayDeckBuilder &&
-                            !IsTutorialDeckReady)"
+                        disabled="@(IsLearnToPlayDeckBuilder && !IsTutorialDeckReady)"
                         @onclick="SaveDeck">
-
-                    @(IsLearnToPlayDeckBuilder
-                        ? "Save Tutorial Deck & Continue"
-                        : "Save Deck")
-
+                    @(IsLearnToPlayDeckBuilder ? "Save Tutorial Deck & Continue" : "Save Deck")
                 </button>
 
                 @if (!string.IsNullOrWhiteSpace(saveMessage))
                 {
-                    <div class="save-message @(saveSucceeded ? "success" : "error")">
-                        @saveMessage
-                    </div>
+                    <div class="save-message @(saveSucceeded ? "success" : "error")">@saveMessage</div>
                 }
-
             </section>
-
         </main>
-
     </div>
 </div>
 
 <PageTutorialOverlay
-Visible="@showPageTutorial"
-Label="DECK BUILDER TUTORIAL"
-Steps="@DeckBuilderPageTutorialSteps"
-CurrentIndex="@pageTutorialStep"
-CurrentIndexChanged="SetPageTutorialStep"
-OnExit="ExitPageTutorial"
-OnFinished="FinishPageTutorial" />
+    Visible="@showPageTutorial"
+    Label="DECK BUILDER TUTORIAL"
+    Steps="@DeckBuilderPageTutorialSteps"
+    CurrentIndex="@pageTutorialStep"
+    CurrentIndexChanged="SetPageTutorialStep"
+    OnExit="ExitPageTutorial"
+    OnFinished="FinishPageTutorial" />
 
-@if (showTutorialBuilderIntro &&
-     IsLearnToPlayDeckBuilder)
+@if (showTutorialBuilderIntro && IsLearnToPlayDeckBuilder)
 {
     <div class="builder-overlay">
-        <div class="tutorial-builder-dialog"
-             @onclick:stopPropagation="true">
-
-            <div class="tutorial-builder-dialog-icon">
-                FIFO
-            </div>
-
-            <span class="tutorial-builder-dialog-kicker">
-                LEARN TO PLAY · DECK BUILDING
-            </span>
-
-            <h2>
-                Build the Tutorial Queue
-            </h2>
-
-            <p>
-                This deck uses Queue order:
-                <strong>First In, First Out</strong>.
-            </p>
+        <div class="tutorial-builder-dialog" @onclick:stopPropagation="true">
+            <div class="tutorial-builder-dialog-icon">FIFO</div>
+            <span class="tutorial-builder-dialog-kicker">LEARN TO PLAY · DECK BUILDING</span>
+            <h2>Build the Tutorial Queue</h2>
+            <p>This deck uses Queue order: <strong>First In, First Out</strong>.</p>
 
             <div class="tutorial-builder-dialog-steps">
-
-                <div>
-                    <strong>1</strong>
-
-                    <span>
-                        The left panel shows only the next
-                        required card.
-                    </span>
-                </div>
-
-                <div>
-                    <strong>2</strong>
-
-                    <span>
-                        Press + to place the card into the
-                        correct Queue position.
-                    </span>
-                </div>
-
-                <div>
-                    <strong>3</strong>
-
-                    <span>
-                        Add all 12 cards, save the deck,
-                        and continue to the guided Battle.
-                    </span>
-                </div>
-
+                <div><strong>1</strong><span>Use the real Card Finder and scroll until you find the highlighted required card.</span></div>
+                <div><strong>2</strong><span>Only the current required card can be added. Other cards stay inspectable.</span></div>
+                <div><strong>3</strong><span>Add all @TutorialRequiredCount cards, save the deck, and continue to Battle.</span></div>
             </div>
 
-            <p class="tutorial-builder-dialog-note">
-                Manual reordering is disabled during this lesson
-                because the guided Battle requires an exact card
-                sequence.
-            </p>
-
-            <button @onclick="CloseTutorialBuilderIntro">
-                START BUILDING
-            </button>
-
+            <p class="tutorial-builder-dialog-note">Cards are added in the required Queue order automatically. You do not need to reorder the Tutorial deck.</p>
+            <button @onclick="CloseTutorialBuilderIntro">START BUILDING</button>
         </div>
     </div>
 }
 
-<!-- ADDING A NEW CARD DIRECTLY TO PRIORITY QUEUE -->
 @if (priorityCard != null)
 {
-    <div class="builder-overlay"
-         @onclick="CancelPriority">
-
-        <div class="priority-dialog"
-             @onclick:stopPropagation="true">
-
-            <h2>
-                Choose Priority
-            </h2>
-
-            <p>
-                <strong>
-                    @priorityCard.Name
-                </strong>
-            </p>
-
-            @if (priorityCard.Type ==
-                 CardType.Character)
+    <div class="builder-overlay" @onclick="CancelPriority">
+        <div class="priority-dialog" @onclick:stopPropagation="true">
+            <h2>Choose Priority</h2>
+            <p><strong>@priorityCard.Name</strong></p>
+            @if (priorityCard.Type == CardType.Character)
             {
-                <p class="priority-hint">
-                    Character cards always use Priority 5.
-                </p>
-
-                <button @onclick="() => AddPriorityCard(5)">
-                    Priority 5
-                </button>
+                <p class="priority-hint">Character cards always use Priority 5.</p>
+                <button @onclick="() => AddPriorityCard(5)">Priority 5</button>
             }
             else
             {
-                <p class="priority-hint">
-                    Choose Priority 1-4.
-                    Priority 5 is reserved for Characters.
-                </p>
-
+                <p class="priority-hint">Choose Priority 1-4. Priority 5 is reserved for Characters.</p>
                 <div class="priority-buttons">
-
-                    @for (int priority = 1;
-                          priority <= 4;
-                          priority++)
+                    @for (int priority = 1; priority <= 4; priority++)
                     {
-                        int selectedPriority =
-                            priority;
-
-                        <button @onclick="() => AddPriorityCard(selectedPriority)">
-                            Priority @selectedPriority
-                        </button>
+                        int selectedPriority = priority;
+                        <button @onclick="() => AddPriorityCard(selectedPriority)">Priority @selectedPriority</button>
                     }
-
                 </div>
             }
-
-            <button class="cancel-button"
-                    @onclick="CancelPriority">
-                Cancel
-            </button>
-
+            <button class="cancel-button" @onclick="CancelPriority">Cancel</button>
         </div>
     </div>
 }
 
-<!-- CONVERTING AN EXISTING DECK TO PRIORITY QUEUE -->
 @if (showPriorityConversion)
 {
     <div class="builder-overlay">
-
         <div class="priority-conversion-dialog">
-
-            <h2>
-                Assign Priorities
-            </h2>
-
-            <p>
-                Priority Queue requires every card
-                to have a valid priority.
-            </p>
-
-            <p class="priority-hint">
-                Characters are locked to Priority 5.
-                Attacks and Utilities use Priority 1-4.
-            </p>
-
+            <h2>Assign Priorities</h2>
+            <p>Priority Queue requires every card to have a valid priority.</p>
+            <p class="priority-hint">Characters are locked to Priority 5. Attacks and Utilities use Priority 1-4.</p>
             <div class="conversion-list">
-
-                @for (int i = 0;
-                      i < workingDeck.Cards.Count;
-                      i++)
+                @for (int i = 0; i < workingDeck.Cards.Count; i++)
                 {
-                    int cardIndex =
-                        i;
-
-                    Card card =
-                        workingDeck.Cards[cardIndex];
-
+                    int cardIndex = i;
+                    Card card = workingDeck.Cards[cardIndex];
                     <div class="conversion-card">
-
-                        <div class="conversion-card-info">
-                            <strong>
-                                @card.Name
-                            </strong>
-
-                            <span>
-                                @card.Id ·
-                                @card.Type
-                            </span>
-                        </div>
-
-                        @if (card.Type ==
-                             CardType.Character)
+                        <div class="conversion-card-info"><strong>@card.Name</strong><span>@card.Id · @card.Type</span></div>
+                        @if (card.Type == CardType.Character)
                         {
-                            <div class="fixed-priority">
-                                PRIORITY 5
-                            </div>
+                            <div class="fixed-priority">PRIORITY 5</div>
                         }
                         else
                         {
                             <div class="conversion-buttons">
-
-                                @for (int priority = 1;
-                                      priority <= 4;
-                                      priority++)
+                                @for (int priority = 1; priority <= 4; priority++)
                                 {
-                                    int choice =
-                                        priority;
-
-                                    <button class="@GetConversionPriorityClass(
-                                                        cardIndex,
-                                                        choice)"
-                                            @onclick="() => SetConversionPriority(
-                                                cardIndex,
-                                                choice)">
-                                        @choice
-                                    </button>
+                                    int choice = priority;
+                                    <button class="@GetConversionPriorityClass(cardIndex, choice)" @onclick="() => SetConversionPriority(cardIndex, choice)">@choice</button>
                                 }
-
                             </div>
                         }
-
                     </div>
                 }
-
             </div>
-
             <div class="conversion-actions">
-                <button class="conversion-confirm"
-                        @onclick="ConfirmPriorityConversion">
-                    Apply Priorities
-                </button>
-
-                <button @onclick="CancelPriorityConversion">
-                    Cancel
-                </button>
+                <button class="conversion-confirm" @onclick="ConfirmPriorityConversion">Apply Priorities</button>
+                <button @onclick="CancelPriorityConversion">Cancel</button>
             </div>
-
         </div>
     </div>
 }
@@ -703,1470 +300,171 @@ OnFinished="FinishPageTutorial" />
 @if (showTutorialDeckComplete)
 {
     <div class="builder-overlay">
-
-        <div class="tutorial-complete-dialog"
-             @onclick:stopPropagation="true">
-
-            <div class="tutorial-complete-icon">
-                ✓
-            </div>
-
-            <span class="tutorial-complete-kicker">
-                DECK BUILDING COMPLETE
-            </span>
-
-            <h2>
-                Your Tutorial Deck Is Ready
-            </h2>
-
-            <p>
-                You've built the required 12-card Queue in
-                the exact order used by the guided Battle.
-            </p>
-
+        <div class="tutorial-complete-dialog" @onclick:stopPropagation="true">
+            <div class="tutorial-complete-icon">✓</div>
+            <span class="tutorial-complete-kicker">DECK BUILDING COMPLETE</span>
+            <h2>Your Tutorial Deck Is Ready</h2>
+            <p>You've built the required @TutorialRequiredCount-card Queue in the order used by the guided Battle.</p>
             <div class="tutorial-complete-details">
-
-                <div>
-                    <span>
-                        DECK
-                    </span>
-
-                    <strong>
-                        Tutorial Deck
-                    </strong>
-                </div>
-
-                <div>
-                    <span>
-                        STRUCTURE
-                    </span>
-
-                    <strong>
-                        Queue
-                    </strong>
-                </div>
-
-                <div>
-                    <span>
-                        CARDS
-                    </span>
-
-                    <strong>
-                        @TutorialManager.LearnToPlayDeckOrder.Count
-                    </strong>
-                </div>
-
+                <div><span>DECK</span><strong>Tutorial Deck</strong></div>
+                <div><span>STRUCTURE</span><strong>Queue</strong></div>
+                <div><span>CARDS</span><strong>@TutorialRequiredCount</strong></div>
             </div>
-
-            <p class="tutorial-complete-note">
-                Next, you'll use this deck in a guided Battle.
-                Incorrect actions will be blocked so you can
-                follow the lesson without restarting.
-            </p>
-
-            <button class="proceed-battle-button"
-                    @onclick="ProceedToTutorialBattle">
-                PROCEED TO BATTLE
-                <span>→</span>
-            </button>
-
+            <p class="tutorial-complete-note">Next, you'll use this deck in a guided Battle. Incorrect actions will be blocked so you can follow the lesson without restarting.</p>
+            <button class="proceed-battle-button" @onclick="ProceedToTutorialBattle">PROCEED TO BATTLE <span>→</span></button>
         </div>
-
     </div>
 }
+
 <style>
-* {
-    box-sizing: border-box;
-}
-
-.builder-page {
-    min-height: calc(100vh - 58px);
-    padding: 30px 24px 60px;
-    background:
-        linear-gradient(
-            160deg,
-            #18212b 0%,
-            #23364a 55%,
-            #3a2428 100%
-        );
-    color: #f5f5f5;
-}
-
-.builder-shell {
-    width: min(1350px, 100%);
-    margin: 0 auto;
-}
-
-/* =========================
-   HEADER
-   ========================= */
-
-.builder-header {
-    margin-bottom: 20px;
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    gap: 20px;
-}
-
-.builder-header h1 {
-    margin: 0;
-    color: #f4efe3;
-    font-size: clamp(32px, 4vw, 48px);
-}
-
-.builder-header p {
-    margin: 6px 0 0;
-    color: #c8d0d8;
-}
-
-.header-actions {
-    display: flex;
-    align-items: center;
-    gap: 8px;
-}
-
-.header-actions button {
-    padding: 11px 18px;
-    border: 1px solid #9b9383;
-    border-radius: 6px;
-    background: #f4efe3;
-    color: #222;
-    cursor: pointer;
-    font-weight: bold;
-}
-
-.header-actions button:hover {
-    background: #e5ddcc;
-}
-
-/* =========================
-   MAIN BUILDER LAYOUT
-   ========================= */
-
-.builder-content {
-    display: grid;
-    grid-template-columns:
-        minmax(0, 1.25fr)
-        minmax(380px, .75fr);
-    align-items: start;
-    gap: 18px;
-}
-
-.available-panel,
-.deck-panel {
-    min-width: 0;
-    padding: 17px;
-    border: 1px solid #56616c;
-    border-radius: 10px;
-    background: rgba(19, 27, 35, .94);
-}
-
-.panel-header {
-    margin-bottom: 12px;
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-}
-
-.panel-header h2 {
-    margin: 0;
-    color: #f4efe3;
-    font-size: 21px;
-}
-
-.panel-header span {
-    display: block;
-    margin-top: 3px;
-    color: #9da8b2;
-    font-size: 10px;
-}
-
-/* =========================
-   COMPACT DECK NAME
-   ========================= */
-
-.compact-deck-name {
-    margin-bottom: 12px;
-    padding: 9px 11px;
-    display: flex;
-    align-items: center;
-    gap: 12px;
-    border: 1px solid #596674;
-    border-radius: 7px;
-    background: #111820;
-}
-
-.compact-deck-name label {
-    flex-shrink: 0;
-    color: #aeb8c1;
-    font-size: 8px;
-    font-weight: 900;
-    letter-spacing: .8px;
-    white-space: nowrap;
-}
-
-.compact-deck-name input {
-    min-width: 0;
-    flex: 1;
-    padding: 7px 9px;
-    border: 1px solid #77818a;
-    border-radius: 5px;
-    background: #f4efe3;
-    color: #222;
-    font-size: 11px;
-}
-
-.compact-deck-name input:focus {
-    border-color: #e5cc67;
-    outline: none;
-    box-shadow: 0 0 0 2px rgba(229, 204, 103, .16);
-}
-
-.compact-deck-name input:disabled {
-    background: #d9d1c0;
-    color: #665f54;
-    cursor: default;
-    opacity: .9;
-}
-
-/* =========================
-   SEARCH AND FILTERS
-   ========================= */
-
-.search-box {
-    width: 100%;
-    margin-bottom: 10px;
-    padding: 10px 12px;
-    border: 1px solid #8b949e;
-    border-radius: 6px;
-    background: #f4efe3;
-    color: #222;
-}
-
-.search-box:focus {
-    border-color: #e5cc67;
-    outline: none;
-    box-shadow: 0 0 0 2px rgba(229, 204, 103, .16);
-}
-
-.filter-group {
-    margin-bottom: 8px;
-    display: flex;
-    flex-wrap: wrap;
-    gap: 6px;
-}
-
-.filter-group button {
-    padding: 7px 10px;
-    border: 1px solid #8b949e;
-    border-radius: 5px;
-    background: #e9e4d8;
-    color: #222;
-    cursor: pointer;
-    font-size: 10px;
-    font-weight: bold;
-}
-
-.filter-group button:hover {
-    background: #f4efe3;
-}
-
-.filter-group button.active {
-    border-color: #e5cc67;
-    background: #e5cc67;
-}
-
-/* =========================
-   GUIDED TUTORIAL ORDER
-   ========================= */
-
-.tutorial-order-guide {
-    padding: 11px 12px;
-    border: 1px solid #b69d55;
-    border-left: 4px solid #e5cc67;
-    border-radius: 6px;
-    background: rgba(229, 204, 103, .08);
-    color: #d8d0b5;
-    font-size: 10px;
-    font-weight: bold;
-    line-height: 1.45;
-}
-
-.tutorial-order-complete {
-    min-height: 150px;
-    padding: 20px;
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    justify-content: center;
-    gap: 7px;
-    border: 1px solid #4f9364;
-    border-radius: 8px;
-    background: rgba(81, 199, 132, .08);
-    color: #c8d0d8;
-    text-align: center;
-}
-
-.tutorial-order-complete strong {
-    color: #81c784;
-    font-size: 12px;
-    letter-spacing: .8px;
-}
-
-.tutorial-order-complete span {
-    max-width: 360px;
-    font-size: 10px;
-    line-height: 1.45;
-}
-
-.tutorial-order-lock {
-    padding: 5px 7px;
-    border: 1px solid #596674;
-    border-radius: 4px;
-    background: #111820;
-    color: #8f9ba5;
-    font-size: 7px;
-    font-weight: 900;
-    letter-spacing: .7px;
-    white-space: nowrap;
-}
-
-/* Required Tutorial card. */
-
-.available-card.tutorial-required {
-    border-color: #e5cc67;
-    box-shadow:
-        0 0 0 1px rgba(229, 204, 103, .18),
-        0 0 14px rgba(229, 204, 103, .27);
-}
-
-/* Required card already placed in the Tutorial deck. */
-
-.available-card.tutorial-added {
-    border-color: #4e8d61;
-    opacity: .66;
-    box-shadow: 0 0 8px rgba(79, 147, 100, .18);
-}
-
-/* Card outside the Tutorial recipe. */
-
-.available-card.tutorial-unavailable {
-    filter: grayscale(.55);
-    opacity: .46;
-}
-
-/* =========================
-   AVAILABLE CARDS
-   ========================= */
-
-.available-list {
-    max-height: 610px;
-    margin-top: 12px;
-    padding-right: 4px;
-    display: flex;
-    flex-direction: column;
-    gap: 7px;
-    overflow-y: auto;
-}
-
-.available-card {
-    position: relative;
-    min-height: 68px;
-    display: grid;
-    grid-template-columns:
-        5px
-        minmax(0, 1fr)
-        40px;
-    align-items: stretch;
-    overflow: hidden;
-    border: 1px solid #655d51;
-    border-radius: 7px;
-    background:
-        linear-gradient(
-            145deg,
-            #fff9e9 0%,
-            #eee4cd 100%
-        );
-    color: #25221d;
-}
-
-.available-accent {
-    width: 5px;
-}
-
-.type-character {
-    background: #cf5959;
-}
-
-.type-attack {
-    background: #d49a3a;
-}
-
-.type-utility {
-    background: #5689d6;
-}
-
-.available-card-main {
-    min-width: 0;
-    padding: 9px 10px;
-    display: flex;
-    flex-direction: column;
-    gap: 3px;
-}
-
-.available-card-title {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    gap: 8px;
-}
-
-.available-card-title strong {
-    min-width: 0;
-    overflow: hidden;
-    font-size: 13px;
-    text-overflow: ellipsis;
-    white-space: nowrap;
-}
-
-.available-card-title small {
-    color: #7c7264;
-    font-size: 8px;
-    white-space: nowrap;
-}
-
-.card-meta {
-    color: #665e54;
-    font-size: 8px;
-    font-weight: bold;
-    text-transform: uppercase;
-}
-
-.card-extra {
-    color: #4f4941;
-    font-size: 9px;
-    line-height: 1.25;
-}
-
-.add-button {
-    width: 40px;
-    border: 0;
-    border-left: 1px solid #c5bba7;
-    background: #e7dfce;
-    color: #1d5d32;
-    cursor: pointer;
-    font-size: 22px;
-    font-weight: bold;
-}
-
-.add-button:hover:not(:disabled) {
-    background: #d4e8d7;
-}
-
-.add-button:disabled {
-    color: #999;
-    cursor: default;
-    opacity: .5;
-}
-
-/* =========================
-   DATA STRUCTURE SELECTOR
-   ========================= */
-
-.deck-structure-selector {
-    margin-bottom: 16px;
-    padding: 13px;
-    display: flex;
-    flex-direction: column;
-    gap: 10px;
-    border: 1px solid #596674;
-    border-radius: 8px;
-    background: #111a23;
-}
-
-.structure-selector-header {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    gap: 12px;
-}
-
-.structure-selector-header label {
-    color: #aeb8c1;
-    font-size: 9px;
-    font-weight: bold;
-    letter-spacing: .8px;
-}
-
-.structure-selector-header select {
-    min-width: 180px;
-    padding: 8px 10px;
-    border: 1px solid #8b949e;
-    border-radius: 5px;
-    background: #f4efe3;
-    color: #222;
-    font-size: 12px;
-}
-
-.structure-selector-header select:focus {
-    border-color: #e5cc67;
-    outline: none;
-    box-shadow: 0 0 0 2px rgba(229, 204, 103, .16);
-}
-
-.structure-selector-header select:disabled {
-    cursor: default;
-    opacity: .75;
-}
-
-.selected-structure-info {
-    padding: 9px 10px;
-    display: flex;
-    flex-direction: column;
-    gap: 4px;
-    border-left: 4px solid #e5cc67;
-    background: #18232e;
-}
-
-.selected-structure-info strong {
-    color: #e5cc67;
-    font-size: 11px;
-    letter-spacing: .4px;
-}
-
-.selected-structure-info span {
-    color: #b9c3cc;
-    font-size: 10px;
-    line-height: 1.4;
-}
-
-.deck-panel-header {
-    padding-bottom: 10px;
-    border-bottom: 1px solid rgba(255, 255, 255, .09);
-}
-
-/* =========================
-   DECK SUMMARY
-   ========================= */
-
-.deck-summary {
-    margin-bottom: 12px;
-    display: grid;
-    grid-template-columns: repeat(3, 1fr);
-    gap: 6px;
-}
-
-.deck-summary span {
-    padding: 7px 5px;
-    border: 1px solid #4e5963;
-    border-radius: 5px;
-    background: #1a242e;
-    color: #aeb8c1;
-    font-size: 9px;
-    text-align: center;
-}
-
-.deck-summary strong {
-    color: #f4efe3;
-}
-
-/* =========================
-   DECK LIST
-   ========================= */
-
-.empty-deck {
-    min-height: 230px;
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    justify-content: center;
-    gap: 5px;
-    border: 1px dashed #5e6973;
-    border-radius: 7px;
-    color: #8f9aa4;
-    text-align: center;
-}
-
-.empty-deck strong {
-    color: #c8d0d8;
-}
-
-.deck-list {
-    max-height: 500px;
-    padding-right: 3px;
-    display: flex;
-    flex-direction: column;
-    gap: 6px;
-    overflow-y: auto;
-}
-
-.deck-card {
-    min-height: 58px;
-    padding: 7px;
-    display: grid;
-    grid-template-columns:
-        34px
-        minmax(0, 1fr)
-        auto;
-    align-items: center;
-    gap: 8px;
-    border: 1px solid #53606b;
-    border-radius: 6px;
-    background: #1a242e;
-}
-
-.deck-position {
-    width: 30px;
-    height: 30px;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    border-radius: 50%;
-    background: #2d3945;
-    color: #e5cc67;
-    font-size: 11px;
-    font-weight: bold;
-}
-
-.deck-card-info {
-    min-width: 0;
-    display: flex;
-    flex-direction: column;
-    gap: 3px;
-}
-
-.deck-card-info strong {
-    overflow: hidden;
-    color: #f4efe3;
-    font-size: 12px;
-    text-overflow: ellipsis;
-    white-space: nowrap;
-}
-
-.deck-card-info span {
-    color: #9da8b2;
-    font-size: 8px;
-    text-transform: uppercase;
-}
-
-.priority-label {
-    width: fit-content;
-    padding: 2px 5px;
-    border-radius: 4px;
-    background: #392f18;
-    color: #e5cc67;
-    font-size: 8px;
-}
-
-.deck-card-actions {
-    display: flex;
-    align-items: center;
-    gap: 4px;
-}
-
-.deck-card-actions button {
-    width: 30px;
-    height: 30px;
-    padding: 0;
-    border: 1px solid #77818a;
-    border-radius: 4px;
-    background: #e8e8e8;
-    color: #222;
-    cursor: pointer;
-    font-weight: bold;
-}
-
-.deck-card-actions button:hover:not(:disabled) {
-    background: #f4efe3;
-}
-
-.deck-card-actions button:disabled {
-    cursor: default;
-    opacity: .35;
-}
-
-.deck-card-actions .remove-button {
-    color: #a82e2e;
-}
-
-/* =========================
-   VALIDATION AND SAVE
-   ========================= */
-
-.validation-box {
-    margin-top: 14px;
-    padding: 10px 11px;
-    display: flex;
-    flex-direction: column;
-    gap: 4px;
-    border: 1px solid;
-    border-radius: 6px;
-}
-
-.validation-box strong {
-    font-size: 8px;
-    letter-spacing: .7px;
-}
-
-.validation-box span {
-    font-size: 10px;
-    line-height: 1.3;
-}
-
-.validation-box.valid {
-    border-color: #4e8d61;
-    background: rgba(67, 132, 84, .12);
-    color: #9bd5aa;
-}
-
-.validation-box.invalid {
-    border-color: #985a5a;
-    background: rgba(152, 70, 70, .12);
-    color: #e9aaaa;
-}
-
-.save-button {
-    width: 100%;
-    margin-top: 10px;
-    padding: 12px;
-    border: 2px solid #9b9383;
-    border-radius: 6px;
-    background: #f4efe3;
-    color: #222;
-    cursor: pointer;
-    font-size: 13px;
-    font-weight: bold;
-}
-
-.save-button:hover:not(:disabled) {
-    background: #e5ddcc;
-}
-
-.save-button:disabled {
-    cursor: default;
-    opacity: .45;
-}
-
-.save-message {
-    margin-top: 8px;
-    padding: 8px;
-    border-radius: 5px;
-    font-size: 10px;
-    text-align: center;
-}
-
-.save-message.success {
-    background: rgba(59, 132, 76, .18);
-    color: #9bd5aa;
-}
-
-.save-message.error {
-    background: rgba(152, 70, 70, .18);
-    color: #e9aaaa;
-}
-
-/* =========================
-   OVERLAY
-   ========================= */
-
-.builder-overlay {
-    position: fixed;
-    inset: 0;
-    z-index: 10000;
-    padding: 20px;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    background: rgba(7, 11, 15, .88);
-}
-
-/* =========================
-   TUTORIAL INTRO POPUP
-   ========================= */
-
-.tutorial-builder-dialog {
-    width: min(480px, 100%);
-    max-height: calc(100vh - 40px);
-    padding: 28px;
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    gap: 12px;
-    overflow-y: auto;
-    border: 2px solid #b69d55;
-    border-radius: 12px;
-    background: #18232e;
-    color: #f4efe3;
-    text-align: center;
-    box-shadow: 0 20px 55px rgba(0, 0, 0, .55);
-}
-
-.tutorial-builder-dialog-icon {
-    width: 60px;
-    height: 60px;
-    flex-shrink: 0;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    border: 2px solid #e5cc67;
-    border-radius: 50%;
-    background: rgba(229, 204, 103, .1);
-    color: #e5cc67;
-    font-size: 13px;
-    font-weight: 900;
-}
-
-.tutorial-builder-dialog-kicker {
-    color: #e5cc67;
-    font-size: 8px;
-    font-weight: 900;
-    letter-spacing: 1.3px;
-}
-
-.tutorial-builder-dialog h2 {
-    margin: 0;
-    color: #f4efe3;
-    font-size: 25px;
-}
-
-.tutorial-builder-dialog > p {
-    margin: 0;
-    color: #bac4cd;
-    font-size: 11px;
-    line-height: 1.5;
-}
-
-.tutorial-builder-dialog > p strong {
-    color: #e5cc67;
-}
-
-.tutorial-builder-dialog-steps {
-    width: 100%;
-    display: flex;
-    flex-direction: column;
-    gap: 7px;
-}
-
-.tutorial-builder-dialog-steps > div {
-    padding: 10px 12px;
-    display: grid;
-    grid-template-columns:
-        30px
-        minmax(0, 1fr);
-    align-items: center;
-    gap: 10px;
-    border: 1px solid #596674;
-    border-radius: 6px;
-    background: #111820;
-    text-align: left;
-}
-
-.tutorial-builder-dialog-steps strong {
-    width: 28px;
-    height: 28px;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    border-radius: 50%;
-    background: #e5cc67;
-    color: #222;
-    font-size: 11px;
-}
-
-.tutorial-builder-dialog-steps span {
-    color: #c8d0d8;
-    font-size: 10px;
-    line-height: 1.4;
-}
-
-.tutorial-builder-dialog .tutorial-builder-dialog-note {
-    width: 100%;
-    padding: 10px 11px;
-    border-left: 3px solid #e5cc67;
-    background: rgba(229, 204, 103, .06);
-    color: #d1c9ac;
-    text-align: left;
-}
-
-.tutorial-builder-dialog > button {
-    width: 100%;
-    padding: 12px 15px;
-    border: 2px solid #b69d55;
-    border-radius: 7px;
-    background: #e5cc67;
-    color: #222;
-    cursor: pointer;
-    font-size: 10px;
-    font-weight: 900;
-    letter-spacing: .6px;
-}
-
-.tutorial-builder-dialog > button:hover {
-    filter: brightness(1.06);
-}
-
-/* =========================
-   TUTORIAL COMPLETE POPUP
-   ========================= */
-
-.tutorial-complete-dialog {
-    width: min(470px, 100%);
-    max-height: calc(100vh - 40px);
-    padding: 28px;
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    gap: 11px;
-    overflow-y: auto;
-    border: 2px solid #4f9364;
-    border-radius: 12px;
-    background: #18232e;
-    color: #f4efe3;
-    text-align: center;
-    box-shadow: 0 20px 50px rgba(0, 0, 0, .5);
-}
-
-.tutorial-complete-icon {
-    width: 52px;
-    height: 52px;
-    flex-shrink: 0;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    border: 2px solid #81c784;
-    border-radius: 50%;
-    background: rgba(81, 199, 132, .1);
-    color: #81c784;
-    font-size: 24px;
-    font-weight: 900;
-}
-
-.tutorial-complete-kicker {
-    color: #81c784;
-    font-size: 8px;
-    font-weight: 900;
-    letter-spacing: 1.4px;
-}
-
-.tutorial-complete-dialog h2 {
-    margin: 0;
-    color: #f4efe3;
-    font-size: 24px;
-}
-
-.tutorial-complete-dialog > p {
-    margin: 0;
-    color: #b8c2cc;
-    font-size: 11px;
-    line-height: 1.5;
-}
-
-.tutorial-complete-details {
-    width: 100%;
-    display: grid;
-    grid-template-columns: repeat(3, 1fr);
-    gap: 7px;
-}
-
-.tutorial-complete-details > div {
-    padding: 10px 7px;
-    display: flex;
-    flex-direction: column;
-    gap: 4px;
-    border: 1px solid #596674;
-    border-radius: 6px;
-    background: #111820;
-}
-
-.tutorial-complete-details span {
-    color: #89959f;
-    font-size: 7px;
-    font-weight: bold;
-    letter-spacing: .7px;
-}
-
-.tutorial-complete-details strong {
-    color: #f4efe3;
-    font-size: 10px;
-}
-
-.tutorial-complete-note {
-    padding: 10px 11px;
-    border-left: 3px solid #e5cc67;
-    background: rgba(229, 204, 103, .06);
-    color: #d1c9ac !important;
-    text-align: left;
-}
-
-.proceed-battle-button {
-    width: 100%;
-    margin-top: 3px;
-    padding: 12px 15px;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    gap: 9px;
-    border: 2px solid #b69d55;
-    border-radius: 7px;
-    background: #e5cc67;
-    color: #222;
-    cursor: pointer;
-    font-size: 9px;
-    font-weight: 900;
-    letter-spacing: .6px;
-}
-
-.proceed-battle-button:hover {
-    filter: brightness(1.06);
-}
-
-.proceed-battle-button span {
-    font-size: 15px;
-}
-
-/* =========================
-   PRIORITY POPUP
-   ========================= */
-
-.priority-dialog {
-    width: min(380px, 100%);
-    padding: 24px;
-    display: flex;
-    flex-direction: column;
-    gap: 12px;
-    border: 2px solid #777064;
-    border-radius: 10px;
-    background: #18232e;
-    color: #f4efe3;
-    text-align: center;
-}
-
-.priority-dialog h2,
-.priority-dialog p {
-    margin: 0;
-}
-
-.priority-hint {
-    color: #b8c2cc;
-    font-size: 11px;
-    line-height: 1.35;
-}
-
-.priority-buttons {
-    display: grid;
-    grid-template-columns: 1fr 1fr;
-    gap: 8px;
-}
-
-.priority-dialog button {
-    padding: 10px;
-    border: 1px solid #9b9383;
-    border-radius: 5px;
-    background: #f4efe3;
-    color: #222;
-    cursor: pointer;
-    font-weight: bold;
-}
-
-.priority-dialog button:hover {
-    background: #fffaf0;
-}
-
-.priority-dialog .cancel-button {
-    margin-top: 4px;
-    background: #d4d0c6;
-}
-
-/* =========================
-   PRIORITY CONVERSION
-   ========================= */
-
-.priority-conversion-dialog {
-    width: min(620px, 100%);
-    max-height: calc(100vh - 50px);
-    padding: 22px;
-    display: flex;
-    flex-direction: column;
-    gap: 12px;
-    overflow: hidden;
-    border: 2px solid #777064;
-    border-radius: 10px;
-    background: #18232e;
-    color: #f4efe3;
-}
-
-.priority-conversion-dialog h2,
-.priority-conversion-dialog p {
-    margin: 0;
-}
-
-.priority-conversion-dialog > p {
-    color: #aeb9c3;
-    font-size: 11px;
-    line-height: 1.35;
-}
-
-.conversion-list {
-    min-height: 0;
-    padding-right: 3px;
-    display: flex;
-    flex-direction: column;
-    gap: 6px;
-    overflow-y: auto;
-}
-
-.conversion-card {
-    padding: 8px 10px;
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    gap: 12px;
-    border: 1px solid #4e5964;
-    border-radius: 6px;
-    background: #111820;
-}
-
-.conversion-card-info {
-    min-width: 0;
-    display: flex;
-    flex-direction: column;
-    gap: 2px;
-}
-
-.conversion-card-info strong {
-    overflow: hidden;
-    color: #f4efe3;
-    font-size: 11px;
-    text-overflow: ellipsis;
-    white-space: nowrap;
-}
-
-.conversion-card-info span {
-    color: #8f9ba5;
-    font-size: 7px;
-    text-transform: uppercase;
-}
-
-.conversion-buttons {
-    flex-shrink: 0;
-    display: flex;
-    gap: 4px;
-}
-
-.conversion-buttons button {
-    width: 32px;
-    height: 32px;
-    padding: 0;
-    border: 1px solid #77818a;
-    border-radius: 5px;
-    background: #e8e8e8;
-    color: #222;
-    cursor: pointer;
-    font-weight: bold;
-}
-
-.conversion-buttons button.selected {
-    border-color: #e5cc67;
-    background: #e5cc67;
-    box-shadow: 0 0 0 2px rgba(229, 204, 103, .2);
-}
-
-.fixed-priority {
-    flex-shrink: 0;
-    padding: 7px 10px;
-    border-radius: 5px;
-    background: #4c3d17;
-    color: #e5cc67;
-    font-size: 9px;
-    font-weight: bold;
-}
-
-.conversion-actions {
-    padding-top: 10px;
-    display: grid;
-    grid-template-columns: 1fr 1fr;
-    gap: 7px;
-    border-top: 1px solid #46515d;
-}
-
-.conversion-actions button {
-    padding: 10px;
-    border: 1px solid #9b9383;
-    border-radius: 5px;
-    background: #f4efe3;
-    color: #222;
-    cursor: pointer;
-    font-weight: bold;
-}
-
-.conversion-actions button:hover {
-    background: #fffaf0;
-}
-
-.conversion-actions .conversion-confirm {
-    background: #e5cc67;
-}
-
-/* =========================
-   SCROLLBARS
-   ========================= */
-
-.available-list,
-.deck-list,
-.conversion-list,
-.tutorial-builder-dialog,
-.tutorial-complete-dialog {
-    scrollbar-width: thin;
-    scrollbar-color: #67727d #111820;
-}
-
-.available-list::-webkit-scrollbar,
-.deck-list::-webkit-scrollbar,
-.conversion-list::-webkit-scrollbar,
-.tutorial-builder-dialog::-webkit-scrollbar,
-.tutorial-complete-dialog::-webkit-scrollbar {
-    width: 8px;
-}
-
-.available-list::-webkit-scrollbar-track,
-.deck-list::-webkit-scrollbar-track,
-.conversion-list::-webkit-scrollbar-track,
-.tutorial-builder-dialog::-webkit-scrollbar-track,
-.tutorial-complete-dialog::-webkit-scrollbar-track {
-    background: #111820;
-}
-
-.available-list::-webkit-scrollbar-thumb,
-.deck-list::-webkit-scrollbar-thumb,
-.conversion-list::-webkit-scrollbar-thumb,
-.tutorial-builder-dialog::-webkit-scrollbar-thumb,
-.tutorial-complete-dialog::-webkit-scrollbar-thumb {
-    border-radius: 8px;
-    background: #67727d;
-}
-
-/* =========================
-   RESPONSIVE
-   ========================= */
-
-@@media (max-width: 900px) {
-    .builder-content {
-        grid-template-columns: 1fr;
-    }
-
-    .available-list,
-    .deck-list {
-        max-height: none;
-    }
-}
-
-@@media (max-width: 650px) {
-    .builder-page {
-        padding: 22px 12px 40px;
-    }
-
-    .builder-header {
-        align-items: stretch;
-        flex-direction: column;
-    }
-
-    .header-actions {
-        width: 100%;
-    }
-
-    .header-actions button {
-        flex: 1;
-    }
-
-    .compact-deck-name {
-        align-items: stretch;
-        flex-direction: column;
-        gap: 6px;
-    }
-
-    .compact-deck-name input {
-        width: 100%;
-    }
-
-    .structure-selector-header {
-        align-items: stretch;
-        flex-direction: column;
-    }
-
-    .structure-selector-header select {
-        width: 100%;
-        min-width: 0;
-    }
-
-    .deck-summary {
-        grid-template-columns: 1fr;
-    }
-
-    .tutorial-complete-details {
-        grid-template-columns: 1fr;
-    }
-
-    .tutorial-builder-dialog,
-    .tutorial-complete-dialog {
-        padding: 22px 18px;
-    }
-
-    .conversion-card {
-        align-items: stretch;
-        flex-direction: column;
-    }
-
-    .conversion-buttons {
-        width: 100%;
-    }
-
-    .conversion-buttons button {
-        flex: 1;
-    }
-
-    .conversion-actions {
-        grid-template-columns: 1fr;
-    }
-}
-.page-tutorial-target {
-    position: relative;
-    z-index: 8995;
-    outline: 4px solid #ffe078;
-    outline-offset: 5px;
-    border-radius: 8px;
-    box-shadow:
-        0 0 0 3px rgba(0, 0, 0, .5),
-        0 0 20px rgba(255, 224, 120, .72),
-        0 0 42px rgba(229, 204, 103, .4);
-    animation:
-        pageTutorialTargetPulse
-        1s
-        ease-in-out
-        infinite alternate;
-}
-
-@@keyframes pageTutorialTargetPulse {
-    from {
-        outline-color:
-            rgba(255, 224, 120, .65);
-
-        box-shadow:
-            0 0 0 3px rgba(0, 0, 0, .45),
-            0 0 10px rgba(255, 224, 120, .4);
-    }
-
-    to {
-        outline-color:
-            #ffe078;
-
-        box-shadow:
-            0 0 0 3px rgba(0, 0, 0, .55),
-            0 0 24px rgba(255, 224, 120, .85),
-            0 0 48px rgba(229, 204, 103, .45);
-    }
-}
+* { box-sizing: border-box; }
+.builder-page { min-height: calc(100vh - 58px); padding: 30px 24px 60px; background: linear-gradient(160deg,#18212b 0%,#23364a 55%,#3a2428 100%); color:#f5f5f5; }
+.builder-shell { width:min(1350px,100%); margin:0 auto; }
+.builder-header { margin-bottom:20px; display:flex; align-items:center; justify-content:space-between; gap:20px; }
+.builder-header h1 { margin:0; color:#f4efe3; font-size:clamp(32px,4vw,48px); }
+.builder-header p { margin:6px 0 0; color:#c8d0d8; }
+.header-actions { display:flex; align-items:center; gap:8px; }
+.header-actions button { padding:11px 18px; border:1px solid #9b9383; border-radius:6px; background:#f4efe3; color:#222; cursor:pointer; font-weight:bold; }
+.header-actions button:hover { background:#e5ddcc; }
+.builder-content { display:grid; grid-template-columns:minmax(0,1.25fr) minmax(380px,.75fr); align-items:start; gap:18px; }
+.available-panel,.deck-panel { min-width:0; padding:17px; border:1px solid #56616c; border-radius:10px; background:rgba(19,27,35,.94); }
+.panel-header { margin-bottom:12px; display:flex; align-items:center; justify-content:space-between; }
+.panel-header h2 { margin:0; color:#f4efe3; font-size:21px; }
+.panel-header span { display:block; margin-top:3px; color:#9da8b2; font-size:10px; }
+.compact-deck-name { margin-bottom:12px; padding:9px 11px; display:flex; align-items:center; gap:12px; border:1px solid #596674; border-radius:7px; background:#111820; }
+.compact-deck-name label { flex-shrink:0; color:#aeb8c1; font-size:8px; font-weight:900; letter-spacing:.8px; white-space:nowrap; }
+.compact-deck-name input { min-width:0; flex:1; padding:7px 9px; border:1px solid #77818a; border-radius:5px; background:#f4efe3; color:#222; font-size:11px; }
+.compact-deck-name input:focus,.search-box:focus,.structure-selector-header select:focus { border-color:#e5cc67; outline:none; box-shadow:0 0 0 2px rgba(229,204,103,.16); }
+.compact-deck-name input:disabled { background:#d9d1c0; color:#665f54; cursor:default; opacity:.9; }
+.search-box { width:100%; margin-bottom:10px; padding:10px 12px; border:1px solid #8b949e; border-radius:6px; background:#f4efe3; color:#222; }
+.filter-group { margin-bottom:8px; display:flex; flex-wrap:wrap; gap:6px; }
+.filter-group button { padding:7px 10px; border:1px solid #8b949e; border-radius:5px; background:#e9e4d8; color:#222; cursor:pointer; font-size:10px; font-weight:bold; }
+.filter-group button:hover { background:#f4efe3; }
+.filter-group button.active { border-color:#e5cc67; background:#e5cc67; }
+.tutorial-order-guide { margin-bottom:10px; padding:11px 12px; border:1px solid #b69d55; border-left:4px solid #e5cc67; border-radius:6px; background:rgba(229,204,103,.08); color:#d8d0b5; font-size:10px; font-weight:bold; line-height:1.45; }
+.available-list { max-height:610px; margin-top:12px; padding-right:4px; display:flex; flex-direction:column; gap:7px; overflow-y:auto; }
+.deck-structure-selector { margin-bottom:16px; padding:13px; display:flex; flex-direction:column; gap:10px; border:1px solid #596674; border-radius:8px; background:#111a23; }
+.structure-selector-header { display:flex; align-items:center; justify-content:space-between; gap:12px; }
+.structure-selector-header label { color:#aeb8c1; font-size:9px; font-weight:bold; letter-spacing:.8px; }
+.structure-selector-header select { min-width:180px; padding:8px 10px; border:1px solid #8b949e; border-radius:5px; background:#f4efe3; color:#222; font-size:12px; }
+.structure-selector-header select:disabled { cursor:default; opacity:.75; }
+.selected-structure-info { padding:9px 10px; display:flex; flex-direction:column; gap:4px; border-left:4px solid #e5cc67; background:#18232e; }
+.selected-structure-info strong { color:#e5cc67; font-size:11px; letter-spacing:.4px; }
+.selected-structure-info span { color:#b9c3cc; font-size:10px; line-height:1.4; }
+.deck-panel-header { padding-bottom:10px; border-bottom:1px solid rgba(255,255,255,.09); }
+.deck-summary { margin-bottom:12px; display:grid; grid-template-columns:repeat(3,1fr); gap:6px; }
+.deck-summary span { padding:7px 5px; border:1px solid #4e5963; border-radius:5px; background:#1a242e; color:#aeb8c1; font-size:9px; text-align:center; }
+.deck-summary strong { color:#f4efe3; }
+.empty-deck { min-height:230px; display:flex; flex-direction:column; align-items:center; justify-content:center; gap:5px; border:1px dashed #5e6973; border-radius:7px; color:#8f9aa4; text-align:center; }
+.empty-deck strong { color:#c8d0d8; }
+.deck-list { max-height:500px; padding-right:3px; display:flex; flex-direction:column; gap:6px; overflow-y:auto; }
+.validation-box { margin-top:14px; padding:10px 11px; display:flex; flex-direction:column; gap:4px; border:1px solid; border-radius:6px; }
+.validation-box strong { font-size:8px; letter-spacing:.7px; }
+.validation-box span { font-size:10px; line-height:1.3; }
+.validation-box.valid { border-color:#4e8d61; background:rgba(67,132,84,.12); color:#9bd5aa; }
+.validation-box.invalid { border-color:#985a5a; background:rgba(152,70,70,.12); color:#e9aaaa; }
+.save-button { width:100%; margin-top:10px; padding:12px; border:2px solid #9b9383; border-radius:6px; background:#f4efe3; color:#222; cursor:pointer; font-size:13px; font-weight:bold; }
+.save-button:hover:not(:disabled) { background:#e5ddcc; }
+.save-button:disabled { cursor:default; opacity:.45; }
+.save-message { margin-top:8px; padding:8px; border-radius:5px; font-size:10px; text-align:center; }
+.save-message.success { background:rgba(59,132,76,.18); color:#9bd5aa; }
+.save-message.error { background:rgba(152,70,70,.18); color:#e9aaaa; }
+.builder-overlay { position:fixed; inset:0; z-index:10000; padding:20px; display:flex; align-items:center; justify-content:center; background:rgba(7,11,15,.88); }
+.tutorial-builder-dialog,.tutorial-complete-dialog { width:min(480px,100%); max-height:calc(100vh - 40px); padding:28px; display:flex; flex-direction:column; align-items:center; gap:12px; overflow-y:auto; border:2px solid #b69d55; border-radius:12px; background:#18232e; color:#f4efe3; text-align:center; box-shadow:0 20px 55px rgba(0,0,0,.55); }
+.tutorial-complete-dialog { width:min(470px,100%); border-color:#4f9364; gap:11px; }
+.tutorial-builder-dialog-icon,.tutorial-complete-icon { width:60px; height:60px; flex-shrink:0; display:flex; align-items:center; justify-content:center; border:2px solid #e5cc67; border-radius:50%; background:rgba(229,204,103,.1); color:#e5cc67; font-size:13px; font-weight:900; }
+.tutorial-complete-icon { width:52px; height:52px; border-color:#81c784; background:rgba(81,199,132,.1); color:#81c784; font-size:24px; }
+.tutorial-builder-dialog-kicker,.tutorial-complete-kicker { color:#e5cc67; font-size:8px; font-weight:900; letter-spacing:1.3px; }
+.tutorial-complete-kicker { color:#81c784; }
+.tutorial-builder-dialog h2,.tutorial-complete-dialog h2 { margin:0; color:#f4efe3; font-size:25px; }
+.tutorial-builder-dialog > p,.tutorial-complete-dialog > p { margin:0; color:#bac4cd; font-size:11px; line-height:1.5; }
+.tutorial-builder-dialog > p strong { color:#e5cc67; }
+.tutorial-builder-dialog-steps { width:100%; display:flex; flex-direction:column; gap:7px; }
+.tutorial-builder-dialog-steps > div { padding:10px 12px; display:grid; grid-template-columns:30px minmax(0,1fr); align-items:center; gap:10px; border:1px solid #596674; border-radius:6px; background:#111820; text-align:left; }
+.tutorial-builder-dialog-steps strong { width:28px; height:28px; display:flex; align-items:center; justify-content:center; border-radius:50%; background:#e5cc67; color:#222; font-size:11px; }
+.tutorial-builder-dialog-steps span { color:#c8d0d8; font-size:10px; line-height:1.4; }
+.tutorial-builder-dialog .tutorial-builder-dialog-note,.tutorial-complete-note { width:100%; padding:10px 11px; border-left:3px solid #e5cc67; background:rgba(229,204,103,.06); color:#d1c9ac; text-align:left; }
+.tutorial-builder-dialog > button,.proceed-battle-button { width:100%; padding:12px 15px; border:2px solid #b69d55; border-radius:7px; background:#e5cc67; color:#222; cursor:pointer; font-size:10px; font-weight:900; letter-spacing:.6px; }
+.tutorial-builder-dialog > button:hover,.proceed-battle-button:hover { filter:brightness(1.06); }
+.tutorial-complete-details { width:100%; display:grid; grid-template-columns:repeat(3,1fr); gap:7px; }
+.tutorial-complete-details > div { padding:10px 7px; display:flex; flex-direction:column; gap:4px; border:1px solid #596674; border-radius:6px; background:#111820; }
+.tutorial-complete-details span { color:#89959f; font-size:7px; font-weight:bold; letter-spacing:.7px; }
+.tutorial-complete-details strong { color:#f4efe3; font-size:10px; }
+.proceed-battle-button { margin-top:3px; display:flex; align-items:center; justify-content:center; gap:9px; font-size:9px; }
+.proceed-battle-button span { font-size:15px; }
+.priority-dialog { width:min(380px,100%); padding:24px; display:flex; flex-direction:column; gap:12px; border:2px solid #777064; border-radius:10px; background:#18232e; color:#f4efe3; text-align:center; }
+.priority-dialog h2,.priority-dialog p,.priority-conversion-dialog h2,.priority-conversion-dialog p { margin:0; }
+.priority-hint { color:#b8c2cc; font-size:11px; line-height:1.35; }
+.priority-buttons { display:grid; grid-template-columns:1fr 1fr; gap:8px; }
+.priority-dialog button,.conversion-actions button { padding:10px; border:1px solid #9b9383; border-radius:5px; background:#f4efe3; color:#222; cursor:pointer; font-weight:bold; }
+.priority-dialog button:hover,.conversion-actions button:hover { background:#fffaf0; }
+.priority-dialog .cancel-button { margin-top:4px; background:#d4d0c6; }
+.priority-conversion-dialog { width:min(620px,100%); max-height:calc(100vh - 50px); padding:22px; display:flex; flex-direction:column; gap:12px; overflow:hidden; border:2px solid #777064; border-radius:10px; background:#18232e; color:#f4efe3; }
+.priority-conversion-dialog > p { color:#aeb9c3; font-size:11px; line-height:1.35; }
+.conversion-list { min-height:0; padding-right:3px; display:flex; flex-direction:column; gap:6px; overflow-y:auto; }
+.conversion-card { padding:8px 10px; display:flex; align-items:center; justify-content:space-between; gap:12px; border:1px solid #4e5964; border-radius:6px; background:#111820; }
+.conversion-card-info { min-width:0; display:flex; flex-direction:column; gap:2px; }
+.conversion-card-info strong { overflow:hidden; color:#f4efe3; font-size:11px; text-overflow:ellipsis; white-space:nowrap; }
+.conversion-card-info span { color:#8f9ba5; font-size:7px; text-transform:uppercase; }
+.conversion-buttons { flex-shrink:0; display:flex; gap:4px; }
+.conversion-buttons button { width:32px; height:32px; padding:0; border:1px solid #77818a; border-radius:5px; background:#e8e8e8; color:#222; cursor:pointer; font-weight:bold; }
+.conversion-buttons button.selected { border-color:#e5cc67; background:#e5cc67; box-shadow:0 0 0 2px rgba(229,204,103,.2); }
+.fixed-priority { flex-shrink:0; padding:7px 10px; border-radius:5px; background:#4c3d17; color:#e5cc67; font-size:9px; font-weight:bold; }
+.conversion-actions { padding-top:10px; display:grid; grid-template-columns:1fr 1fr; gap:7px; border-top:1px solid #46515d; }
+.conversion-actions .conversion-confirm { background:#e5cc67; }
+.available-list,.deck-list,.conversion-list,.tutorial-builder-dialog,.tutorial-complete-dialog { scrollbar-width:thin; scrollbar-color:#67727d #111820; }
+.available-list::-webkit-scrollbar,.deck-list::-webkit-scrollbar,.conversion-list::-webkit-scrollbar,.tutorial-builder-dialog::-webkit-scrollbar,.tutorial-complete-dialog::-webkit-scrollbar { width:8px; }
+.available-list::-webkit-scrollbar-track,.deck-list::-webkit-scrollbar-track,.conversion-list::-webkit-scrollbar-track,.tutorial-builder-dialog::-webkit-scrollbar-track,.tutorial-complete-dialog::-webkit-scrollbar-track { background:#111820; }
+.available-list::-webkit-scrollbar-thumb,.deck-list::-webkit-scrollbar-thumb,.conversion-list::-webkit-scrollbar-thumb,.tutorial-builder-dialog::-webkit-scrollbar-thumb,.tutorial-complete-dialog::-webkit-scrollbar-thumb { border-radius:8px; background:#67727d; }
+.page-tutorial-target { position:relative; z-index:8995; outline:4px solid #ffe078; outline-offset:5px; border-radius:8px; box-shadow:0 0 0 3px rgba(0,0,0,.5),0 0 20px rgba(255,224,120,.72),0 0 42px rgba(229,204,103,.4); animation:pageTutorialTargetPulse 1s ease-in-out infinite alternate; }
+@@keyframes pageTutorialTargetPulse { from { outline-color:rgba(255,224,120,.65); box-shadow:0 0 0 3px rgba(0,0,0,.45),0 0 10px rgba(255,224,120,.4); } to { outline-color:#ffe078; box-shadow:0 0 0 3px rgba(0,0,0,.55),0 0 24px rgba(255,224,120,.85),0 0 48px rgba(229,204,103,.45); } }
+@@media (max-width:900px) { .builder-content { grid-template-columns:1fr; } .available-list,.deck-list { max-height:none; } }
+@@media (max-width:650px) { .builder-page { padding:22px 12px 40px; } .builder-header { align-items:stretch; flex-direction:column; } .header-actions { width:100%; } .header-actions button { flex:1; } .compact-deck-name,.structure-selector-header { align-items:stretch; flex-direction:column; } .compact-deck-name input,.structure-selector-header select { width:100%; min-width:0; } .deck-summary,.tutorial-complete-details,.conversion-actions { grid-template-columns:1fr; } .tutorial-builder-dialog,.tutorial-complete-dialog { padding:22px 18px; } .conversion-card { align-items:stretch; flex-direction:column; } .conversion-buttons { width:100%; } .conversion-buttons button { flex:1; } }
 </style>
 
 @code {
-    
-    private List<Card> allCards =
-        new();
-
-    private Deck workingDeck =
-        new();
-
-    private string deckName =
-        "";
-
-    private string searchText =
-        "";
-
+    private List<Card> allCards = new();
+    private Deck workingDeck = new();
+    private string deckName = "";
+    private string searchText = "";
     private CardType? selectedType;
-
     private Archetype? selectedArchetype;
-
-    private DeckStructure selectedStructure =
-        DeckStructure.Queue;
-
-    private DeckStructure previousStructure =
-        DeckStructure.Queue;
-
+    private DeckStructure selectedStructure = DeckStructure.Queue;
+    private DeckStructure previousStructure = DeckStructure.Queue;
     private Card? priorityCard;
-
     private bool showPriorityConversion;
-
-    private Dictionary<int, int> conversionPriorities =
-        new();
-
-    private string saveMessage =
-        "";
-
+    private Dictionary<int, int> conversionPriorities = new();
+    private string saveMessage = "";
     private bool saveSucceeded;
-
     private bool showTutorialDeckComplete;
-
     private bool showTutorialBuilderIntro;
+    private string? expandedFinderCardId;
+    private int? expandedDeckCardIndex;
+
+    private int TutorialRequiredCount => TutorialManager.LearnToPlayDeckOrder.Count;
 
     private bool IsLearnToPlayDeckBuilder =>
         Session.Tutorial.IsActive &&
-        Session.Tutorial.CurrentTutorial ==
-            TutorialType.LearnToPlay &&
+        Session.Tutorial.CurrentTutorial == TutorialType.LearnToPlay &&
         Session.Tutorial.TutorialDeck == null;
 
     private bool IsTutorialDeckReady =>
         IsLearnToPlayDeckBuilder &&
         IsDeckValid &&
-        selectedStructure ==
-            DeckStructure.Queue &&
-        TutorialManager.IsLearnToPlayDeckComplete(
-            workingDeck) &&
-        TutorialManager.IsLearnToPlayDeckOrderCorrect(
-            workingDeck);
+        selectedStructure == DeckStructure.Queue &&
+        TutorialManager.IsLearnToPlayDeckComplete(workingDeck) &&
+        TutorialManager.IsLearnToPlayDeckOrderCorrect(workingDeck);
 
     private string TutorialValidationMessage
     {
         get
         {
-            if (!IsLearnToPlayDeckBuilder)
-            {
-                return ValidationMessage;
-            }
-
-            if (selectedStructure !=
-                DeckStructure.Queue)
-            {
-                return
-                    "The Learn to Play deck must use " +
-                    "the Queue structure.";
-            }
-
-            if (!TutorialManager.IsLearnToPlayDeckComplete(
-                    workingDeck))
-            {
-                return
-                    "Add all 12 required Tutorial cards. " +
-                    TutorialManager.GetLearnToPlayDeckProgress(
-                        workingDeck);
-            }
-
-            if (!TutorialManager.IsLearnToPlayDeckOrderCorrect(
-                    workingDeck))
-            {
-                return
-                    "The Queue order is incorrect. " +
-                    TutorialManager.GetLearnToPlayDeckOrderHint(
-                        workingDeck);
-            }
-
-            if (!IsDeckValid)
-            {
-                return ValidationMessage;
-            }
-
-            return
-                "Tutorial deck complete. " +
-                "The Queue order is correct.";
+            if (!IsLearnToPlayDeckBuilder) return ValidationMessage;
+            if (selectedStructure != DeckStructure.Queue) return "The Learn to Play deck must use the Queue structure.";
+            if (!TutorialManager.IsLearnToPlayDeckComplete(workingDeck)) return $"Find and add all {TutorialRequiredCount} required Tutorial cards. {TutorialManager.GetLearnToPlayDeckProgress(workingDeck)}";
+            if (!TutorialManager.IsLearnToPlayDeckOrderCorrect(workingDeck)) return "The Tutorial Queue order is not correct.";
+            if (!IsDeckValid) return ValidationMessage;
+            return "Tutorial deck complete. Save it to continue.";
         }
     }
 
@@ -2174,80 +472,25 @@ OnFinished="FinishPageTutorial" />
     {
         get
         {
-            if (IsLearnToPlayDeckBuilder)
-            {
-                return GetNextTutorialCards();
-            }
-
-            IEnumerable<Card> cards =
-                allCards;
-
-            if (!string.IsNullOrWhiteSpace(
-                    searchText))
-            {
-                cards =
-                    CardLibraryManager.LinearSearch(
-                        allCards,
-                        searchText);
-            }
-
-            if (selectedType != null)
-            {
-                cards =
-                    cards.Where(card =>
-                        card.Type ==
-                        selectedType.Value);
-            }
-
-            if (selectedArchetype != null)
-            {
-                cards =
-                    cards.Where(card =>
-                        card.Archetype ==
-                        selectedArchetype.Value);
-            }
-
+            IEnumerable<Card> cards = allCards;
+            if (!string.IsNullOrWhiteSpace(searchText)) cards = CardLibraryManager.LinearSearch(allCards, searchText);
+            if (selectedType != null) cards = cards.Where(card => card.Type == selectedType.Value);
+            if (selectedArchetype != null) cards = cards.Where(card => card.Archetype == selectedArchetype.Value);
             return cards.ToList();
         }
     }
 
-    private int CharacterCount =>
-        workingDeck.Cards.Count(card =>
-            card.Type ==
-            CardType.Character);
-
-    private int AttackCount =>
-        workingDeck.Cards.Count(card =>
-            card.Type ==
-            CardType.Attack);
-
-    private int UtilityCount =>
-        workingDeck.Cards.Count(card =>
-            card.Type ==
-            CardType.Utility);
-
-    private bool UsesManualOrder =>
-        selectedStructure ==
-            DeckStructure.Queue ||
-        selectedStructure ==
-            DeckStructure.Stack;
+    private int CharacterCount => workingDeck.Cards.Count(card => card.Type == CardType.Character);
+    private int AttackCount => workingDeck.Cards.Count(card => card.Type == CardType.Attack);
+    private int UtilityCount => workingDeck.Cards.Count(card => card.Type == CardType.Utility);
+    private bool UsesManualOrder => selectedStructure == DeckStructure.Queue || selectedStructure == DeckStructure.Stack;
 
     private string ValidationMessage
     {
         get
         {
-            workingDeck.Structure =
-                selectedStructure;
-
-            if (RedPandaTCD_Web.Game.DeckBuilder.ValidateDeck(
-                    workingDeck,
-                    out string error))
-            {
-                return
-                    "Deck is valid and ready to save.";
-            }
-
-            return error;
+            workingDeck.Structure = selectedStructure;
+            return RedPandaTCD_Web.Game.DeckBuilder.ValidateDeck(workingDeck, out string error) ? "Deck is valid and ready to save." : error;
         }
     }
 
@@ -2255,1093 +498,414 @@ OnFinished="FinishPageTutorial" />
     {
         get
         {
-            workingDeck.Structure =
-                selectedStructure;
-
-            return
-                RedPandaTCD_Web.Game.DeckBuilder.ValidateDeck(
-                    workingDeck,
-                    out _);
+            workingDeck.Structure = selectedStructure;
+            return RedPandaTCD_Web.Game.DeckBuilder.ValidateDeck(workingDeck, out _);
         }
     }
 
     protected override void OnInitialized()
     {
-        showPageTutorial =
-    PageTutorialRequested;
-
-pageTutorialStep =
-    0;
-
-        allCards =
-            CardLibraryManager.GetAllCards();
+        showPageTutorial = PageTutorialRequested;
+        pageTutorialStep = 0;
+        allCards = CardLibraryManager.GetAllCards();
 
         if (IsLearnToPlayDeckBuilder)
         {
-            selectedStructure =
-                DeckStructure.Queue;
-
-            previousStructure =
-                DeckStructure.Queue;
-
-            deckName =
-                "Tutorial Deck";
-
-            showTutorialBuilderIntro =
-                true;
+            selectedStructure = DeckStructure.Queue;
+            previousStructure = DeckStructure.Queue;
+            deckName = "Tutorial Deck";
+            showTutorialBuilderIntro = true;
+            showPageTutorial = false;
         }
 
+        if (EditDeckIndex != null)
+{
+    Deck? existingDeck =
+        DeckManager.GetDeck(
+            EditDeckIndex.Value);
+
+    if (existingDeck != null)
+    {
         workingDeck =
-            new Deck
-            {
-                Name =
-                    IsLearnToPlayDeckBuilder
-                        ? "Tutorial Deck"
-                        : "",
-                Structure =
-                    selectedStructure
-            };
+            existingDeck;
+
+        deckName =
+            existingDeck.Name;
+
+        selectedStructure =
+            existingDeck.Structure;
 
         previousStructure =
-            selectedStructure;
-            if (IsLearnToPlayDeckBuilder)
-{
-    showPageTutorial =
-        false;
-}
+            existingDeck.Structure;
     }
-
-    private void CloseTutorialBuilderIntro()
+    else
     {
-        showTutorialBuilderIntro =
-            false;
-    }
-
-    private List<Card> GetNextTutorialCards()
-    {
-        int nextPosition =
-            workingDeck.Cards.Count;
-
-        if (nextPosition >=
-            TutorialManager.LearnToPlayDeckOrder.Count)
+        workingDeck = new Deck
         {
-            return new List<Card>();
-        }
-
-        string requiredId =
-            TutorialManager.LearnToPlayDeckOrder[
-                nextPosition];
-
-        Card? requiredCard =
-            allCards.FirstOrDefault(card =>
-                string.Equals(
-                    card.Id,
-                    requiredId,
-                    StringComparison.OrdinalIgnoreCase));
-
-        if (requiredCard == null)
-        {
-            return new List<Card>();
-        }
-
-        return new List<Card>
-        {
-            requiredCard
+            Name = "",
+            Structure = selectedStructure
         };
     }
+}
+else
+{
+    workingDeck = new Deck
+    {
+        Name = IsLearnToPlayDeckBuilder
+            ? "Tutorial Deck"
+            : "",
+
+        Structure = selectedStructure
+    };
+}
+
+        previousStructure = selectedStructure;
+    }
+
+    private void CloseTutorialBuilderIntro() => showTutorialBuilderIntro = false;
 
     private string GetTutorialBuilderInstruction()
     {
-        if (!IsLearnToPlayDeckBuilder)
-        {
-            return "";
-        }
-
-        int nextPosition =
-            workingDeck.Cards.Count;
-
-        int requiredCount =
-            TutorialManager.LearnToPlayDeckOrder.Count;
-
-        if (nextPosition >= requiredCount)
-        {
-            return
-                "Tutorial Queue complete. All 12 cards " +
-                "are in the correct order. Save the deck " +
-                "to continue.";
-        }
-
-        string requiredId =
-            TutorialManager.LearnToPlayDeckOrder[
-                nextPosition];
-
-        Card? requiredCard =
-            allCards.FirstOrDefault(card =>
-                string.Equals(
-                    card.Id,
-                    requiredId,
-                    StringComparison.OrdinalIgnoreCase));
-
-        string cardName =
-            requiredCard?.Name ??
-            requiredId;
-
-        return
-            $"Add {cardName} next. " +
-            $"The card will be placed at Queue position " +
-            $"{nextPosition + 1} of {requiredCount}.";
+        if (!IsLearnToPlayDeckBuilder) return "";
+        int nextPosition = workingDeck.Cards.Count;
+        if (nextPosition >= TutorialRequiredCount) return $"Tutorial Queue complete. All {TutorialRequiredCount} cards are ready. Save the deck to continue.";
+        string requiredId = TutorialManager.LearnToPlayDeckOrder[nextPosition];
+        Card? requiredCard = allCards.FirstOrDefault(card => string.Equals(card.Id, requiredId, StringComparison.OrdinalIgnoreCase));
+        return $"Find {requiredCard?.Name ?? requiredId} in the Card Finder and press +. Other cards can still be inspected, but only this card can be added.";
     }
 
-    private bool CanAddTutorialCard(
-        Card card)
+    private bool CanAddTutorialCard(Card card)
     {
-        if (!IsLearnToPlayDeckBuilder)
-        {
-            return true;
-        }
-
-        int nextPosition =
-            workingDeck.Cards.Count;
-
-        if (nextPosition >=
-            TutorialManager.LearnToPlayDeckOrder.Count)
-        {
-            return false;
-        }
-
-        string requiredId =
-            TutorialManager.LearnToPlayDeckOrder[
-                nextPosition];
-
-        return string.Equals(
-            card.Id,
-            requiredId,
-            StringComparison.OrdinalIgnoreCase);
+        if (!IsLearnToPlayDeckBuilder) return true;
+        int nextPosition = workingDeck.Cards.Count;
+        if (nextPosition >= TutorialRequiredCount) return false;
+        return string.Equals(card.Id, TutorialManager.LearnToPlayDeckOrder[nextPosition], StringComparison.OrdinalIgnoreCase);
     }
 
-    private string GetTutorialCardClass(
-        Card card)
+    private bool IsCurrentTutorialCard(Card card) => IsLearnToPlayDeckBuilder && CanAddTutorialCard(card);
+
+    private bool IsTutorialCardAlreadyAdded(Card card) => IsLearnToPlayDeckBuilder && workingDeck.Cards.Any(existing => string.Equals(existing.Id, card.Id, StringComparison.OrdinalIgnoreCase));
+
+    private string GetFinderStatusText(Card card)
     {
-        if (!IsLearnToPlayDeckBuilder)
-        {
-            return "";
-        }
+        if (!IsLearnToPlayDeckBuilder) return "";
+        if (IsTutorialCardAlreadyAdded(card)) return "ADDED";
+        if (IsCurrentTutorialCard(card)) return "FIND & ADD";
+        return "";
+    }
 
-        if (!TutorialManager.IsLearnToPlayDeckCard(
-                card))
-        {
-            return "tutorial-unavailable";
-        }
+    private string GetFinderStatusClass(Card card) => IsTutorialCardAlreadyAdded(card) ? "complete" : "";
 
-        bool alreadyAdded =
-            workingDeck.Cards.Any(existing =>
-                string.Equals(
-                    existing.Id,
-                    card.Id,
-                    StringComparison.OrdinalIgnoreCase));
+    private string GetAddDisabledTitle(Card card)
+    {
+        if (IsLearnToPlayDeckBuilder && !CanAddTutorialCard(card)) return "Find the highlighted Tutorial card next.";
+        if (!CanAddCard(card)) return "Deck rules prevent adding this card right now.";
+        return "Add card to deck";
+    }
 
-        if (alreadyAdded)
-        {
-            return "tutorial-added";
-        }
+    private bool IsFinderCardExpanded(Card card) => string.Equals(expandedFinderCardId, card.Id, StringComparison.OrdinalIgnoreCase);
 
-        return CanAddTutorialCard(card)
-            ? "tutorial-required"
-            : "tutorial-unavailable";
+    private Task SetFinderCardExpanded(Card card, bool expanded)
+    {
+        expandedFinderCardId = expanded ? card.Id : null;
+        return Task.CompletedTask;
+    }
+
+    private Task SetDeckCardExpanded(int index, bool expanded)
+    {
+        expandedDeckCardIndex = expanded ? index : null;
+        return Task.CompletedTask;
     }
 
     private void StructureChanged()
     {
-        DeckStructure newStructure =
-            selectedStructure;
-
-        workingDeck.Structure =
-            newStructure;
-
-        saveMessage =
-            "";
-
-        if (newStructure ==
-            DeckStructure.PriorityQueue)
+        DeckStructure newStructure = selectedStructure;
+        workingDeck.Structure = newStructure;
+        saveMessage = "";
+        expandedDeckCardIndex = null;
+        if (newStructure == DeckStructure.PriorityQueue)
         {
             conversionPriorities.Clear();
-
-            for (int i = 0;
-                 i < workingDeck.Cards.Count;
-                 i++)
-            {
-                Card card =
-                    workingDeck.Cards[i];
-
-                if (card.Type ==
-                    CardType.Character)
-                {
-                    conversionPriorities[i] =
-                        5;
-                }
-                else
-                {
-                    conversionPriorities[i] =
-                        1;
-                }
-            }
-
-            if (workingDeck.Cards.Count > 0)
-            {
-                showPriorityConversion =
-                    true;
-
-                return;
-            }
-
-            previousStructure =
-                DeckStructure.PriorityQueue;
-
+            for (int i = 0; i < workingDeck.Cards.Count; i++) conversionPriorities[i] = workingDeck.Cards[i].Type == CardType.Character ? 5 : 1;
+            if (workingDeck.Cards.Count > 0) { showPriorityConversion = true; return; }
+            previousStructure = DeckStructure.PriorityQueue;
             return;
         }
-
-        showPriorityConversion =
-            false;
-
+        showPriorityConversion = false;
         conversionPriorities.Clear();
-
-        foreach (Card card
-            in workingDeck.Cards)
-        {
-            card.Priority =
-                0;
-        }
-
-        previousStructure =
-            newStructure;
+        foreach (Card card in workingDeck.Cards) card.Priority = 0;
+        previousStructure = newStructure;
     }
 
-    private bool CanAddCard(
-        Card card)
+    private bool CanAddCard(Card card)
     {
-        int maximumDeckSize =
-            IsLearnToPlayDeckBuilder
-                ? TutorialManager
-                    .LearnToPlayDeckOrder
-                    .Count
-                : 15;
-
-        if (workingDeck.Cards.Count >=
-            maximumDeckSize)
+        int maximumDeckSize = IsLearnToPlayDeckBuilder ? TutorialRequiredCount : 15;
+        if (workingDeck.Cards.Count >= maximumDeckSize) return false;
+        int copies = workingDeck.Cards.Count(existing => string.Equals(existing.Id, card.Id, StringComparison.OrdinalIgnoreCase));
+        return card.Type switch
         {
-            return false;
-        }
-
-        int copies =
-            workingDeck.Cards.Count(existing =>
-                string.Equals(
-                    existing.Id,
-                    card.Id,
-                    StringComparison.OrdinalIgnoreCase));
-
-        switch (card.Type)
-        {
-            case CardType.Character:
-                return
-                    copies < 1 &&
-                    CharacterCount < 2;
-
-            case CardType.Attack:
-                return
-                    copies < 2;
-
-            case CardType.Utility:
-                if (UtilityCount >= 6)
-                {
-                    return false;
-                }
-
-                return copies < 1;
-
-            default:
-                return false;
-        }
+            CardType.Character => copies < 1 && CharacterCount < 2,
+            CardType.Attack => copies < 2,
+            CardType.Utility => UtilityCount < 6 && copies < 1,
+            _ => false
+        };
     }
 
-    private void RequestAddCard(
-        Card card)
+    private void RequestAddCard(Card card)
     {
-        if (!CanAddCard(card) ||
-            !CanAddTutorialCard(card))
-        {
-            return;
-        }
-
-        saveMessage =
-            "";
-
-        saveSucceeded =
-            false;
-
-        workingDeck.Structure =
-            selectedStructure;
-
-        if (selectedStructure ==
-            DeckStructure.PriorityQueue)
-        {
-            priorityCard =
-                card;
-
-            return;
-        }
-
-        bool success =
-            RedPandaTCD_Web.Game.DeckBuilder.AddCard(
-                workingDeck,
-                card);
-
-        if (!success)
-        {
-            saveMessage =
-                "The selected card could not be added.";
-
-            return;
-        }
-
-        if (IsLearnToPlayDeckBuilder &&
-            workingDeck.Cards.Count >=
-                TutorialManager
-                    .LearnToPlayDeckOrder
-                    .Count)
-        {
-            saveMessage =
-                "Tutorial Queue complete. " +
-                "Save the deck to continue.";
-
-            saveSucceeded =
-                true;
-        }
+        if (!CanAddCard(card) || !CanAddTutorialCard(card)) return;
+        saveMessage = "";
+        saveSucceeded = false;
+        workingDeck.Structure = selectedStructure;
+        if (selectedStructure == DeckStructure.PriorityQueue) { priorityCard = card; return; }
+        if (!RedPandaTCD_Web.Game.DeckBuilder.AddCard(workingDeck, card)) { saveMessage = "The selected card could not be added."; return; }
+        expandedFinderCardId = null;
+        if (IsLearnToPlayDeckBuilder && workingDeck.Cards.Count >= TutorialRequiredCount) { saveMessage = "Tutorial Queue complete. Save the deck to continue."; saveSucceeded = true; }
     }
 
-    private void AddPriorityCard(
-        int priority)
+    private void AddPriorityCard(int priority)
     {
-        if (priorityCard == null)
-        {
-            return;
-        }
-
-        workingDeck.Structure =
-            selectedStructure;
-
-        bool success =
-            RedPandaTCD_Web.Game.DeckBuilder.AddCard(
-                workingDeck,
-                priorityCard,
-                priority);
-
-        if (!success)
-        {
-            saveSucceeded =
-                false;
-
-            saveMessage =
-                "That priority is not valid for this card.";
-
-            return;
-        }
-
-        priorityCard =
-            null;
-
-        saveMessage =
-            "";
+        if (priorityCard == null) return;
+        workingDeck.Structure = selectedStructure;
+        if (!RedPandaTCD_Web.Game.DeckBuilder.AddCard(workingDeck, priorityCard, priority)) { saveSucceeded = false; saveMessage = "That priority is not valid for this card."; return; }
+        priorityCard = null;
+        saveMessage = "";
     }
 
-    private void CancelPriority()
+    private void CancelPriority() => priorityCard = null;
+
+    private void SetConversionPriority(int cardIndex, int priority)
     {
-        priorityCard =
-            null;
+        if (cardIndex < 0 || cardIndex >= workingDeck.Cards.Count) return;
+        Card card = workingDeck.Cards[cardIndex];
+        if (card.Type == CardType.Character) { conversionPriorities[cardIndex] = 5; return; }
+        if (priority < 1 || priority > 4) return;
+        conversionPriorities[cardIndex] = priority;
     }
 
-    private void SetConversionPriority(
-        int cardIndex,
-        int priority)
-    {
-        if (cardIndex < 0 ||
-            cardIndex >=
-                workingDeck.Cards.Count)
-        {
-            return;
-        }
-
-        Card card =
-            workingDeck.Cards[cardIndex];
-
-        if (card.Type ==
-            CardType.Character)
-        {
-            conversionPriorities[cardIndex] =
-                5;
-
-            return;
-        }
-
-        if (priority < 1 ||
-            priority > 4)
-        {
-            return;
-        }
-
-        conversionPriorities[cardIndex] =
-            priority;
-    }
-
-    private string GetConversionPriorityClass(
-        int cardIndex,
-        int priority)
-    {
-        return
-            conversionPriorities.TryGetValue(
-                cardIndex,
-                out int selected) &&
-            selected == priority
-                ? "selected"
-                : "";
-    }
+    private string GetConversionPriorityClass(int cardIndex, int priority) => conversionPriorities.TryGetValue(cardIndex, out int selected) && selected == priority ? "selected" : "";
 
     private void ConfirmPriorityConversion()
     {
-        for (int i = 0;
-             i < workingDeck.Cards.Count;
-             i++)
+        for (int i = 0; i < workingDeck.Cards.Count; i++)
         {
-            Card card =
-                workingDeck.Cards[i];
-
-            if (card.Type ==
-                CardType.Character)
-            {
-                card.Priority =
-                    5;
-
-                continue;
-            }
-
-            if (!conversionPriorities.TryGetValue(
-                    i,
-                    out int priority))
-            {
-                return;
-            }
-
-            if (priority < 1 ||
-                priority > 4)
-            {
-                return;
-            }
-
-            card.Priority =
-                priority;
+            Card card = workingDeck.Cards[i];
+            if (card.Type == CardType.Character) { card.Priority = 5; continue; }
+            if (!conversionPriorities.TryGetValue(i, out int priority) || priority < 1 || priority > 4) return;
+            card.Priority = priority;
         }
-
-        selectedStructure =
-            DeckStructure.PriorityQueue;
-
-        workingDeck.Structure =
-            DeckStructure.PriorityQueue;
-
-        previousStructure =
-            DeckStructure.PriorityQueue;
-
-        showPriorityConversion =
-            false;
-
+        selectedStructure = DeckStructure.PriorityQueue;
+        workingDeck.Structure = DeckStructure.PriorityQueue;
+        previousStructure = DeckStructure.PriorityQueue;
+        showPriorityConversion = false;
         conversionPriorities.Clear();
-
-        saveMessage =
-            "";
+        saveMessage = "";
     }
 
     private void CancelPriorityConversion()
     {
-        showPriorityConversion =
-            false;
-
+        showPriorityConversion = false;
         conversionPriorities.Clear();
-
-        selectedStructure =
-            previousStructure;
-
-        workingDeck.Structure =
-            previousStructure;
-
-        if (previousStructure !=
-            DeckStructure.PriorityQueue)
-        {
-            foreach (Card card
-                in workingDeck.Cards)
-            {
-                card.Priority =
-                    0;
-            }
-        }
+        selectedStructure = previousStructure;
+        workingDeck.Structure = previousStructure;
+        if (previousStructure != DeckStructure.PriorityQueue) foreach (Card card in workingDeck.Cards) card.Priority = 0;
     }
 
-    private void RemoveCard(
-        int index)
+    private void RemoveCard(int index)
     {
-        if (IsLearnToPlayDeckBuilder)
-        {
-            return;
-        }
-
-        RedPandaTCD_Web.Game.DeckBuilder.RemoveCard(
-            workingDeck,
-            index);
-
-        saveMessage =
-            "";
-
-        saveSucceeded =
-            false;
+        if (IsLearnToPlayDeckBuilder) return;
+        RedPandaTCD_Web.Game.DeckBuilder.RemoveCard(workingDeck, index);
+        expandedDeckCardIndex = null;
+        saveMessage = "";
+        saveSucceeded = false;
     }
 
-    private void MoveCardUp(
-        int index)
+    private void MoveCardUp(int index)
     {
-        if (IsLearnToPlayDeckBuilder)
-        {
-            return;
-        }
-
-        RedPandaTCD_Web.Game.DeckBuilder.MoveCardUp(
-            workingDeck,
-            index);
-
-        saveMessage =
-            "";
-
-        saveSucceeded =
-            false;
+        if (IsLearnToPlayDeckBuilder) return;
+        RedPandaTCD_Web.Game.DeckBuilder.MoveCardUp(workingDeck, index);
+        expandedDeckCardIndex = null;
+        saveMessage = "";
+        saveSucceeded = false;
     }
 
-    private void MoveCardDown(
-        int index)
+    private void MoveCardDown(int index)
     {
-        if (IsLearnToPlayDeckBuilder)
-        {
-            return;
-        }
-
-        RedPandaTCD_Web.Game.DeckBuilder.MoveCardDown(
-            workingDeck,
-            index);
-
-        saveMessage =
-            "";
-
-        saveSucceeded =
-            false;
+        if (IsLearnToPlayDeckBuilder) return;
+        RedPandaTCD_Web.Game.DeckBuilder.MoveCardDown(workingDeck, index);
+        expandedDeckCardIndex = null;
+        saveMessage = "";
+        saveSucceeded = false;
     }
 
-    private void SaveDeck()
+private void SaveDeck()
+{
+    workingDeck.Structure = selectedStructure;
+    workingDeck.Name = deckName.Trim();
+
+    if (IsLearnToPlayDeckBuilder)
     {
-        workingDeck.Structure =
-            selectedStructure;
+        SaveLearnToPlayDeck();
+        return;
+    }
 
-        workingDeck.Name =
-            deckName.Trim();
+    string error;
+    bool success;
 
-        if (IsLearnToPlayDeckBuilder)
-        {
-            SaveLearnToPlayDeck();
-            return;
-        }
-
-        bool success =
-            DeckManager.SaveDeck(
+    if (EditDeckIndex != null)
+    {
+        success =
+            DeckManager.UpdateDeck(
+                EditDeckIndex.Value,
                 workingDeck,
                 deckName,
-                out string error);
+                out error);
 
-        saveSucceeded =
-            success;
+        saveSucceeded = success;
 
         if (!success)
         {
-            saveMessage =
-                error;
-
+            saveMessage = error;
             return;
         }
 
-        string savedName =
-            deckName.Trim();
-
-        ResetBuilder();
-
-        saveSucceeded =
-            true;
-
         saveMessage =
-            $"{savedName} saved successfully.";
+            "Deck updated successfully.";
+
+        return;
     }
+
+    success =
+        DeckManager.SaveDeck(
+            workingDeck,
+            deckName,
+            out error);
+
+    saveSucceeded = success;
+
+    if (!success)
+    {
+        saveMessage = error;
+        return;
+    }
+
+    string savedName =
+        deckName.Trim();
+
+    ResetBuilder();
+
+    saveSucceeded = true;
+
+    saveMessage =
+        $"{savedName} saved successfully.";
+}
 
     private void SaveLearnToPlayDeck()
     {
-        workingDeck.Structure =
-            DeckStructure.Queue;
-
-        workingDeck.Name =
-            "Tutorial Deck";
-
-        if (!TutorialManager.IsLearnToPlayDeckComplete(
-                workingDeck))
-        {
-            saveSucceeded =
-                false;
-
-            saveMessage =
-                "Add all 12 required Tutorial cards first.";
-
-            return;
-        }
-
-        if (!TutorialManager.IsLearnToPlayDeckOrderCorrect(
-                workingDeck))
-        {
-            saveSucceeded =
-                false;
-
-            saveMessage =
-                "The Queue order is incorrect. " +
-                TutorialManager.GetLearnToPlayDeckOrderHint(
-                    workingDeck);
-
-            return;
-        }
-
-        if (!IsTutorialDeckReady)
-        {
-            saveSucceeded =
-                false;
-
-            saveMessage =
-                "Complete the required Tutorial deck first.";
-
-            return;
-        }
-
-        bool success =
-            DeckManager.SaveDeck(
-                workingDeck,
-                deckName,
-                out string error);
-
-        if (!success)
-        {
-            saveSucceeded =
-                false;
-
-            saveMessage =
-                error;
-
-            return;
-        }
-
-        Session.Tutorial.TutorialDeck =
-            DeckCloner.Clone(
-                workingDeck);
-
-        saveSucceeded =
-            true;
-
-        saveMessage =
-            "Tutorial Deck saved.";
-
-        showTutorialDeckComplete =
-            true;
+        workingDeck.Structure = DeckStructure.Queue;
+        workingDeck.Name = "Tutorial Deck";
+        if (!TutorialManager.IsLearnToPlayDeckComplete(workingDeck)) { saveSucceeded = false; saveMessage = $"Add all {TutorialRequiredCount} required Tutorial cards first."; return; }
+        if (!TutorialManager.IsLearnToPlayDeckOrderCorrect(workingDeck)) { saveSucceeded = false; saveMessage = "The Tutorial Queue order is incorrect."; return; }
+        if (!IsTutorialDeckReady) { saveSucceeded = false; saveMessage = "Complete the required Tutorial deck first."; return; }
+        bool success = DeckManager.SaveDeck(workingDeck, deckName, out string error);
+        if (!success) { saveSucceeded = false; saveMessage = error; return; }
+        Session.Tutorial.TutorialDeck = DeckCloner.Clone(workingDeck);
+        saveSucceeded = true;
+        saveMessage = "Tutorial Deck saved.";
+        showTutorialDeckComplete = true;
     }
 
     private void ProceedToTutorialBattle()
     {
-        if (Session.Tutorial.TutorialDeck == null)
-        {
-            showTutorialDeckComplete =
-                false;
-
-            saveSucceeded =
-                false;
-
-            saveMessage =
-                "The Tutorial deck could not be loaded.";
-
-            return;
-        }
-
-        showTutorialDeckComplete =
-            false;
-
-        Session.CurrentMatch =
-            GameSetupManager.StartLearnToPlayMatch(
-                Session.PlayerName,
-                Session.Tutorial.TutorialDeck);
-
-        Navigation.NavigateTo(
-            "/battle");
+        if (Session.Tutorial.TutorialDeck == null) { showTutorialDeckComplete = false; saveSucceeded = false; saveMessage = "The Tutorial deck could not be loaded."; return; }
+        showTutorialDeckComplete = false;
+        Session.CurrentMatch = GameSetupManager.StartLearnToPlayMatch(Session.PlayerName, Session.Tutorial.TutorialDeck);
+        Navigation.NavigateTo("/battle");
     }
 
     private void ExitLearnToPlayBuilder()
     {
-        TutorialManager.ExitTutorial(
-            Session.Tutorial);
-
-        Navigation.NavigateTo(
-            "/tutorial");
+        TutorialManager.ExitTutorial(Session.Tutorial);
+        Navigation.NavigateTo("/tutorial");
     }
 
     private void ResetBuilder()
     {
-        deckName =
-            "";
-
-        searchText =
-            "";
-
-        selectedType =
-            null;
-
-        selectedArchetype =
-            null;
-
-        priorityCard =
-            null;
-
-        showPriorityConversion =
-            false;
-
-        showTutorialDeckComplete =
-            false;
-
-        showTutorialBuilderIntro =
-            false;
-
+        deckName = "";
+        searchText = "";
+        selectedType = null;
+        selectedArchetype = null;
+        priorityCard = null;
+        showPriorityConversion = false;
+        showTutorialDeckComplete = false;
+        showTutorialBuilderIntro = false;
+        expandedFinderCardId = null;
+        expandedDeckCardIndex = null;
         conversionPriorities.Clear();
-
-        workingDeck =
-            new Deck
-            {
-                Name = "",
-                Structure =
-                    selectedStructure
-            };
-
-        previousStructure =
-            selectedStructure;
+        workingDeck = new Deck { Name = "", Structure = selectedStructure };
+        previousStructure = selectedStructure;
     }
 
-    private void SetTypeFilter(
-        CardType? type)
+    private void SetTypeFilter(CardType? type) => selectedType = type;
+    private void SetArchetypeFilter(Archetype? archetype) => selectedArchetype = archetype;
+    private string GetTypeButtonClass(CardType? type) => selectedType == type ? "active" : "";
+    private string GetArchetypeButtonClass(Archetype? archetype) => selectedArchetype == archetype ? "active" : "";
+    private string GetValidationClass() => IsDeckValid ? "valid" : "invalid";
+    private string GetDisplayedValidationClass() => IsLearnToPlayDeckBuilder ? (IsTutorialDeckReady ? "valid" : "invalid") : GetValidationClass();
+
+    private static string GetStructureName(DeckStructure structure) => structure switch
     {
-        selectedType =
-            type;
-    }
-
-    private void SetArchetypeFilter(
-        Archetype? archetype)
-    {
-        selectedArchetype =
-            archetype;
-    }
-
-    private string GetTypeButtonClass(
-        CardType? type)
-    {
-        return selectedType == type
-            ? "active"
-            : "";
-    }
-
-    private string GetArchetypeButtonClass(
-        Archetype? archetype)
-    {
-        return selectedArchetype ==
-               archetype
-            ? "active"
-            : "";
-    }
-
-    private string GetValidationClass()
-    {
-        return IsDeckValid
-            ? "valid"
-            : "invalid";
-    }
-
-    private string GetDisplayedValidationClass()
-    {
-        if (IsLearnToPlayDeckBuilder)
-        {
-            return IsTutorialDeckReady
-                ? "valid"
-                : "invalid";
-        }
-
-        return GetValidationClass();
-    }
-
-    private static string GetTypeClass(
-        Card card)
-    {
-        return card.Type switch
-        {
-            CardType.Character =>
-                "type-character",
-
-            CardType.Attack =>
-                "type-attack",
-
-            CardType.Utility =>
-                "type-utility",
-
-            _ =>
-                ""
-        };
-    }
-
-    private static string GetStructureName(
-        DeckStructure structure)
-    {
-        return structure switch
-        {
-            DeckStructure.Queue =>
-                "Queue",
-
-            DeckStructure.Stack =>
-                "Stack",
-
-            DeckStructure.PriorityQueue =>
-                "Priority Queue",
-
-            DeckStructure.RandomList =>
-                "Random List",
-
-            DeckStructure.LinkedList =>
-                "Linked List",
-
-            _ =>
-                structure.ToString()
-        };
-    }
-
-    private static string GetStructureDescription(
-        DeckStructure structure)
-    {
-        return structure switch
-        {
-            DeckStructure.Queue =>
-                "First In, First Out. " +
-                "Deck order matters.",
-
-            DeckStructure.Stack =>
-                "Last In, First Out. " +
-                "Deck order matters and Placement " +
-                "is automatic.",
-
-            DeckStructure.PriorityQueue =>
-                "Cards draw by priority. Characters " +
-                "use Priority 5; other cards use " +
-                "Priority 1-4.",
-
-            DeckStructure.RandomList =>
-                "Cards are drawn from a randomized list.",
-
-            DeckStructure.LinkedList =>
-                "The deck uses linked nodes and supports " +
-                "node reordering during play.",
-
-            _ =>
-                ""
-        };
-    }
-
-    private void GoToDecks()
-    {
-        Navigation.NavigateTo(
-            "/decks");
-    }
-
-    private void GoHome()
-    {
-        Navigation.NavigateTo(
-            "/");
-    }
-    [SupplyParameterFromQuery(
-    Name = "tutorial")]
-public bool PageTutorialRequested { get; set; }
-
-private bool showPageTutorial;
-private int pageTutorialStep;
-
-private static readonly IReadOnlyList<PageTutorialStep>
-    DeckBuilderPageTutorialSteps =
-    new List<PageTutorialStep>
-    {
-        new()
-        {
-            Title =
-                "Deck Builder",
-            Message =
-                "The Deck Builder creates decks used in battles, " +
-                "tournaments, and simulations. The left panel contains " +
-                "available cards, while the right panel contains your deck.",
-            Target =
-                "builder-page"
-        },
-
-        new()
-        {
-            Title =
-                "Available Cards",
-            Message =
-                "This panel contains cards that can be added to the deck. " +
-                "Each card shows its type, archetype, cost, and relevant stats.",
-            Target =
-                "available-cards"
-        },
-
-        new()
-        {
-            Title =
-                "Search and Filters",
-            Message =
-                "Search by card name or use the type and archetype filters " +
-                "to narrow the available-card list.",
-            Target =
-                "card-filters"
-        },
-
-        new()
-        {
-            Title =
-                "Deck Name",
-            Message =
-                "Give the deck a recognizable name before saving it. " +
-                "Deck names help identify the deck on selection screens.",
-            Target =
-                "deck-name"
-        },
-
-        new()
-        {
-            Title =
-                "Data Structure",
-            Message =
-                "The selected data structure determines how cards are stored, " +
-                "retrieved, inspected, recycled, and sometimes deployed.",
-            Target =
-                "structure-selector"
-        },
-
-        new()
-        {
-            Title =
-                "Your Deck",
-            Message =
-                "Added cards appear here. The deck must follow card-count, " +
-                "Character, Attack-copy, and Utility-copy limits.",
-            Target =
-                "built-deck"
-        },
-
-        new()
-        {
-            Title =
-                "Card Ordering",
-            Message =
-                "Queue, Stack, and Linked List decks depend on card order. " +
-                "Priority Queue decks use assigned priority values instead.",
-            Target =
-                "built-deck"
-        },
-
-        new()
-        {
-            Title =
-                "Validation",
-            Message =
-                "The summary and validation messages explain whether the deck " +
-                "is legal and what must be corrected before saving.",
-            Target =
-                "deck-summary"
-        },
-
-        new()
-        {
-            Title =
-                "Save Deck",
-            Message =
-                "Once the deck is valid, save it to make it available in " +
-                "battle, Tournament, and Simulator deck selection.",
-            Target =
-                "save-deck"
-        },
-
-        new()
-        {
-            Title =
-                "Deck Builder Tutorial Complete",
-            Message =
-                "You now know how to search for cards, select a structure, " +
-                "assemble a legal deck, arrange it, and save it.",
-            Target =
-                "builder-page"
-        }
+        DeckStructure.Queue => "Queue",
+        DeckStructure.Stack => "Stack",
+        DeckStructure.PriorityQueue => "Priority Queue",
+        DeckStructure.RandomList => "Random List",
+        DeckStructure.LinkedList => "Linked List",
+        _ => structure.ToString()
     };
 
-private string GetPageTutorialClass(
-    string target)
-{
-    if (!showPageTutorial ||
-        pageTutorialStep < 0 ||
-        pageTutorialStep >=
-            DeckBuilderPageTutorialSteps.Count)
+    private static string GetStructureDescription(DeckStructure structure) => structure switch
     {
-        return "";
+        DeckStructure.Queue => "First In, First Out. Deck order matters.",
+        DeckStructure.Stack => "Last In, First Out. Deck order matters and Placement is automatic.",
+        DeckStructure.PriorityQueue => "Cards draw by priority. Characters use Priority 5; other cards use Priority 1-4.",
+        DeckStructure.RandomList => "Cards are drawn from a randomized list.",
+        DeckStructure.LinkedList => "The deck uses linked nodes and supports node reordering during play.",
+        _ => ""
+    };
+
+    private void GoToDecks() => Navigation.NavigateTo("/decks");
+    private void GoHome() => Navigation.NavigateTo("/");
+
+    [SupplyParameterFromQuery(Name = "tutorial")]
+    public bool PageTutorialRequested { get; set; }
+
+    [SupplyParameterFromQuery(Name = "edit")]
+        public int? EditDeckIndex { get; set; }
+
+    private bool showPageTutorial;
+    private int pageTutorialStep;
+
+    private static readonly IReadOnlyList<PageTutorialStep> DeckBuilderPageTutorialSteps = new List<PageTutorialStep>
+    {
+        new() { Title="Deck Builder", Message="The Deck Builder creates decks used in battles, tournaments, and simulations. The Card Finder is on the left and your deck is on the right.", Target="builder-page" },
+        new() { Title="Card Finder", Message="Browse compact card rows here. Click a row or its arrow to inspect the full card before adding it.", Target="available-cards" },
+        new() { Title="Search and Filters", Message="Search by card name or ID, then narrow results by type and archetype.", Target="card-filters" },
+        new() { Title="Deck Name", Message="Give the deck a recognizable name before saving it.", Target="deck-name" },
+        new() { Title="Data Structure", Message="The selected data structure determines how cards are stored, retrieved, inspected, recycled, and sometimes deployed.", Target="structure-selector" },
+        new() { Title="Your Deck", Message="Added cards appear here. You can inspect them and, when the structure uses manual order, arrange them with the move controls.", Target="built-deck" },
+        new() { Title="Card Ordering", Message="Queue and Stack decks depend on card order. Priority Queue decks use assigned priority values instead.", Target="built-deck" },
+        new() { Title="Validation", Message="The summary and status message explain whether the deck is legal and what still needs to be corrected.", Target="deck-summary" },
+        new() { Title="Save Deck", Message="Once the deck is valid, save it for battle, Tournament, and Simulator deck selection.", Target="save-deck" },
+        new() { Title="Deck Builder Tutorial Complete", Message="You now know how to find and inspect cards, select a structure, assemble a legal deck, arrange it, and save it.", Target="builder-page" }
+    };
+
+    private string GetPageTutorialClass(string target)
+    {
+        if (!showPageTutorial || pageTutorialStep < 0 || pageTutorialStep >= DeckBuilderPageTutorialSteps.Count) return "";
+        return string.Equals(DeckBuilderPageTutorialSteps[pageTutorialStep].Target, target, StringComparison.OrdinalIgnoreCase) ? "page-tutorial-target" : "";
     }
 
-    return string.Equals(
-        DeckBuilderPageTutorialSteps[
-            pageTutorialStep].Target,
-        target,
-        StringComparison.OrdinalIgnoreCase)
-            ? "page-tutorial-target"
-            : "";
-}
-
-private Task SetPageTutorialStep(
-    int step)
-{
-    pageTutorialStep =
-        step;
-
-    return Task.CompletedTask;
-}
-
-private void FinishPageTutorial()
-{
-    Session.Tutorial.DeckBuilderCompleted =
-        true;
-
-    showPageTutorial =
-        false;
-
-    Navigation.NavigateTo(
-        "/tutorial");
-}
-
-private void ExitPageTutorial()
-{
-    showPageTutorial =
-        false;
-
-    Navigation.NavigateTo(
-        "/tutorial");
-}
+    private Task SetPageTutorialStep(int step) { pageTutorialStep = step; return Task.CompletedTask; }
+    private void FinishPageTutorial() { Session.Tutorial.DeckBuilderCompleted = true; showPageTutorial = false; Navigation.NavigateTo("/tutorial"); }
+    private void ExitPageTutorial() { showPageTutorial = false; Navigation.NavigateTo("/tutorial"); }
 }

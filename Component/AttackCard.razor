@@ -57,7 +57,7 @@
                         </span>
 
                         <strong class="stat-value">
-                            @Attack.Damage
+                            @DisplayedDamage
                         </strong>
                     </div>
 
@@ -146,7 +146,7 @@
     .effect-badge-rail {
         position: absolute;
         left: 50%;
-        bottom: calc(100% - 13px);
+        bottom: calc(100% - 8px);
         z-index: 30;
 
         width: max-content;
@@ -783,6 +783,11 @@
        Piercing, Multi-Hit, and Instant Fatigue are printed on the
        card face because those traits define the card itself.
     */
+    private int DisplayedDamage =>
+        Attack == null
+            ? 0
+            : AttackManager.GetEffectiveDamage(Owner, Attack);
+
     private IReadOnlyList<BattleStatus> RuntimeBadges =>
         BattleStatusManager
             .GetAttackStatuses(

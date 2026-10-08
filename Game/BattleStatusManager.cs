@@ -1,5 +1,4 @@
 namespace RedPandaTCD_Web.Game;
-
 public enum BattleStatusTone
 {
     Neutral,
@@ -11,23 +10,16 @@ public enum BattleStatusTone
     Warning,
     Danger
 }
-
 public sealed class BattleStatus
 {
     public string Key { get; }
-
     public string Label { get; }
-
     public string? Detail { get; }
-
     public BattleStatusTone Tone { get; }
-
     public string CssClass =>
         $"status-{Tone.ToString().ToLowerInvariant()}";
-
     public bool HasDetail =>
         !string.IsNullOrWhiteSpace(Detail);
-
     public BattleStatus(
         string key,
         string label,
@@ -40,18 +32,12 @@ public sealed class BattleStatus
         Detail = detail;
     }
 }
-
 public static class BattleStatusManager
 {
-    // ==========================================================
-    // PLAYER-LEVEL STATUSES
-    // ==========================================================
-
     public static IReadOnlyList<BattleStatus>
         GetPlayerStatuses(Player player)
     {
         List<BattleStatus> statuses = new();
-
         if (player.DiscountActive)
         {
             statuses.Add(
@@ -61,7 +47,6 @@ public static class BattleStatusManager
                     BattleStatusTone.Positive,
                     "The next Attack placement costs 1 less Energy."));
         }
-
         if (player.TemporaryAttackBonus > 0)
         {
             statuses.Add(
@@ -71,7 +56,6 @@ public static class BattleStatusManager
                     BattleStatusTone.Attack,
                     "Temporary Attack damage bonus."));
         }
-
         if (player.UtilityActionsRemaining > 0)
         {
             statuses.Add(
@@ -83,7 +67,6 @@ public static class BattleStatusManager
                     BattleStatusTone.Utility,
                     "Utility actions remaining during this phase."));
         }
-
         if (player.IsReorderingNodes)
         {
             statuses.Add(
@@ -95,7 +78,6 @@ public static class BattleStatusManager
                         ? "1 node move completed."
                         : $"{player.ReorderMovesThisPhase} node moves completed."));
         }
-
         if (player.EnergyDrainedThisPhaseCount > 0)
         {
             statuses.Add(
@@ -105,7 +87,6 @@ public static class BattleStatusManager
                     BattleStatusTone.Warning,
                     "Energy was drained during the current phase."));
         }
-
         if (player.HitDuringPreviousTurn)
         {
             statuses.Add(
@@ -115,46 +96,33 @@ public static class BattleStatusManager
                     BattleStatusTone.Warning,
                     "This may activate effects that react to being hit."));
         }
-
         AddStoredStatusEffects(
             statuses,
             player.StatusEffects);
-
         return statuses;
     }
-
-    // ==========================================================
-    // CHARACTER STATUSES
-    // ==========================================================
-
     public static IReadOnlyList<BattleStatus>
         GetCharacterStatuses(Player owner)
     {
         List<BattleStatus> statuses = new();
-
         Card? character =
             owner.ActiveCharacter;
-
         if (character == null)
         {
             return statuses;
         }
-
         AddCharacterEntryStatus(
             statuses,
             owner,
             character);
-
         AddCharacterPassiveStatuses(
             statuses,
             owner,
             character);
-
         AddCharacterAbilityStatus(
             statuses,
             owner,
             character);
-
         if (owner.CharacterDefeatedSinceLastPlacement)
         {
             statuses.Add(
@@ -164,15 +132,12 @@ public static class BattleStatusManager
                     BattleStatusTone.Interactable,
                     "The defeated Character can be replaced for free."));
         }
-
         AddStoredStatusEffects(
             statuses,
             owner.StatusEffects);
-
         return RemoveDuplicateStatuses(
             statuses);
     }
-
     private static void AddCharacterEntryStatus(
         List<BattleStatus> statuses,
         Player owner,
@@ -182,7 +147,6 @@ public static class BattleStatusManager
         {
             return;
         }
-
         switch (character.Name)
         {
             case "Sage Red Panda":
@@ -195,7 +159,6 @@ public static class BattleStatusManager
                             ? "The Entry protection has already been consumed."
                             : "Incoming damage is limited by the Entry effect."));
                 break;
-
             case "Sorcerer Red Panda":
                 statuses.Add(
                     new BattleStatus(
@@ -204,7 +167,6 @@ public static class BattleStatusManager
                         BattleStatusTone.Attack,
                         "Magic Attacks gain 1 damage during the deployment turn."));
                 break;
-
             case "Guardian Red Panda":
                 statuses.Add(
                     new BattleStatus(
@@ -215,7 +177,6 @@ public static class BattleStatusManager
                             ? "The Entry protection has already been consumed."
                             : "The Character is protected by its Entry effect."));
                 break;
-
             case "Berserker Red Panda":
                 statuses.Add(
                     new BattleStatus(
@@ -224,7 +185,6 @@ public static class BattleStatusManager
                         BattleStatusTone.Attack,
                         "Physical Attacks gain 1 damage during the deployment turn."));
                 break;
-
             case "Nomad Red Panda":
                 statuses.Add(
                     new BattleStatus(
@@ -233,7 +193,6 @@ public static class BattleStatusManager
                         BattleStatusTone.Positive,
                         "Both deployed Attack buildup costs were reduced by 1."));
                 break;
-
             case "Wanderer Red Panda":
                 statuses.Add(
                     new BattleStatus(
@@ -244,7 +203,6 @@ public static class BattleStatusManager
                 break;
         }
     }
-
     private static void AddCharacterPassiveStatuses(
         List<BattleStatus> statuses,
         Player owner,
@@ -262,7 +220,6 @@ public static class BattleStatusManager
                     BattleStatusTone.Attack,
                     "Retaliation is active because the player was hit last turn."));
         }
-
         if (CharacterManager.HasPassive(
                 owner,
                 "ArcaneFocus") &&
@@ -275,7 +232,6 @@ public static class BattleStatusManager
                     BattleStatusTone.Attack,
                     "Magic Attacks gain 1 damage while no Physical Attack is deployed."));
         }
-
         if (CharacterManager.HasPassive(
                 owner,
                 "FreePeek"))
@@ -287,7 +243,6 @@ public static class BattleStatusManager
                     BattleStatusTone.Utility,
                     "The relevant deck-view action does not spend a Utility action."));
         }
-
         if (CharacterManager.HasPassive(
                 owner,
                 "EndTurnShield"))
@@ -299,7 +254,6 @@ public static class BattleStatusManager
                     BattleStatusTone.Positive,
                     "This Character grants additional Shield during End."));
         }
-
         foreach (string passive in
             character.PassiveAbilities)
         {
@@ -307,12 +261,10 @@ public static class BattleStatusManager
             {
                 continue;
             }
-
             if (IsKnownDisplayedPassive(passive))
             {
                 continue;
             }
-
             statuses.Add(
                 new BattleStatus(
                     $"passive-{NormalizeKey(passive)}",
@@ -321,7 +273,6 @@ public static class BattleStatusManager
                     "Character passive effect."));
         }
     }
-
     private static void AddCharacterAbilityStatus(
         List<BattleStatus> statuses,
         Player owner,
@@ -332,7 +283,6 @@ public static class BattleStatusManager
         {
             return;
         }
-
         if (owner.CharacterNewlyDeployed)
         {
             statuses.Add(
@@ -341,10 +291,8 @@ public static class BattleStatusManager
                     "Ability Locked",
                     BattleStatusTone.Warning,
                     "A newly deployed Character cannot use its Active ability this phase."));
-
             return;
         }
-
         if (owner.AbilityCooldownRemaining > 0)
         {
             statuses.Add(
@@ -355,10 +303,8 @@ public static class BattleStatusManager
                     owner.AbilityCooldownRemaining == 1
                         ? "The Active ability has 1 turn of cooldown remaining."
                         : $"The Active ability has {owner.AbilityCooldownRemaining} turns of cooldown remaining."));
-
             return;
         }
-
         if (owner.AbilityUsedThisPhase)
         {
             statuses.Add(
@@ -367,10 +313,8 @@ public static class BattleStatusManager
                     "Ability Used",
                     BattleStatusTone.Neutral,
                     "The Active ability has already been used this phase."));
-
             return;
         }
-
         statuses.Add(
             new BattleStatus(
                 "ability-ready",
@@ -378,58 +322,44 @@ public static class BattleStatusManager
                 BattleStatusTone.Positive,
                 "The Active ability is ready to use."));
     }
-
-    // ==========================================================
-    // ATTACK STATUSES
-    // ==========================================================
-
     public static IReadOnlyList<BattleStatus>
         GetAttackStatuses(
             Player owner,
             int slot)
     {
         List<BattleStatus> statuses = new();
-
         if (!IsValidAttackSlot(slot))
         {
             return statuses;
         }
-
         Card? attack =
             GetAttack(
                 owner,
                 slot);
-
         if (attack == null)
         {
             return statuses;
         }
-
         bool fatigued =
             IsFatigued(
                 owner,
                 slot);
-
         bool resting =
             IsResting(
                 owner,
                 slot);
-
         bool usedThisPhase =
             WasUsedThisPhase(
                 owner,
                 slot);
-
         int usesRemaining =
             GetUsesRemaining(
                 owner,
                 slot);
-
         int nextUseCost =
             GetNextUseCost(
                 owner,
                 slot);
-
         if (resting)
         {
             statuses.Add(
@@ -461,7 +391,6 @@ public static class BattleStatusManager
                         : BattleStatusTone.Neutral,
                     "Uses remaining before this Attack becomes Fatigued."));
         }
-
         if (usedThisPhase)
         {
             statuses.Add(
@@ -471,7 +400,6 @@ public static class BattleStatusManager
                     BattleStatusTone.Neutral,
                     "This Attack has already been used during the current Attack phase."));
         }
-
         if (!fatigued &&
             !resting)
         {
@@ -486,7 +414,6 @@ public static class BattleStatusManager
                         ? "Energy required for the next use."
                         : "The player does not currently have enough Energy."));
         }
-
         if (attack.IsPiercing)
         {
             statuses.Add(
@@ -496,7 +423,6 @@ public static class BattleStatusManager
                     BattleStatusTone.Attack,
                     "This Attack uses the game's Piercing damage rules."));
         }
-
         if (attack.Hits > 1)
         {
             statuses.Add(
@@ -506,7 +432,6 @@ public static class BattleStatusManager
                     BattleStatusTone.Attack,
                     "This Attack resolves multiple individual hits."));
         }
-
         if (attack.InstantFatigue)
         {
             statuses.Add(
@@ -516,21 +441,22 @@ public static class BattleStatusManager
                     BattleStatusTone.Danger,
                     "Using this Attack immediately makes it Fatigued."));
         }
+        int effectiveDamage = AttackManager.GetEffectiveDamage(owner, attack);
+        int liveDamageBonus = effectiveDamage - attack.Damage;
 
-        if (owner.TemporaryAttackBonus > 0)
+        if (liveDamageBonus != 0)
         {
+            string sign = liveDamageBonus > 0 ? "+" : "";
             statuses.Add(
                 new BattleStatus(
                     "temporary-attack-bonus",
-                    $"+{owner.TemporaryAttackBonus} Damage",
-                    BattleStatusTone.Attack,
-                    "Temporary damage bonus currently affecting Attacks."));
+                    $"{sign}{liveDamageBonus} Damage",
+                    liveDamageBonus > 0 ? BattleStatusTone.Attack : BattleStatusTone.Warning,
+                    "Live modifier already included in this Attack's displayed Damage."));
         }
-
         return RemoveDuplicateStatuses(
             statuses);
     }
-
     public static bool IsAttackAvailable(
         Player owner,
         int slot)
@@ -539,17 +465,14 @@ public static class BattleStatusManager
         {
             return false;
         }
-
         Card? attack =
             GetAttack(
                 owner,
                 slot);
-
         if (attack == null)
         {
             return false;
         }
-
         return
             !IsFatigued(owner, slot) &&
             !IsResting(owner, slot) &&
@@ -557,7 +480,6 @@ public static class BattleStatusManager
             owner.Energy >=
                 GetNextUseCost(owner, slot);
     }
-
     public static bool IsCharacterAbilityAvailable(
         Player owner)
     {
@@ -569,24 +491,17 @@ public static class BattleStatusManager
             !owner.AbilityUsedThisPhase &&
             owner.AbilityCooldownRemaining <= 0;
     }
-
-    // ==========================================================
-    // SHARED PRESENTATION HELPERS
-    // ==========================================================
-
     public static string GetToneCssClass(
         BattleStatusTone tone)
     {
         return
             $"status-{tone.ToString().ToLowerInvariant()}";
     }
-
     public static string GetToneCssClass(
         BattleStatus status)
     {
         return status.CssClass;
     }
-
     private static void AddStoredStatusEffects(
         List<BattleStatus> statuses,
         IEnumerable<string> effects)
@@ -597,12 +512,10 @@ public static class BattleStatusManager
             {
                 continue;
             }
-
             string label =
                 effect == "DeflectNextHit"
                     ? "Deflect"
                     : FormatIdentifier(effect);
-
             statuses.Add(
                 new BattleStatus(
                     $"stored-{NormalizeKey(effect)}",
@@ -611,7 +524,6 @@ public static class BattleStatusManager
                     GetStoredStatusDetail(effect)));
         }
     }
-
     private static IReadOnlyList<BattleStatus>
         RemoveDuplicateStatuses(
             IEnumerable<BattleStatus> statuses)
@@ -624,14 +536,12 @@ public static class BattleStatusManager
                 group.First())
             .ToList();
     }
-
     private static bool IsValidAttackSlot(
         int slot)
     {
         return slot == 1 ||
                slot == 2;
     }
-
     private static Card? GetAttack(
         Player owner,
         int slot)
@@ -643,7 +553,6 @@ public static class BattleStatusManager
             _ => null
         };
     }
-
     private static bool IsFatigued(
         Player owner,
         int slot)
@@ -655,7 +564,6 @@ public static class BattleStatusManager
             _ => false
         };
     }
-
     private static bool IsResting(
         Player owner,
         int slot)
@@ -667,7 +575,6 @@ public static class BattleStatusManager
             _ => false
         };
     }
-
     private static bool WasUsedThisPhase(
         Player owner,
         int slot)
@@ -676,15 +583,12 @@ public static class BattleStatusManager
         {
             1 =>
                 owner.AttackSlot1UsedThisPhase,
-
             2 =>
                 owner.AttackSlot2UsedThisPhase,
-
             _ =>
                 false
         };
     }
-
     private static int GetUsesRemaining(
         Player owner,
         int slot)
@@ -693,15 +597,12 @@ public static class BattleStatusManager
         {
             1 =>
                 owner.AttackSlot1UsesRemaining,
-
             2 =>
                 owner.AttackSlot2UsesRemaining,
-
             _ =>
                 0
         };
     }
-
     private static int GetNextUseCost(
         Player owner,
         int slot)
@@ -710,15 +611,12 @@ public static class BattleStatusManager
         {
             1 =>
                 owner.AttackSlot1TotalUses,
-
             2 =>
                 owner.AttackSlot2TotalUses,
-
             _ =>
                 0
         };
     }
-
     private static bool HasPhysicalAttackDeployed(
         Player owner)
     {
@@ -728,7 +626,6 @@ public static class BattleStatusManager
             owner.AttackSlot2?.Archetype ==
                 Archetype.Physical;
     }
-
     private static bool IsKnownDisplayedPassive(
         string passive)
     {
@@ -738,7 +635,6 @@ public static class BattleStatusManager
             "FreePeek" or
             "EndTurnShield";
     }
-
     private static BattleStatusTone GetStatusTone(
         string effect)
     {
@@ -746,27 +642,23 @@ public static class BattleStatusManager
             effect
                 .Trim()
                 .ToLowerInvariant();
-
         if (normalized.Contains("fatigue") ||
             normalized.Contains("defeated") ||
             normalized.Contains("danger"))
         {
             return BattleStatusTone.Danger;
         }
-
         if (normalized.Contains("energy") ||
             normalized.Contains("drain"))
         {
             return BattleStatusTone.Energy;
         }
-
         if (normalized.Contains("attack") ||
             normalized.Contains("piercing") ||
             normalized.Contains("damage"))
         {
             return BattleStatusTone.Attack;
         }
-
         if (normalized.Contains("utility") ||
             normalized.Contains("peek") ||
             normalized.Contains("draw") ||
@@ -774,7 +666,6 @@ public static class BattleStatusManager
         {
             return BattleStatusTone.Utility;
         }
-
         if (normalized.Contains("shield") ||
             normalized.Contains("heal") ||
             normalized.Contains("boost") ||
@@ -783,10 +674,8 @@ public static class BattleStatusManager
         {
             return BattleStatusTone.Positive;
         }
-
         return BattleStatusTone.Neutral;
     }
-
     private static string? GetStoredStatusDetail(
         string effect)
     {
@@ -794,12 +683,10 @@ public static class BattleStatusManager
         {
             "DeflectNextHit" =>
                 "The next eligible incoming hit is deflected.",
-
             _ =>
                 null
         };
     }
-
     private static string NormalizeKey(
         string value)
     {
@@ -809,7 +696,6 @@ public static class BattleStatusManager
                 .Select(part =>
                     part.ToLowerInvariant()));
     }
-
     private static string FormatIdentifier(
         string value)
     {
@@ -817,7 +703,6 @@ public static class BattleStatusManager
             " ",
             SplitIdentifier(value));
     }
-
     private static IReadOnlyList<string>
         SplitIdentifier(string value)
     {
@@ -825,13 +710,11 @@ public static class BattleStatusManager
         {
             return Array.Empty<string>();
         }
-
         string separated =
             System.Text.RegularExpressions.Regex.Replace(
                 value.Trim(),
                 "([a-z0-9])([A-Z])",
                 "$1 $2");
-
         return separated
             .Replace(
                 "_",
