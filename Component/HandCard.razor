@@ -97,6 +97,8 @@ else
                 </footer>
             </article>
 
+            @if (!IsDisplayOnly)
+            {
             <aside class="hand-character-info" aria-label="Character ability information">
                 <div class="info-heading">
                     <strong>@card.Name</strong>
@@ -121,6 +123,7 @@ else
                     </div>
                 </section>
             </aside>
+            }
         }
         else
         {
@@ -176,11 +179,21 @@ else
         cursor: pointer;
     }
 
-    .hand-card-wrap.clickable:hover {
-        z-index: 40;
-        transform: translateY(-7px);
-        border-color: #c7b98f;
-        box-shadow: 0 11px 22px rgba(0, 0, 0, .34);
+    .hand-card-wrap.clickable:hover,
+.hand-card-wrap.clickable:focus-within {
+    z-index: 200;
+    transform: translateY(-7px);
+    border-color: #c7b98f;
+    box-shadow: 0 11px 22px rgba(0, 0, 0, .34);
+}
+    .hand-card-wrap.display-only,
+    .hand-card-wrap.display-only:hover {
+        cursor: default;
+        z-index: auto;
+        transform: none;
+        border-color: #7f7668;
+        box-shadow: 0 6px 14px rgba(0, 0, 0, .27);
+        filter: none;
     }
 
     .hand-card-wrap.disabled {
@@ -675,7 +688,7 @@ else
         position: absolute !important;
         top: 50% !important;
         left: calc(100% + 12px) !important;
-        z-index: 100 !important;
+        z-index: 210 !important;
         width: 310px !important;
         height: auto !important;
         max-height: 280px;
@@ -1041,20 +1054,20 @@ else
         await OnCardClicked.InvokeAsync(Slot);
     }
 
-    private string GetInteractionClass()
+   private string GetInteractionClass()
+{
+    if (IsDisplayOnly)
     {
-        if (IsClickable)
-        {
-            return "clickable";
-        }
-
-        if (IsDisplayOnly)
-        {
-            return "display-only";
-        }
-
-        return "disabled";
+        return "display-only";
     }
+
+    if (IsClickable)
+    {
+        return "clickable";
+    }
+
+    return "disabled";
+}
 
     private static string GetArchetypeClass(Card card) =>
         card.Archetype switch

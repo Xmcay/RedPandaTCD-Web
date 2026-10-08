@@ -797,60 +797,20 @@ else
                     else
                     {
                         <div class="character-picker-choices">
-                            @foreach (HandSlot slot
-                                in deployableCharacters)
-                            {
-                                Card character =
-                                    slot.CardInSlot!;
+    @foreach (HandSlot slot in deployableCharacters)
+    {
+        Card character =
+            slot.CardInSlot!;
 
-                                <div class="character-choice">
-                                    <HandCard
-                                        Slot="slot"
-                                        IsClickable="@CanChoosePlacementCharacter(character)"
-                                        OnCardClicked="DeploySelectedCharacter" />
-
-                                    <div class="character-choice-info">
-                                        <div class="character-choice-archetype">
-                                            @character.Archetype ·
-                                            @character.Type
-                                        </div>
-
-                                        <div class="character-choice-ability entry">
-                                            <strong>
-                                                ENTRY ·
-                                                @CharacterInfo.GetEntryName(character)
-                                            </strong>
-
-                                            <span>
-                                                @CharacterInfo.GetEntryDescription(character)
-                                            </span>
-                                        </div>
-
-                                        <div class="character-choice-ability passive">
-                                            <strong>
-                                                PASSIVE ·
-                                                @CharacterInfo.GetPassiveName(character)
-                                            </strong>
-
-                                            <span>
-                                                @CharacterInfo.GetPassiveDescription(character)
-                                            </span>
-                                        </div>
-
-                                        <div class="character-choice-ability active">
-                                            <strong>
-                                                ACTIVE ·
-                                                @CharacterInfo.GetActiveName(character)
-                                            </strong>
-
-                                            <span>
-                                                @CharacterInfo.GetActiveDescription(character)
-                                            </span>
-                                        </div>
-                                    </div>
-                                </div>
-                            }
-                        </div>
+        <div class="character-choice">
+            <HandCard
+                Slot="slot"
+                IsClickable="@CanChoosePlacementCharacter(character)"
+                IsDisplayOnly="true"
+                OnCardClicked="DeploySelectedCharacter" />
+        </div>
+    }
+</div>
                     }
 
                     <button @onclick="CloseCharacterPicker">
@@ -1273,9 +1233,9 @@ else
 /* ---------- ATTACK / CHARACTER ACTION AVAILABLE ---------- */
 
 .battle:has(.phase.attack.active)
-.attack-shell:is(.clickable, .interactable) .field-card,
+.attack-shell.occupied.attack-action-ready,
 .battle:has(.phase.attack.active)
-.character-shell:is(.clickable, .interactable) .character-card {
+.character-shell.occupied.attack-action-ready {
     border:
         var(--interaction-border-width)
         solid
@@ -1305,9 +1265,9 @@ else
 }
 
 .battle:has(.phase.attack.active)
-.attack-shell:is(.clickable, .interactable):hover .field-card,
+.attack-shell.occupied.attack-action-ready:hover,
 .battle:has(.phase.attack.active)
-.character-shell:is(.clickable, .interactable):hover .character-card {
+.character-shell.occupied.attack-action-ready:hover {
     border-color: #a9ebff !important;
     outline-color: #d0f4ff !important;
 
@@ -1322,19 +1282,9 @@ else
 /* ---------- PLACEMENT ACTION AVAILABLE ---------- */
 
 .battle:has(.phase.placement.active)
-.attack-shell:is(
-    .clickable,
-    .interactable,
-    .placement-deploy,
-    .placement-replace
-) .field-card,
+.attack-shell:is(.placement-deploy, .placement-replace),
 .battle:has(.phase.placement.active)
-.character-shell:is(
-    .clickable,
-    .interactable,
-    .placement-deploy,
-    .placement-replace
-) .character-card {
+.character-shell:is(.placement-deploy, .placement-replace) {
     border:
         var(--interaction-border-width)
         solid
@@ -1364,19 +1314,9 @@ else
 }
 
 .battle:has(.phase.placement.active)
-.attack-shell:is(
-    .clickable,
-    .interactable,
-    .placement-deploy,
-    .placement-replace
-):hover .field-card,
+.attack-shell:is(.placement-deploy, .placement-replace):hover,
 .battle:has(.phase.placement.active)
-.character-shell:is(
-    .clickable,
-    .interactable,
-    .placement-deploy,
-    .placement-replace
-):hover .character-card {
+.character-shell:is(.placement-deploy, .placement-replace):hover {
     border-color: #ff9f64 !important;
     outline-color: #ffd0b0 !important;
 
@@ -2446,7 +2386,7 @@ else
 
 /* ---------- EMPTY SLOTS ---------- */
 
-.battle .hand-card.empty {
+.battle .hand-empty-card {
     height: 48px !important;
     min-height: 48px !important;
 
@@ -2465,17 +2405,17 @@ else
         0 9px 18px rgba(0, 0, 0, 0.36) !important;
 }
 
-.battle .hand-card.empty .empty-title {
+.battle .hand-empty-card .empty-title {
     color: #8c96a0 !important;
     opacity: 1 !important;
 }
 
-.battle .hand-card.empty .slot-number {
+.battle .hand-empty-card .slot-number {
     color: #66717b !important;
     opacity: 1 !important;
 }
 
-.battle .hand:not(:has(.hand-card:not(.empty))) {
+.battle .hand:not(:has(.hand-card-wrap)) {
     align-items: flex-end;
 
     transform:
@@ -2489,7 +2429,7 @@ else
 
 /* ---------- DISABLED CARDS ---------- */
 
-.battle .hand .hand-card.disabled {
+.battle .hand .hand-card-wrap.disabled {
     opacity: 1 !important;
 
     filter:
@@ -2500,116 +2440,131 @@ else
 
 /* ---------- UTILITY SOLID DRAWER ---------- */
 
-.battle:has(.phase.utility.active) .hand-area {
-    z-index: 100;
+/*
+   Desktop Utility behavior only:
+   - Starts expanded.
+   - Collapses while the player battlefield is hovered.
+   - Reopens when the hand area, cabinet, or cards are hovered.
+   - Collapsed Utility cards stay bright.
+*/
+@@media (min-width: 901px) {
+    .battle:has(.phase.utility.active) .hand-area {
+        position: relative;
+        z-index: 100;
+        background: #10161c;
+        box-shadow:
+            0 -24px 48px rgba(0, 0, 0, 0.60);
+    }
 
-    background: #10161c;
+    .battle:has(.phase.utility.active) .hand-area::before {
+        border-color: rgba(99, 173, 121, 0.28);
+        background: #151c23;
+    }
 
-    box-shadow:
-        0 -24px 48px rgba(0, 0, 0, 0.60);
+    .battle:has(.phase.utility.active) .hand-area::after {
+        left: 20px;
+        right: 20px;
+        bottom: -14px;
+        z-index: 1;
+        height: 230px;
+        border-color: rgba(99, 173, 121, 0.28);
+        background:
+            linear-gradient(
+                180deg,
+                #19232b 0%,
+                #11181f 100%
+            );
+        opacity: 1;
+        box-shadow:
+            0 -20px 44px rgba(0, 0, 0, 0.60);
+        pointer-events: auto;
+    }
+
+    .battle:has(.phase.utility.active) .hand-area .hand {
+        transform:
+            translateY(-112px)
+            scale(1);
+        opacity: 1;
+        filter: none;
+    }
+
+    .battle:has(.phase.utility.active) .hand-area .hand-label {
+        position: absolute;
+        left: 30px;
+        top: -109px;
+        z-index: 8;
+        width: 112px;
+        min-width: 0;
+        padding: 6px 8px;
+        box-sizing: border-box;
+        border: 1px solid rgba(99, 173, 121, 0.26);
+        border-radius: 4px;
+        background: #11181f;
+        color: #81c994;
+        font-size: 10px;
+        font-weight: 900;
+        line-height: 1;
+        letter-spacing: 0.55px;
+        white-space: nowrap;
+        transform: none;
+        pointer-events: none;
+    }
+
+    .battle:has(.phase.utility.active) .hand-area .hand-empty-card {
+        height: 58px;
+        min-height: 58px;
+        align-self: flex-end;
+    }
+
+    .battle:has(.phase.utility.active):has(.player-side:hover)
+    .hand-area:not(:hover)::after {
+        height: 0;
+        border-color: transparent;
+        opacity: 0;
+        box-shadow: none;
+    }
+
+    .battle:has(.phase.utility.active):has(.player-side:hover)
+    .hand-area:not(:hover) .hand {
+        transform:
+            translateY(68px)
+            scale(0.78);
+        opacity: 1;
+        filter: none;
+    }
+
+    .battle:has(.phase.utility.active):has(.player-side:hover)
+    .hand-area:not(:hover) .hand-card-wrap {
+        opacity: 1;
+        filter: none;
+    }
+
+    .battle:has(.phase.utility.active):has(.player-side:hover)
+    .hand-area:not(:hover) .hand-empty-card {
+        height: 48px;
+        min-height: 48px;
+        align-self: flex-end;
+        opacity: 1;
+        filter: none;
+    }
+
+    .battle:has(.phase.utility.active):has(.player-side:hover)
+    .hand-area:not(:hover) .hand-label {
+        left: 28px;
+        top: 50%;
+        width: auto;
+        padding: 0;
+        border: 0;
+        border-radius: 0;
+        background: transparent;
+        color: #87929c;
+        font-size: 11px;
+        font-weight: 900;
+        line-height: 1;
+        letter-spacing: 1.15px;
+        transform: translateY(-50%);
+    }
 }
-
-.battle:has(.phase.utility.active) .hand-area::before {
-    border-color:
-        rgba(99, 173, 121, 0.28);
-
-    background: #151c23;
-}
-
-.battle:has(.phase.utility.active) .hand-area::after {
-    height: 188px;
-
-    border-color:
-        rgba(99, 173, 121, 0.28);
-
-    background:
-        linear-gradient(
-            180deg,
-            #19232b,
-            #11181f
-        );
-
-    opacity: 1;
-
-    box-shadow:
-        0 -20px 44px rgba(0, 0, 0, 0.60);
-}
-
-.battle:has(.phase.utility.active)
-.hand-area .hand {
-    transform:
-        translateY(-112px)
-        scale(1);
-
-    opacity: 1;
-    filter: none;
-}
-
-.battle:has(.phase.utility.active)
-.hand-area .hand-label {
-    left: 30px;
-    top: -99px;
-
-    width: 185px;
-    padding: 7px 10px 8px;
-
-    border:
-        1px solid rgba(99, 173, 121, 0.26);
-    border-radius: 4px;
-
-    background: #11181f;
-    color: #81c994;
-
-    font-size: 11px;
-    line-height: 1;
-
-    transform: none;
-}
-
-.battle:has(.phase.utility.active)
-.hand-area .hand-label {
-    position: absolute;
-
-    left: 30px;
-    top: -99px;
-    z-index: 8;
-
-    width: 130px;
-    min-width: 0;
-    padding: 6px 8px;
-
-    box-sizing: border-box;
-
-    border: 1px solid rgba(99, 173, 121, 0.26);
-    border-radius: 4px;
-
-    background: #11181f;
-    color: #81c994;
-
-    font-size: 10px;
-    font-weight: 900;
-    line-height: 1;
-    letter-spacing: 0.55px;
-    white-space: nowrap;
-
-    transform: none;
-    pointer-events: none;
-}
-
-.battle:has(.phase.utility.active)
-.hand-area .hand-card.empty {
-    height: auto !important;
-    min-height: initial !important;
-
-    align-self: stretch;
-}
-
-.battle:has(.phase.utility.active)
-.hand-area .hand-card {
-    opacity: 1 !important;
-    filter: none !important;
-}
-
 
 /* ---------- PLACEMENT / ATTACK / END: CARDS ONLY ---------- */
 
@@ -2620,7 +2575,7 @@ else
         .end
     ).active
 )
-.hand-area:hover:has(.hand-card:not(.empty)) {
+.hand-area:hover:has(.hand-card-wrap) {
     z-index: 100;
 
     background: #0e1419;
@@ -2636,7 +2591,7 @@ else
         .end
     ).active
 )
-.hand-area:hover:has(.hand-card:not(.empty))::after {
+.hand-area:hover:has(.hand-card-wrap)::after {
     height: 0;
 
     border-color: transparent;
@@ -2653,7 +2608,7 @@ else
         .end
     ).active
 )
-.hand-area:hover:has(.hand-card:not(.empty))
+.hand-area:hover:has(.hand-card-wrap)
 .hand {
     transform:
         translateY(-112px)
@@ -2671,7 +2626,7 @@ else
     ).active
 )
 .hand-area:hover
-.hand-card.disabled {
+.hand-card-wrap.disabled {
     opacity: 1 !important;
 
     filter:
@@ -2687,11 +2642,11 @@ else
     ).active
 )
 .hand-area:hover
-.hand-card.empty {
-    height: auto !important;
-    min-height: initial !important;
+.hand-empty-card {
+    height: 58px !important;
+    min-height: 58px !important;
 
-    align-self: stretch;
+    align-self: flex-end;
 }
 
 
@@ -2704,7 +2659,7 @@ else
         .end
     ).active
 )
-.hand-area:has(.hand-card:not(.empty))
+.hand-area:has(.hand-card-wrap)
 .hand-label::after {
     content: " · HOVER TO VIEW";
 
@@ -2716,7 +2671,7 @@ else
 }
 
 .battle
-.hand-area:not(:has(.hand-card:not(.empty)))
+.hand-area:not(:has(.hand-card-wrap))
 .hand-label::after {
     content: " · EMPTY";
 
@@ -2929,68 +2884,12 @@ else
 }
 
 .battle .character-choice {
-    width: 250px;
+    width: auto;
 
     display: flex;
-    flex-direction: column;
     align-items: center;
-    gap: 10px;
+    justify-content: center;
 }
-
-.battle .character-choice-info {
-    width: 100%;
-    padding: 11px 12px;
-
-    display: flex;
-    flex-direction: column;
-    gap: 9px;
-
-    text-align: left;
-}
-
-.battle .character-choice-archetype {
-    padding-bottom: 7px;
-
-    border-bottom: 1px solid var(--line);
-
-    color: #91afd5;
-
-    font-size: 10px;
-    font-weight: 800;
-    text-transform: uppercase;
-    letter-spacing: 0.7px;
-}
-
-.battle .character-choice-ability {
-    display: flex;
-    flex-direction: column;
-    gap: 3px;
-}
-
-.battle .character-choice-ability strong {
-    font-size: 10px;
-    letter-spacing: 0.3px;
-}
-
-.battle .character-choice-ability span {
-    color: #c8d0d8;
-
-    font-size: 10px;
-    line-height: 1.35;
-}
-
-.battle .character-choice-ability.entry strong {
-    color: var(--placement-bright);
-}
-
-.battle .character-choice-ability.passive strong {
-    color: #b98adb;
-}
-
-.battle .character-choice-ability.active strong {
-    color: var(--utility);
-}
-
 
 /* =========================================================
    COMPONENT POPUP LAYER
@@ -3266,8 +3165,8 @@ else
         infinite alternate !important;
 }
 
-.battle .tutorial-hand-card-target .hand-card,
-.battle .hand-card.tutorial-hand-card-target {
+.battle .tutorial-hand-card-target .hand-card-wrap,
+.battle .hand-card-wrap.tutorial-hand-card-target {
     border-color:
         var(--tutorial-gold) !important;
 
@@ -3425,14 +3324,25 @@ else
 
     .battle:has(.phase.utility.active)
     .hand-area::after {
-        height: 168px;
+        height: 188px;
     }
 
     .battle:has(.phase.utility.active)
     .hand-area .hand-label {
-        top: -90px;
+        top: -100px;
     }
 
+    .battle:has(.phase.utility.active):has(.player-side:hover)
+    .hand-area:not(:hover) .hand {
+        transform:
+            translateY(68px)
+            scale(0.78);
+    }
+
+    .battle:has(.phase.utility.active):has(.player-side:hover)
+    .hand-area:not(:hover)::after {
+        height: 0;
+    }
     .battle:has(
         .phase:is(
             .placement,
@@ -3440,15 +3350,13 @@ else
             .end
         ).active
     )
-    .hand-area:hover:has(.hand-card:not(.empty))
+    .hand-area:hover:has(.hand-card-wrap)
     .hand {
         transform:
             translateY(-102px)
             scale(0.94);
     }
 }
-
-
 /* =========================================================
    MEDIUM DESKTOP
    ========================================================= */
@@ -3639,7 +3547,7 @@ else
         display: none;
     }
 
-    .battle .hand-card.empty {
+    .battle .hand-empty-card {
         height: auto !important;
         min-height: initial !important;
 
@@ -3880,7 +3788,6 @@ else
     }
 }
 </style>
-
 @code
 {
     // 1. STATE / UI FIELDS
@@ -4605,130 +4512,215 @@ private void RefreshReplayDisplay()
     
     // 5. BOT TURN HANDLING
 
-    private async Task RunBotIfNeeded()
+   private async Task RunBotIfNeeded()
+{
+    if (Session.CurrentMatch == null ||
+        botIsActing)
     {
-        if (Session.CurrentMatch == null ||
-            botIsActing)
+        return;
+    }
+
+    MatchState match =
+        Session.CurrentMatch;
+
+    Player actingPlayer =
+        match.GetActingPlayer();
+
+    if (!actingPlayer.IsBot)
+    {
+        return;
+    }
+
+    Player bot =
+        actingPlayer;
+
+    Player human =
+        match.GetOpponent();
+
+    botIsActing = true;
+    logCollapsed = false;
+
+    CloseGameplayPopups();
+    StateHasChanged();
+
+    try
+    {
+        const int maximumBotTransitions = 12;
+        int transitionCount = 0;
+
+        while (
+            Session.CurrentMatch == match &&
+            !match.IsCompleted &&
+            !MatchManager.IsMatchOver(
+                match.Player1,
+                match.Player2) &&
+            match.GetActingPlayer() == bot &&
+            transitionCount <
+                maximumBotTransitions)
         {
-            return;
-        }
+            MatchPhase phaseBefore =
+                match.CurrentPhase;
 
-        MatchState match =
-            Session.CurrentMatch;
+            int turnBefore =
+                match.TurnNumber;
 
-        Player actingPlayer =
-            match.GetActingPlayer();
+            int actingPlayerBefore =
+                match.ActingPlayerIndex;
 
-        if (!actingPlayer.IsBot)
-            return;
-
-        Player bot =
-            actingPlayer;
-
-        Player human =
-            match.GetOpponent();
-
-        botIsActing = true;
-        logCollapsed = false;
-
-        CloseGameplayPopups();
-        StateHasChanged();
-
-        try
-        {
-            while (
-                Session.CurrentMatch != null &&
-                !match.IsCompleted &&
-                !MatchManager.IsMatchOver(
-                    match.Player1,
-                    match.Player2) &&
-                match.GetActingPlayer() == bot)
+            switch (phaseBefore)
             {
-                MatchPhase phaseBefore =
-                    match.CurrentPhase;
+                case MatchPhase.Utility:
+                    await RunBotUtilityPhase(
+                        bot,
+                        human);
+                    break;
 
-                int turnBefore =
-                    match.TurnNumber;
+                case MatchPhase.Placement:
+                    await RunBotPlacementPhase(
+                        bot);
+                    break;
 
-                switch (match.CurrentPhase)
-                {
-                    case MatchPhase.Utility:
-                        await RunBotUtilityPhase(
-                            bot,
-                            human);
-                        break;
+                case MatchPhase.Attack:
+                    await RunBotAttackPhase(
+                        bot,
+                        human);
+                    break;
 
-                    case MatchPhase.Placement:
-                        await RunBotPlacementPhase(
-                            bot);
-                        break;
+                case MatchPhase.End:
+                    // EndPhaseManager.Resolve() is triggered by
+                    // CompleteCurrentPlayerPhase().
+                    break;
+            }
 
-                    case MatchPhase.Attack:
-                        await RunBotAttackPhase(
-                            bot,
-                            human);
-                        break;
+            if (MatchManager.IsMatchOver(
+                    match.Player1,
+                    match.Player2))
+            {
+                CheckForZeroEnergy();
+                return;
+            }
 
-                    case MatchPhase.End:
-                        // End is an automatic resolution phase.
-                        break;
-                }
+            PhaseManager.CompleteCurrentPlayerPhase(
+                match);
 
-                if (MatchManager.IsMatchOver(
-                        match.Player1,
-                        match.Player2))
-                {
-                    CheckForZeroEnergy();
-                    return;
-                }
+            transitionCount++;
+
+            await HandleTutorialPhaseTransition(
+                phaseBefore,
+                turnBefore);
+
+            bool stateChanged =
+                match.CurrentPhase != phaseBefore ||
+                match.TurnNumber != turnBefore ||
+                match.ActingPlayerIndex !=
+                    actingPlayerBefore;
+
+            if (!stateChanged)
+            {
+                BattleLog.WriteSystem(
+                    $"Bot phase recovery advanced " +
+                    $"{bot.Name} from a stalled " +
+                    $"{phaseBefore} phase.");
 
                 PhaseManager.CompleteCurrentPlayerPhase(
                     match);
-
-                await HandleTutorialPhaseTransition(
-                    phaseBefore,
-                    turnBefore);
-
-                if (IsDsaTutorialBattle &&
-                    match.TurnNumber > turnBefore)
-                {
-                    StateHasChanged();
-                    break;
-                }
-
-                StateHasChanged();
             }
 
-            await ResolveAutomaticEndPhase(match);
-        }
-        finally
-        {
-            botIsActing = false;
+            if (IsDsaTutorialBattle &&
+                match.TurnNumber > turnBefore)
+            {
+                StateHasChanged();
+                break;
+            }
+
             StateHasChanged();
         }
-    }
 
-    private async Task RunBotUtilityPhase(
-        Player bot,
-        Player human)
-    {
-        await BotThinkingDelay();
-
-        int before =
-            BattleLog.GetPhaseActions().Count;
-
-        BotManager.RunUtility(
-            bot,
-            human);
-
-        if (BattleLog.GetPhaseActions().Count == before)
+        if (transitionCount >=
+                maximumBotTransitions &&
+            !match.IsCompleted &&
+            match.GetActingPlayer() == bot)
         {
-            BattleLog.Write(
-                $"{bot.Name} took no Utility action.");
+            BattleLog.WriteSystem(
+                $"Bot safety limit reached for " +
+                $"{bot.Name}. Control was released " +
+                $"to prevent an infinite loop.");
         }
 
+        await ResolveAutomaticEndPhase(
+            match);
+    }
+    catch (Exception exception)
+    {
+        BattleLog.WriteSystem(
+            $"{bot.Name}'s automated turn encountered " +
+            $"an error and was safely released.");
+
+        Console.Error.WriteLine(
+            "BOT TURN FAILED:");
+
+        Console.Error.WriteLine(
+            exception.ToString());
+    }
+    finally
+    {
+        botIsActing = false;
         StateHasChanged();
     }
+}
+
+private async Task RunBotUtilityPhase(
+    Player bot,
+    Player human)
+{
+    await BotThinkingDelay();
+
+    if (Session.CurrentMatch == null)
+    {
+        return;
+    }
+
+    MatchState match =
+        Session.CurrentMatch;
+
+    if (match.IsCompleted ||
+        match.CurrentPhase != MatchPhase.Utility ||
+        match.GetActingPlayer() != bot)
+    {
+        return;
+    }
+
+    bool hasUtilityCard =
+        bot.HandSlots.Any(slot =>
+            !slot.IsEmpty &&
+            slot.CardInSlot?.Type ==
+                CardType.Utility);
+
+    if (!hasUtilityCard)
+    {
+        BattleLog.Write(
+            $"{bot.Name} has no Utility card and passes.");
+
+        StateHasChanged();
+        return;
+    }
+
+    int actionsBefore =
+        BattleLog.GetPhaseActions().Count;
+
+    BotManager.RunUtility(
+        bot,
+        human);
+
+    if (BattleLog.GetPhaseActions().Count ==
+        actionsBefore)
+    {
+        BattleLog.Write(
+            $"{bot.Name} has no usable Utility action and passes.");
+    }
+
+    StateHasChanged();
+}
 
     private async Task RunBotPlacementPhase(
         Player bot)
