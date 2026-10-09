@@ -11,6 +11,11 @@ public static class UtilityManager
         Player opponent,
         int slotNumber)
     {
+        if (player.UtilityActionsRemaining <= 0)
+        {
+            return false;
+        }
+
         if (slotNumber < 1 ||
             slotNumber > Player.MAX_HAND_SIZE)
         {
@@ -41,6 +46,12 @@ public static class UtilityManager
         }
 
         if (player.Energy < card.Cost)
+        {
+            return false;
+        }
+
+        if (card.Name == "Energy Drain" &&
+            player.EnergyDrainedThisPhaseCount >= 1)
         {
             return false;
         }
@@ -372,7 +383,8 @@ public static class UtilityManager
             return false;
         }
 
-        if (player.HandSlots[slotNumber - 1].IsEmpty)
+        if (player.UtilityActionsRemaining <= 0 ||
+            player.HandSlots[slotNumber - 1].IsEmpty)
         {
             return false;
         }
@@ -388,6 +400,8 @@ public static class UtilityManager
             player,
             playerIndex,
             turnNumber);
+
+        player.UtilityActionsRemaining--;
 
         BattleLog.WriteReplay(
             $"{player.Name} discarded a card and drew a replacement",
@@ -481,20 +495,14 @@ public static class UtilityManager
             return null;
         }
 
-        bool freePeek =
-            CharacterManager.HasPassive(
-                player,
-                "FreePeek");
-
-        if (!freePeek)
+        // FreePeek is specific to the Peek action. Viewing the
+        // Random List draw pool is a separate utility action.
+        if (player.UtilityActionsRemaining <= 0)
         {
-            if (player.UtilityActionsRemaining <= 0)
-            {
-                return null;
-            }
-
-            player.UtilityActionsRemaining--;
+            return null;
         }
+
+        player.UtilityActionsRemaining--;
 
         BattleLog.WriteReplay(
             $"{player.Name} viewed the Random draw pool",

@@ -130,8 +130,18 @@ public static class PhaseManager
             return false;
         }
 
+        // Refresh replay context before this bot takes its turn.
+        BattleLog.SetReplayContext(
+            state.TurnNumber,
+            state.ActingPlayerIndex,
+            acting.Deck.Structure,
+            state.Player1,
+            state.Player2,
+            state);
+
         Player opponent =
             state.GetOpponent();
+
 
         switch (state.CurrentPhase)
         {

@@ -114,9 +114,14 @@ public static class CharacterManager
         if (player.ActiveCharacter == null)
             return false;
 
-        if (player.AbilityCooldownRemaining > 0)
+        // This manager is the single authority for ability legality,
+        // regardless of whether a human or bot requested the ability.
+        if (player.CharacterNewlyDeployed ||
+            player.AbilityUsedThisPhase ||
+            player.AbilityCooldownRemaining > 0)
             return false;
 
+        bool usedAbility = false;
         switch (player.ActiveCharacter.ActiveAbility)
         {
             case "ShieldGain":
@@ -132,7 +137,9 @@ public static class CharacterManager
                     player.AbilityCooldownRemaining =
                         player.ActiveCharacter.AbilityCooldown;
 
-                    return true;
+                    player.AbilityUsedThisPhase = true;
+                    usedAbility = true;
+                    return usedAbility;
                 }
                 break;
 
@@ -148,7 +155,9 @@ public static class CharacterManager
                     player.AbilityCooldownRemaining =
                         player.ActiveCharacter.AbilityCooldown;
 
-                    return true;
+                    player.AbilityUsedThisPhase = true;
+                    usedAbility = true;
+                    return usedAbility;
                 }
                 break;
 
@@ -170,7 +179,9 @@ public static class CharacterManager
                     player.AbilityCooldownRemaining =
                         player.ActiveCharacter.AbilityCooldown;
 
-                    return true;
+                    player.AbilityUsedThisPhase = true;
+                    usedAbility = true;
+                    return usedAbility;
                 }
                 break;
 
@@ -186,7 +197,9 @@ public static class CharacterManager
                     player.AbilityCooldownRemaining =
                         player.ActiveCharacter.AbilityCooldown;
 
-                    return true;
+                    player.AbilityUsedThisPhase = true;
+                    usedAbility = true;
+                    return usedAbility;
                 }
                 break;
 
@@ -202,7 +215,9 @@ public static class CharacterManager
                     player.AbilityCooldownRemaining =
                         player.ActiveCharacter.AbilityCooldown;
 
-                    return true;
+                    player.AbilityUsedThisPhase = true;
+                    usedAbility = true;
+                    return usedAbility;
                 }
                 break;
 
@@ -224,7 +239,9 @@ public static class CharacterManager
                     player.AbilityCooldownRemaining =
                         player.ActiveCharacter.AbilityCooldown;
 
-                    return true;
+                    player.AbilityUsedThisPhase = true;
+                    usedAbility = true;
+                    return usedAbility;
                 }
                 break;
         }

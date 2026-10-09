@@ -49,13 +49,27 @@ public static class BattleEngine
         BattleLog.WriteSystem(
             "Turn 1 begins.");
 
+
         MatchState state =
             new MatchState(
                 player1,
                 player2,
                 playerOneStarts);
 
+        // Register the match and both players for replay snapshots.
+
+        // Record the coin flip and initiative in the replay.
+        BattleLog.WriteReplay(
+            $"{initiativePlayer.Name} won the coin flip! Initiative → {initiativePlayer.Name}",
+            state.TurnNumber,
+            state.ActingPlayerIndex,
+            BattleLogEventType.MatchStart,
+            isSystem: true,
+            showInLog: false);
+
         return state;
+
+
     }
 
 
@@ -83,8 +97,17 @@ public static class BattleEngine
             state.IsCompleted = true;
             state.IsDraw = true;
 
+            
+            BattleLog.WriteReplay(
+                "Both players reached 0 Energy. The match ended in a Draw.",
+                state.TurnNumber,
+                state.ActingPlayerIndex,
+                BattleLogEventType.MatchEnd,
+                showInLog: false);
+
             BattleLog.Write(
                 "Both players reached 0 Energy. The match ended in a Draw.");
+
 
             return null;
         }
@@ -112,6 +135,13 @@ public static class BattleEngine
         {
             state.Player1.Losses++;
         }
+        
+        BattleLog.WriteReplay(
+            $"Match ended: {winner.Name} won",
+            state.TurnNumber,
+            state.ActingPlayerIndex,
+            BattleLogEventType.MatchEnd,
+            showInLog: false);
 
         return winner;
     }

@@ -1,5 +1,7 @@
 namespace RedPandaTCD_Web.Game;
 
+using System.Text.Json;
+
 public class ReplayMatchState
 {
     private readonly Player baselinePlayer1;
@@ -222,6 +224,14 @@ public class ReplayMatchState
     private void ApplyEvent(
         BattleLogEntry entry)
     {
+        if (!string.IsNullOrWhiteSpace(entry.StateSnapshotJson) &&
+            RestoreRecordedSnapshot(entry))
+        {
+            return;
+        }
+
+        // Legacy replay compatibility only: old replays lack full state
+        // snapshots, so their recorded events are applied as best-effort data.
         UpdateMatchContext(entry);
 
         Player? actor =
@@ -300,29 +310,26 @@ public class ReplayMatchState
                 break;
 
             case BattleLogEventType.CharacterDefeated:
-                if (target != null)
+            {
+                Player? defeatedOwner = target ?? actor;
+                if (defeatedOwner != null)
                 {
-                    target.ActiveCharacter =
-                        null;
+                    Card? defeated = defeatedOwner.ActiveCharacter;
+                    if (defeated != null &&
+                        !defeatedOwner.DiscardPile.Any(card => card.Id == defeated.Id))
+                    {
+                        defeatedOwner.DiscardPile.Add(defeated.Clone());
+                    }
 
-                    target.CurrentCharacterHp =
-                        0;
-                }
-                else if (actor != null)
-                {
-                    actor.ActiveCharacter =
-                        null;
-
-                    actor.CurrentCharacterHp =
-                        0;
+                    defeatedOwner.ActiveCharacter = null;
+                    defeatedOwner.CurrentCharacterHp = 0;
+                    defeatedOwner.Shield = 0;
+                    defeatedOwner.CharacterDefeatedSinceLastPlacement = true;
                 }
 
-                ApplyStateSnapshot(
-                    entry,
-                    actor,
-                    target);
-
+                ApplyStateSnapshot(entry, actor, target);
                 break;
+            }
 
             case BattleLogEventType.MatchEnd:
                 Match.IsCompleted = true;
@@ -341,6 +348,37 @@ public class ReplayMatchState
                     target);
 
                 break;
+        }
+
+    }
+
+    private bool RestoreRecordedSnapshot(BattleLogEntry entry)
+    {
+        if (string.IsNullOrWhiteSpace(entry.StateSnapshotJson))
+            return false;
+
+        try
+        {
+            ReplayMatchSnapshot? snapshot =
+                JsonSerializer.Deserialize<ReplayMatchSnapshot>(entry.StateSnapshotJson);
+
+            if (snapshot == null)
+                return false;
+
+            snapshot.Player1.Restore(Match.Player1);
+            snapshot.Player2.Restore(Match.Player2);
+            Match.TurnNumber = snapshot.TurnNumber;
+            Match.CurrentPhase = snapshot.CurrentPhase;
+            Match.ActingPlayerIndex = snapshot.ActingPlayerIndex;
+            Match.PlayerOneStarts = snapshot.PlayerOneStarts;
+            Match.IsCompleted = snapshot.IsCompleted;
+            Match.IsDraw = snapshot.IsDraw;
+            return true;
+        }
+        catch (JsonException)
+        {
+            // Older or malformed snapshot payloads fall back to event replay.
+            return false;
         }
     }
 
@@ -417,11 +455,6 @@ public class ReplayMatchState
     Player player,
     BattleLogEntry entry)
 {
-    Console.WriteLine(
-        $"PLACEMENT -> " +
-        $"Player={entry.PlayerIndex} " +
-        $"Card={entry.CardName} " +
-        $"TargetSlot={entry.TargetSlotNumber}");
 
     if (string.IsNullOrWhiteSpace(
         entry.CardName))
@@ -448,8 +481,6 @@ public class ReplayMatchState
 
         if (card == null)
         {
-            Console.WriteLine(
-                $"CARD NOT FOUND -> {entry.CardName}");
 
             ApplyStateSnapshot(
                 entry,
@@ -463,13 +494,14 @@ public class ReplayMatchState
     if (card.Type ==
         CardType.Character)
     {
+        if (player.ActiveCharacter != null &&
+            !player.DiscardPile.Any(existing => existing.Id == player.ActiveCharacter.Id))
+        {
+            player.DiscardPile.Add(player.ActiveCharacter.Clone());
+        }
+
         player.ActiveCharacter =
             card.Clone();
-
-        Console.WriteLine(
-            $"CHARACTER SET -> " +
-            $"{player.Name} " +
-            $"{player.ActiveCharacter?.Name}");
 
         player.CurrentCharacterHp =
             entry.CharacterHp ??
@@ -489,11 +521,6 @@ public class ReplayMatchState
             player.AttackSlot2 =
                 card.Clone();
 
-            Console.WriteLine(
-                $"ATTACK2 SET -> " +
-                $"{player.Name} " +
-                $"{card.Name}");
-
             player.AttackSlot2UsesRemaining =
                 2;
 
@@ -510,11 +537,6 @@ public class ReplayMatchState
         {
             player.AttackSlot1 =
                 card.Clone();
-
-            Console.WriteLine(
-                $"ATTACK1 SET -> " +
-                $"{player.Name} " +
-                $"{card.Name}");
 
             player.AttackSlot1UsesRemaining =
                 2;
@@ -541,12 +563,6 @@ public class ReplayMatchState
     Player? actor,
     Player? target)
 {
-    Console.WriteLine(
-    $"SNAPSHOT -> " +
-    $"Actor={actor?.Name} " +
-    $"Target={target?.Name} " +
-    $"TargetIndex={entry.TargetPlayerIndex} " +
-    $"Shield={entry.OpponentShield}");
     
     if (actor != null)
     {
@@ -703,7 +719,8 @@ public class ReplayMatchState
                     source.Deck)
             };
 
-        player.Deck.InitializeRuntimeStorage();
+        player.Deck.SetReplayRuntimeCards(
+            source.Deck.RuntimeStorage?.GetCards() ?? source.Deck.Cards);
 
         return player;
     }
@@ -734,7 +751,8 @@ public class ReplayMatchState
             DeckCloner.Clone(
                 source.Deck);
 
-        destination.Deck.InitializeRuntimeStorage();
+        destination.Deck.SetReplayRuntimeCards(
+            source.Deck.RuntimeStorage?.GetCards() ?? source.Deck.Cards);
 
         HandManager.ClearHand(
             destination);
@@ -901,7 +919,7 @@ public class ReplayMatchState
                         .ToList()
             };
 
-        rebuiltDeck.InitializeRuntimeStorage();
+        rebuiltDeck.SetReplayRuntimeCards(remaining);
 
         player.Deck =
             rebuiltDeck;

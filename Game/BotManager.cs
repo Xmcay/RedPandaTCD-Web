@@ -119,10 +119,7 @@ public static void RunAttack(
         !attacker.CharacterNewlyDeployed &&
         !attacker.AbilityUsedThisPhase)
     {
-        if (CharacterManager.UseAbility(attacker))
-        {
-            attacker.AbilityUsedThisPhase = true;
-        }
+        AttackManager.UseCharacterAbility(attacker);
     }
 
     AttackManager.BotUseAttack(
@@ -158,10 +155,16 @@ public static bool RunNextUtilityAction(
             continue;
         }
 
-        return UtilityManager.BotPlayUtility(
-            player,
-            opponent,
-            slot.SlotNumber);
+        if (UtilityManager.BotPlayUtility(
+                player,
+                opponent,
+                slot.SlotNumber))
+        {
+            return true;
+        }
+
+        // An unusable Utility card should not prevent the bot
+        // from trying later Utility cards in its hand.
     }
 
     return false;
@@ -287,13 +290,7 @@ public static bool RunNextAttackAction(
                 return false;
             }
 
-            if (!CharacterManager.UseAbility(attacker))
-            {
-                return false;
-            }
-
-            attacker.AbilityUsedThisPhase = true;
-            return true;
+            return AttackManager.UseCharacterAbility(attacker);
 
         case 1:
             return AttackManager.BotUseAttack(

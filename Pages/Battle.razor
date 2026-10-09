@@ -45,13 +45,17 @@ else
         </section>
 
 <section class="phase-bar @GetTutorialFocusClass("phase-bar", "phase-utility", "phase-placement", "phase-attack", "phase-end", "initiative")">
-            <div class="turn-details">
-                <strong>Turn @match.TurnNumber</strong>
+            
+                <div class="turn-details">
+                    <strong>Turn @(IsReplayMode ? replayState!.Match.TurnNumber : match.TurnNumber)</strong>
 
-                <span class="initiative-owner">
-                    Initiative → @match.GetFirstPlayer().Name
-                </span>
-            </div>
+                    <span class="initiative-owner">
+                        Initiative → @(IsReplayMode
+                            ? replayState!.Match.GetFirstPlayer().Name
+                            : match.GetFirstPlayer().Name)
+                    </span>
+                </div>
+
 
             <div class="phases">
                 @PhaseBox("Utility", MatchPhase.Utility, "utility")
@@ -4408,8 +4412,9 @@ private void RefreshReplayDisplay()
         if (!IsLearnToPlayBattle)
             return true;
 
-        return RequiredTutorialAction ==
-                   TutorialAction.DeployCharacter &&
+        return (RequiredTutorialAction is
+                    TutorialAction.DeployCharacter or
+                    TutorialAction.ReplaceCharacter) &&
                TutorialAllowsCard(card);
     }
 
@@ -5102,8 +5107,6 @@ UpdateReplayContext();
         if (!success)
             return;
 
-        player.UtilityActionsRemaining--;
-
         selectedHandSlot = null;
 
         NotifyTutorialAction(
@@ -5239,8 +5242,7 @@ UpdateReplayContext();
             deckHasCards &&
             player.Deck.Structure is
                 DeckStructure.Queue or
-                DeckStructure.Stack or
-                DeckStructure.RandomList)
+                DeckStructure.Stack)
         {
             return true;
         }
@@ -5324,14 +5326,16 @@ UpdateReplayContext();
             player,
             "FreePeek");
 
-    bool peekStructure =
+    bool freePeekStructure =
         player.Deck.Structure is
             DeckStructure.Queue or
-            DeckStructure.Stack or
-            DeckStructure.RandomList;
+            DeckStructure.Stack;
 
-    if (peekStructure &&
-        !freePeek &&
+    if ((player.Deck.Structure is
+            DeckStructure.Queue or
+            DeckStructure.Stack or
+            DeckStructure.RandomList) &&
+        !(freePeek && freePeekStructure) &&
         player.UtilityActionsRemaining <= 0)
     {
         return false;
@@ -5944,13 +5948,6 @@ UpdateReplayContext();
 
         showCharacterPicker = true;
 
-        if (RequiredTutorialAction ==
-            TutorialAction.ReplaceCharacter)
-        {
-            NotifyTutorialAction(
-                TutorialAction.ReplaceCharacter);
-        }
-
         StateHasChanged();
     }
 
@@ -5980,6 +5977,9 @@ UpdateReplayContext();
 
         Card character =
             slot.CardInSlot;
+
+        bool isReplacement =
+            GetPresentedPlayer().ActiveCharacter != null;
 
         if (!CanChoosePlacementCharacter(
                 character))
@@ -6031,7 +6031,9 @@ UpdateReplayContext();
         showCharacterPicker = false;
 
         NotifyTutorialAction(
-            TutorialAction.DeployCharacter);
+            isReplacement
+                ? TutorialAction.ReplaceCharacter
+                : TutorialAction.DeployCharacter);
 
         if (player.ActiveCharacter?.Name ==
                 "Wanderer Red Panda" &&
@@ -7690,7 +7692,10 @@ private void UpdateReplayContext()
     BattleLog.SetReplayContext(
         Session.CurrentMatch.TurnNumber,
         Session.CurrentMatch.ActingPlayerIndex,
-        actingPlayer.Deck.Structure);
+        actingPlayer.Deck.Structure,
+        Session.CurrentMatch.Player1,
+        Session.CurrentMatch.Player2,
+        Session.CurrentMatch);
 }
 }
 

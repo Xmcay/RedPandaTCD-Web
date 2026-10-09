@@ -1026,14 +1026,31 @@
     background: #111820;
 }
 
+
 .replay-event-line {
     display: grid;
-    grid-template-columns: 42px 115px minmax(0, 1fr);
+    grid-template-columns: 55px 135px minmax(0, 1fr);
     gap: 8px;
     padding: 7px 0;
     border-bottom: 1px solid #35414c;
     align-items: start;
 }
+
+.replay-event-turn,
+.replay-event-type {
+    min-width: 0;
+    overflow-wrap: anywhere;
+    line-height: 1.4;
+}
+
+.replay-event-message {
+    min-width: 0;
+    overflow-wrap: anywhere;
+    color: #c8d0d8;
+    font-size: 9px;
+    line-height: 1.35;
+}
+
 
 .replay-event-turn {
     color: #8faee0;
@@ -1353,70 +1370,78 @@
     // BOT SIMULATOR
     // ==========================
 
-    private void RunSimulations(
-        int matchCount)
+   
+private async Task RunSimulations(int matchCount)
+{
+    results = new SimulationResults
     {
-        results =
-            new SimulationResults
-            {
-                RequestedMatches =
-                    matchCount
-            };
+        RequestedMatches = matchCount
+    };
 
-        singleMatchLog.Clear();
+    singleMatchLog.Clear();
 
-        if (DeckManager.Decks.Count < 2)
+    if (DeckManager.Decks.Count < 2)
+    {
+        results.Exceptions++;
+
+        results.Diagnostics.Add(
+            "At least two decks are required.");
+
+        return;
+    }
+
+    player1DeckIndex = Math.Clamp(
+        player1DeckIndex,
+        0,
+        DeckManager.Decks.Count - 1);
+
+    player2DeckIndex = Math.Clamp(
+        player2DeckIndex,
+        0,
+        DeckManager.Decks.Count - 1);
+
+    for (int matchNumber = 1;
+         matchNumber <= matchCount;
+         matchNumber++)
+    {
+        // Allow Blazor and the browser to process UI updates.
+        await Task.Yield();
+
+        try
+        {
+            RunSingleSimulation(
+                matchNumber,
+                matchCount);
+        }
+        catch (Exception exception)
         {
             results.Exceptions++;
 
-            results.Diagnostics.Add(
-                "At least two decks are required.");
-
-            return;
-        }
-
-        player1DeckIndex =
-            Math.Clamp(
-                player1DeckIndex,
-                0,
-                DeckManager.Decks.Count - 1);
-
-        player2DeckIndex =
-            Math.Clamp(
-                player2DeckIndex,
-                0,
-                DeckManager.Decks.Count - 1);
-
-        for (int matchNumber = 1;
-             matchNumber <= matchCount;
-             matchNumber++)
-        {
-            try
+            if (results.Diagnostics.Count < 20)
             {
-                RunSingleSimulation(
-                    matchNumber,
-                    matchCount);
-            }
-            catch (Exception exception)
-            {
-                results.Exceptions++;
-
-                if (results.Diagnostics.Count < 20)
-                {
-                    results.Diagnostics.Add(
-                        $"Match {matchNumber}: " +
-                        exception.Message);
-                }
+                results.Diagnostics.Add(
+                    $"Match {matchNumber}: " +
+                    exception.Message);
             }
         }
 
-        if (results.CompletedMatches > 0)
+        // Refresh the UI periodically during larger batches.
+        if (matchNumber % 10 == 0 ||
+            matchNumber == matchCount)
         {
-            results.AverageTurns =
-                (double)results.TotalTurns /
-                results.CompletedMatches;
+            await InvokeAsync(StateHasChanged);
+            await Task.Yield();
         }
     }
+
+    if (results.CompletedMatches > 0)
+    {
+        results.AverageTurns =
+            (double)results.TotalTurns /
+            results.CompletedMatches;
+    }
+}
+
 
     private void RunSingleSimulation(
         int matchNumber,

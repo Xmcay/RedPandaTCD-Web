@@ -58,4 +58,44 @@ public class Deck
             RuntimeStorage.Add(card);
         }
     }
+    /// <summary>
+    /// Installs the exact recorded deck order for a replay viewer. Replay state
+    /// is observational only, so it uses a passive list-backed storage rather
+    /// than invoking live deck draw/randomization behavior.
+    /// </summary>
+    public void SetReplayRuntimeCards(IEnumerable<Card> cards)
+    {
+        RuntimeStorage = new ReplaySnapshotDeckStorage(cards);
+    }
+
+    private sealed class ReplaySnapshotDeckStorage : IDeckStorage
+    {
+        private readonly List<Card> cards;
+
+        public ReplaySnapshotDeckStorage(IEnumerable<Card> cards)
+        {
+            this.cards = cards.Select(card => card.Clone()).ToList();
+        }
+
+        public int Count => cards.Count;
+
+        public Card? Draw()
+        {
+            if (cards.Count == 0)
+                return null;
+
+            Card card = cards[0];
+            cards.RemoveAt(0);
+            return card;
+        }
+
+        public void Add(Card card)
+        {
+            if (card != null)
+                cards.Add(card);
+        }
+
+        public List<Card> GetCards() => cards.Select(card => card.Clone()).ToList();
+    }
+
 }

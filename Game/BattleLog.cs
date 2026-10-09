@@ -2,6 +2,7 @@ namespace RedPandaTCD_Web.Game;
 
 using System.Security.Cryptography;
 using System.Text;
+using System.Text.Json;
 
 public enum BattleLogEventType
 {
@@ -82,6 +83,9 @@ public class BattleLogEntry
 
     public int? OpponentShield { get; }
 
+    // Complete post-event state used by the replay viewer. This is data only;
+    // replay playback restores it and never reruns a game decision.
+    public string? StateSnapshotJson { get; }
 
     public BattleLogEntry(
         MatchPhase phase,
@@ -109,7 +113,8 @@ public class BattleLogEntry
         int? opponentEnergy = null,
         int? opponentShield = null,
 
-        bool showInLog = true)
+        bool showInLog = true,
+        string? stateSnapshotJson = null)
     {
         Phase = phase;
         Message = message;
@@ -138,6 +143,7 @@ public class BattleLogEntry
 
         OpponentEnergy = opponentEnergy;
         OpponentShield = opponentShield;
+        StateSnapshotJson = stateSnapshotJson;
     }
 }
 
@@ -178,6 +184,10 @@ public static class BattleLog
     private static readonly List<BattleLogEntry>
         currentPhaseActions = new();
 
+    // Replay events are stored independently from player-facing log lines.
+    private static readonly List<BattleLogEntry>
+        currentReplayEvents = new();
+
     private static MatchPhase currentPhase =
         MatchPhase.Utility;
 
@@ -191,6 +201,12 @@ public static class BattleLog
     public static int CurrentPlayerIndex { get; set; } = -1;
 
     private static DeckStructure? currentDeckStructure;
+    private static Player? currentPlayer1;
+    private static Player? currentPlayer2;
+    private static MatchState? currentMatch;
+    private static int lastReplayTurnNumber;
+    private static MatchPhase? lastReplayPhase;
+    private static bool replayContextInitialized;
 
 
     // ==========================
@@ -209,11 +225,52 @@ public static class BattleLog
     public static void SetReplayContext(
         int turnNumber,
         int playerIndex,
-        DeckStructure? deckStructure = null)
+        DeckStructure? deckStructure = null,
+        Player? player1 = null,
+        Player? player2 = null,
+        MatchState? match = null)
     {
+        int previousTurn = lastReplayTurnNumber;
+        MatchPhase? previousPhase = lastReplayPhase;
+
         CurrentTurnNumber = turnNumber;
         CurrentPlayerIndex = playerIndex;
         currentDeckStructure = deckStructure;
+        currentPlayer1 = player1 ?? currentPlayer1;
+        currentPlayer2 = player2 ?? currentPlayer2;
+        currentMatch = match ?? currentMatch;
+
+        MatchPhase activePhase = currentMatch?.CurrentPhase ?? currentPhase;
+        SetPhase(activePhase);
+
+        bool turnChanged = !replayContextInitialized || previousTurn != turnNumber;
+        bool phaseChanged = !replayContextInitialized || previousPhase != activePhase;
+
+        lastReplayTurnNumber = turnNumber;
+        lastReplayPhase = activePhase;
+        replayContextInitialized = true;
+
+        // These are structured replay markers only. The player-facing log has
+        // its own phase/turn messages, so the markers stay hidden there.
+        if (turnChanged)
+        {
+            WriteReplay(
+                $"Turn {turnNumber} begins",
+                turnNumber,
+                playerIndex,
+                BattleLogEventType.TurnStart,
+                showInLog: false);
+        }
+
+        if (phaseChanged)
+        {
+            WriteReplay(
+                $"{activePhase} Phase begins",
+                turnNumber,
+                playerIndex,
+                BattleLogEventType.PhaseStart,
+                showInLog: false);
+        }
     }
 
 
@@ -444,36 +501,41 @@ public static class BattleLog
 
         bool showInLog = true)
     {
-        currentPhaseActions.Add(
+        BattleLogEntry entry =
             new BattleLogEntry(
                 currentPhase,
                 message,
                 isSystem,
-
                 turnNumber,
                 playerIndex,
                 eventType,
-
                 cardName,
                 cardType,
                 deckStructure,
-
                 targetPlayerIndex,
                 targetCardName,
                 amount,
-
                 slotNumber,
                 targetSlotNumber,
-
                 characterHp,
-
                 playerEnergy,
                 playerShield,
-
                 opponentEnergy,
                 opponentShield,
+                showInLog,
+                CaptureStateSnapshot(eventType, targetPlayerIndex, message));
 
-                showInLog));
+        // The replay is a record of game events, not a copy of the
+        // human-readable log. Display-only lines never enter the replay.
+        if (turnNumber > 0 && (playerIndex == 1 || playerIndex == 2))
+        {
+            currentReplayEvents.Add(entry);
+        }
+
+        if (showInLog)
+        {
+            currentPhaseActions.Add(entry);
+        }
     }
 
 
@@ -571,7 +633,6 @@ public static class BattleLog
         GetPhaseActions()
     {
         return currentPhaseActions
-            .Where(entry => entry.ShowInLog)
             .ToList()
             .AsReadOnly();
     }
@@ -580,10 +641,7 @@ public static class BattleLog
     public static IReadOnlyList<BattleLogEntry>
         GetReplayEvents()
     {
-        return currentPhaseActions
-            .Where(entry =>
-                entry.TurnNumber > 0 &&
-                entry.PlayerIndex >= 1)
+        return currentReplayEvents
             .ToList()
             .AsReadOnly();
     }
@@ -615,11 +673,11 @@ public static class BattleLog
         }
 
         lines.Add(
-            $"EVENT_COUNT={currentPhaseActions.Count}");
+            $"EVENT_COUNT={currentReplayEvents.Count}");
 
         lines.Add("");
 
-        foreach (BattleLogEntry entry in currentPhaseActions)
+        foreach (BattleLogEntry entry in currentReplayEvents)
         {
             lines.Add(
                 SerializeEntry(entry));
@@ -675,7 +733,9 @@ public static class BattleLog
             entry.OpponentEnergy?.ToString() ?? "",
             entry.OpponentShield?.ToString() ?? "",
 
-            Escape(entry.Message));
+            Escape(entry.Message),
+            entry.ShowInLog ? "1" : "0",
+            EncodeSnapshot(entry.StateSnapshotJson));
     }
 
 
@@ -902,8 +962,12 @@ public static class BattleLog
             ParseNullableInt(parts[16]),
             ParseNullableInt(parts[17]),
 
-            showInLog:
-                eventType != BattleLogEventType.Draw);
+            showInLog: parts.Length > 19
+                ? parts[19] == "1"
+                : eventType != BattleLogEventType.Draw,
+            stateSnapshotJson: parts.Length > 20
+                ? DecodeSnapshot(parts[20])
+                : null);
     }
 
 
@@ -1012,6 +1076,79 @@ public static class BattleLog
     }
 
 
+    private static string EncodeSnapshot(string? snapshot)
+    {
+        return string.IsNullOrEmpty(snapshot)
+            ? ""
+            : Convert.ToBase64String(Encoding.UTF8.GetBytes(snapshot));
+    }
+
+    private static string? DecodeSnapshot(string encoded)
+    {
+        if (string.IsNullOrWhiteSpace(encoded))
+            return null;
+
+        try
+        {
+            return Encoding.UTF8.GetString(Convert.FromBase64String(encoded));
+        }
+        catch (FormatException)
+        {
+            return null;
+        }
+    }
+
+    private static string? CaptureStateSnapshot(
+        BattleLogEventType eventType,
+        int? targetPlayerIndex,
+        string message)
+    {
+        if (currentPlayer1 == null || currentPlayer2 == null)
+            return null;
+
+        var snapshot = new ReplayMatchSnapshot
+        {
+            TurnNumber = currentMatch?.TurnNumber ?? CurrentTurnNumber,
+            CurrentPhase = currentMatch?.CurrentPhase ?? currentPhase,
+            ActingPlayerIndex = currentMatch?.ActingPlayerIndex ?? CurrentPlayerIndex,
+            PlayerOneStarts = currentMatch?.PlayerOneStarts ?? false,
+            IsCompleted = currentMatch?.IsCompleted ?? false,
+            IsDraw = currentMatch?.IsDraw ?? false,
+            Player1 = ReplayPlayerSnapshot.Capture(currentPlayer1),
+            Player2 = ReplayPlayerSnapshot.Capture(currentPlayer2)
+        };
+
+        if (eventType == BattleLogEventType.MatchEnd)
+            {
+                snapshot.IsCompleted = true;
+                snapshot.IsDraw =
+                    message.Contains("draw", StringComparison.OrdinalIgnoreCase);
+            }
+
+        // CharacterDefeated is currently logged immediately before the live
+        // manager clears the defeated character. Store the post-event result.
+        if (eventType == BattleLogEventType.CharacterDefeated &&
+            (targetPlayerIndex == 1 || targetPlayerIndex == 2))
+        {
+            ReplayPlayerSnapshot defeated = targetPlayerIndex == 1
+                ? snapshot.Player1
+                : snapshot.Player2;
+
+            if (defeated.ActiveCharacter != null &&
+                !defeated.DiscardPile.Any(card => card.Id == defeated.ActiveCharacter.Id))
+            {
+                defeated.DiscardPile.Add(defeated.ActiveCharacter.Clone());
+            }
+
+            defeated.ActiveCharacter = null;
+            defeated.CurrentCharacterHp = 0;
+            defeated.Shield = 0;
+            defeated.CharacterDefeatedSinceLastPlacement = true;
+        }
+
+        return JsonSerializer.Serialize(snapshot);
+    }
+
     // ==========================
     // CLEAR
     // ==========================
@@ -1019,6 +1156,7 @@ public static class BattleLog
     public static void ClearPhaseActions()
     {
         currentPhaseActions.Clear();
+        currentReplayEvents.Clear();
 
         currentPhase =
             MatchPhase.Utility;
@@ -1026,6 +1164,12 @@ public static class BattleLog
         CurrentTurnNumber = 0;
         CurrentPlayerIndex = -1;
         currentDeckStructure = null;
+        currentPlayer1 = null;
+        currentPlayer2 = null;
+        currentMatch = null;
+        lastReplayTurnNumber = 0;
+        lastReplayPhase = null;
+        replayContextInitialized = false;
 
         replayPlayer1Deck = null;
         replayPlayer2Deck = null;
