@@ -120,22 +120,30 @@ public static class HandManager
             0);
     }
 
-    public static void DrawUntilHandSize(
-        Player player,
-        int playerIndex,
-        int turnNumber)
-    {
-        int targetHandSize =
-            DeckStructureManager.GetHandSize(player.Deck);
+   public static void DrawUntilHandSize(
+    Player player,
+    int playerIndex,
+    int turnNumber)
+{
+    int targetHandSize =
+        DeckStructureManager.GetHandSize(player.Deck);
 
-        while (CountCards(player) < targetHandSize)
+    while (CountCards(player) < targetHandSize)
+    {
+        int previousHandSize = CountCards(player);
+
+        DrawCard(
+            player,
+            playerIndex,
+            turnNumber);
+
+        // Prevent an infinite loop if no card can be drawn.
+        if (CountCards(player) == previousHandSize)
         {
-            DrawCard(
-                player,
-                playerIndex,
-                turnNumber);
+            break;
         }
     }
+}
 
     public static Card? RemoveCard(
         Player player,
