@@ -333,9 +333,7 @@
     flex-direction:column;
     min-height:0;
 }
-.builder-content {
-    height: calc(100vh - 180px);
-}
+
 .available-panel {
     display:flex;
     flex-direction:column;
@@ -347,8 +345,6 @@
 .header-actions { display:flex; align-items:center; gap:8px; }
 .header-actions button { padding:11px 18px; border:1px solid #9b9383; border-radius:6px; background:#f4efe3; color:#222; cursor:pointer; font-weight:bold; }
 .header-actions button:hover { background:#e5ddcc; }
-.builder-content { display:grid; grid-template-columns:minmax(0,1.25fr) minmax(380px,.75fr); align-items:start; gap:18px; }
-.available-panel,.deck-panel { min-width:0; padding:17px; border:1px solid #56616c; border-radius:10px; background:rgba(19,27,35,.94); }
 .panel-header { margin-bottom:12px; display:flex; align-items:center; justify-content:space-between; }
 .panel-header h2 { margin:0; color:#f4efe3; font-size:21px; }
 .panel-header span { display:block; margin-top:3px; color:#9da8b2; font-size:10px; }
@@ -463,9 +459,89 @@
 .available-list::-webkit-scrollbar-track,.deck-list::-webkit-scrollbar-track,.conversion-list::-webkit-scrollbar-track,.tutorial-builder-dialog::-webkit-scrollbar-track,.tutorial-complete-dialog::-webkit-scrollbar-track { background:#111820; }
 .available-list::-webkit-scrollbar-thumb,.deck-list::-webkit-scrollbar-thumb,.conversion-list::-webkit-scrollbar-thumb,.tutorial-builder-dialog::-webkit-scrollbar-thumb,.tutorial-complete-dialog::-webkit-scrollbar-thumb { border-radius:8px; background:#67727d; }
 .page-tutorial-target { position:relative; z-index:8995; outline:4px solid #ffe078; outline-offset:5px; border-radius:8px; box-shadow:0 0 0 3px rgba(0,0,0,.5),0 0 20px rgba(255,224,120,.72),0 0 42px rgba(229,204,103,.4); animation:pageTutorialTargetPulse 1s ease-in-out infinite alternate; }
+.builder-content {
+    flex: 1;
+    min-height: 0;
+    display: grid;
+    grid-template-columns: minmax(0, 1.25fr) minmax(380px, .75fr);
+    align-items: stretch;
+    gap: 18px;
+    overflow: hidden;
+}
+
+.available-panel,
+.deck-panel {
+    min-width: 0;
+    min-height: 0;
+    height: 100%;
+    padding: 17px;
+    border: 1px solid #56616c;
+    border-radius: 10px;
+    background: rgba(19, 27, 35, .94);
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+}
+/* Keep the deck header and summary at their natural sizes */
+.deck-panel-header,
+.deck-summary,
+.validation-box,
+.save-button,
+.save-message {
+    flex-shrink: 0;
+}
+
+/* Allow the card area to take up the remaining space */
+.deck-list,
+.empty-deck {
+    flex: 1;
+    min-height: 0;
+    max-height: none;
+}
+
+/* Scroll the cards instead of growing the panel */
+.deck-list {
+    overflow-y: auto;
+    overscroll-behavior: contain;
+    padding-right: 4px;
+}
+
+/* Keep the empty-deck message contained in the same area */
+.empty-deck {
+    overflow-y: auto;
+}
 @@keyframes pageTutorialTargetPulse { from { outline-color:rgba(255,224,120,.65); box-shadow:0 0 0 3px rgba(0,0,0,.45),0 0 10px rgba(255,224,120,.4); } to { outline-color:#ffe078; box-shadow:0 0 0 3px rgba(0,0,0,.55),0 0 24px rgba(255,224,120,.85),0 0 48px rgba(229,204,103,.45); } }
-@@media (max-width:900px) { .builder-content { grid-template-columns:1fr; } .available-list,.deck-list { max-height:none; } }
-@@media (max-width:650px) { .builder-page { padding:22px 12px 40px; } .builder-header { align-items:stretch; flex-direction:column; } .header-actions { width:100%; } .header-actions button { flex:1; } .compact-deck-name,.structure-selector-header { align-items:stretch; flex-direction:column; } .compact-deck-name input,.structure-selector-header select { width:100%; min-width:0; } .deck-summary,.tutorial-complete-details,.conversion-actions { grid-template-columns:1fr; } .tutorial-builder-dialog,.tutorial-complete-dialog { padding:22px 18px; } .conversion-card { align-items:stretch; flex-direction:column; } .conversion-buttons { width:100%; } .conversion-buttons button { flex:1; } }
+@@media (max-width: 900px) {
+    .builder-page {
+        height: auto;
+        min-height: calc(100vh - 58px);
+        overflow: visible;
+    }
+
+    .builder-shell {
+        height: auto;
+    }
+
+    .builder-content {
+        flex: initial;
+        height: auto;
+        grid-template-columns: minmax(0, 1fr);
+        overflow: visible;
+    }
+
+    .available-panel,
+    .deck-panel {
+        height: 650px;
+    }
+
+    .available-list,
+    .deck-list {
+        min-height: 0;
+        max-height: none;
+        flex: 1;
+        overflow-y: auto;
+    }
+}@@media (max-width:650px) { .builder-page { padding:22px 12px 40px; } .builder-header { align-items:stretch; flex-direction:column; } .header-actions { width:100%; } .header-actions button { flex:1; } .compact-deck-name,.structure-selector-header { align-items:stretch; flex-direction:column; } .compact-deck-name input,.structure-selector-header select { width:100%; min-width:0; } .deck-summary,.tutorial-complete-details,.conversion-actions { grid-template-columns:1fr; } .tutorial-builder-dialog,.tutorial-complete-dialog { padding:22px 18px; } .conversion-card { align-items:stretch; flex-direction:column; } .conversion-buttons { width:100%; } .conversion-buttons button { flex:1; } }
 </style>
 
 @code {
