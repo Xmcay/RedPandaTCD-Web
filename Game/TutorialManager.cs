@@ -2077,40 +2077,40 @@ public static string GetLearnToPlayDeckInstruction(
     return cardId switch
     {
         "UM1" =>
-            "Your next card is Energy Potion.\n\nMagic • Utility\n\nUse the Utilities and Magic filters below to find it quickly, then press + to add it to your Tutorial Deck.",
+    "Your next card is Energy Potion.\n\nMagic • Utility\n\nUse the Utilities and Magic filters below to find it quickly, then press + to add it to your Tutorial Deck.",
 
-        "CM2" =>
-            "Your next card is Sorcerer Red Panda.\n\nMagic • Character\n\nUse the Characters and Magic filters below to find it quickly, then press + to add it to your Tutorial Deck.",
+"CM2" =>
+    "Your next card is Sorcerer Red Panda.\n\nMagic • Character\n\nUse the Characters and Magic filters below to find it quickly, then press + to add it to your Tutorial Deck.",
 
-        "AM6" =>
-            "Your next card is Fireball.\n\nMagic • Attack\n\nUse the Attacks and Magic filters below to find it quickly, then press + to add it to your Tutorial Deck.",
+"AM6" =>
+    "Your next card is Fireball.\n\nMagic • Attack\n\nUse the Attacks and Magic filters below to find it quickly, then press + to add it to your Tutorial Deck.",
 
-        "AP4" =>
-            "Your next card is Piercing Strike.\n\nPhysical • Attack\n\nUse the Attacks and Physical filters below to find it quickly, then press + to add it to your Tutorial Deck.",
+"AP4" =>
+    "Your next card is Piercing Strike.\n\nPhysical • Attack\n\nUse the Attacks and Physical filters below to find it quickly, then press + to add it to your Tutorial Deck.",
 
-        "AM3" =>
-            "Your next card is Ice Shards.\n\nMagic • Attack\n\nUse the Attacks and Magic filters below to find it quickly, then press + to add it to your Tutorial Deck.",
+"AM3" =>
+    "Your next card is Ice Shards.\n\nMagic • Attack\n\nUse the Attacks and Magic filters below to find it quickly, then press + to add it to your Tutorial Deck.",
 
-        "AN1" =>
-            "Your next card is Heavy Strike.\n\nNeutral • Attack\n\nUse the Attacks and Neutral filters below to find it quickly, then press + to add it to your Tutorial Deck.",
+"AN1" =>
+    "Your next card is Pounce.\n\nNeutral • Attack\n\nUse the Attacks and Neutral filters below to find it quickly, then press + to add it to your Tutorial Deck.",
 
-        "CN1" =>
-            "Your next card is Wanderer Red Panda.\n\nNeutral • Character\n\nUse the Characters and Neutral filters below to find it quickly, then press + to add it to your Tutorial Deck.",
+"CN1" =>
+    "Your next card is Wanderer Red Panda.\n\nNeutral • Character\n\nUse the Characters and Neutral filters below to find it quickly, then press + to add it to your Tutorial Deck.",
 
-        "UN4" =>
-            "Your next card is Fortify.\n\nNeutral • Utility\n\nUse the Utilities and Neutral filters below to find it quickly, then press + to add it to your Tutorial Deck.",
+"UN4" =>
+    "Your next card is Discard For Energy.\n\nNeutral • Utility\n\nUse the Utilities and Neutral filters below to find it quickly, then press + to add it to your Tutorial Deck.",
 
-        "UN1" =>
-            "Your next card is Shield Booster.\n\nNeutral • Utility\n\nUse the Utilities and Neutral filters below to find it quickly, then press + to add it to your Tutorial Deck.",
+"UN1" =>
+    "Your next card is Shield Booster.\n\nNeutral • Utility\n\nUse the Utilities and Neutral filters below to find it quickly, then press + to add it to your Tutorial Deck.",
 
-        "AN2" =>
-            "Your next card is Guard Break.\n\nNeutral • Attack\n\nUse the Attacks and Neutral filters below to find it quickly, then press + to add it to your Tutorial Deck.",
+"AN2" =>
+    "Your next card is Chain Lightning.\n\nNeutral • Attack\n\nUse the Attacks and Neutral filters below to find it quickly, then press + to add it to your Tutorial Deck.",
 
-        "UM2" =>
-            "Your next card is Mana Crystal.\n\nMagic • Utility\n\nUse the Utilities and Magic filters below to find it quickly, then press + to add it to your Tutorial Deck.",
+"UM2" =>
+    "Your next card is Energy Drain.\n\nMagic • Utility\n\nUse the Utilities and Magic filters below to find it quickly, then press + to add it to your Tutorial Deck.",
 
-        "UN3" =>
-            "Your next card is Attack Amplifier.\n\nNeutral • Utility\n\nUse the Utilities and Neutral filters below to find it quickly, then press + to add it to your Tutorial Deck.",
+"UN3" =>
+    "Your next card is Discount Coupon.\n\nNeutral • Utility\n\nUse the Utilities and Neutral filters below to find it quickly, then press + to add it to your Tutorial Deck.",
 
         _ =>
             "Find the highlighted Tutorial card."
