@@ -4315,19 +4315,23 @@ private void RefreshReplayDisplay()
         StateHasChanged();
     }
 
-    private void FinishCurrentTutorial()
-    {
-        if (!IsGuidedTutorialBattle)
-            return;
+   private void FinishCurrentTutorial()
+{
+    if (!IsGuidedTutorialBattle)
+        return;
 
-        TutorialManager.CompleteTutorial(
-            Session.Tutorial);
+    DeckManager.DeleteTutorialDeck();
 
-        Session.CurrentMatch = null;
-        allowNavigation = true;
+    Session.Tutorial.TutorialDeck = null;
 
-        Navigation.NavigateTo("/tutorial");
-    }
+    TutorialManager.CompleteTutorial(
+        Session.Tutorial);
+
+    Session.CurrentMatch = null;
+    allowNavigation = true;
+
+    Navigation.NavigateTo("/tutorial");
+}
 
     private string RequiredTutorialCardId =>
         TutorialTarget switch
@@ -6578,10 +6582,14 @@ UpdateReplayContext();
                 destination))
         {
             if (IsGuidedTutorialBattle)
-            {
-                TutorialManager.ExitTutorial(
-                    Session.Tutorial);
-            }
+{
+    DeckManager.DeleteTutorialDeck();
+
+    Session.Tutorial.TutorialDeck = null;
+
+    TutorialManager.ExitTutorial(
+        Session.Tutorial);
+}
 
             Session.CurrentMatch = null;
             allowNavigation = true;

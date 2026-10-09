@@ -1,5 +1,5 @@
 @page "/player-setup"
-
+@layout SetupLayout
 @using RedPandaTCD_Web.Game
 @inject GameSessionState Session
 
@@ -116,10 +116,47 @@
         </section>
 
 
-        <footer class="setup-footer">
-            Your name can be used across Training,
-            Pass-and-Play, and the Grand Tournament.
-        </footer>
+<div class="setup-footer">
+
+    <div class="setup-footer-title">
+        AVAILABLE MODES
+    </div>
+
+    <div class="setup-mode-cards">
+
+        <div class="setup-mode-card">
+
+            <div class="mode-icon">⚔</div>
+
+            <div class="mode-name">
+                Training
+            </div>
+
+        </div>
+
+        <div class="setup-mode-card">
+
+            <div class="mode-icon">👥</div>
+
+            <div class="mode-name">
+                Pass &amp; Play
+            </div>
+
+        </div>
+
+        <div class="setup-mode-card">
+
+            <div class="mode-icon">🏆</div>
+
+            <div class="mode-name">
+                Tournament
+            </div>
+
+        </div>
+
+    </div>
+
+</div>
 
     </main>
 
@@ -135,7 +172,7 @@
     .setup-page {
         position: relative;
 
-        min-height: calc(100vh - 58px);
+        min-height:100vh;
 
         box-sizing: border-box;
 
@@ -339,6 +376,75 @@
 
         letter-spacing: 2.5px;
     }
+    .setup-footer
+{
+    width:100%;
+
+    max-width:360px;
+
+    margin-top:22px;
+
+    padding-top:16px;
+
+    border-top:
+        1px solid rgba(255,255,255,.08);
+}
+
+.setup-footer-title
+{
+    margin-bottom:12px;
+
+    color:#e5cc67;
+
+    font-size:8px;
+
+    font-weight:900;
+
+    letter-spacing:1.6px;
+
+    text-align:center;
+}
+
+.setup-mode-cards
+{
+    display:grid;
+
+    grid-template-columns:
+        repeat(3,1fr);
+
+    gap:8px;
+}
+
+.setup-mode-card
+{
+    padding:10px 6px;
+
+    border:
+        1px solid rgba(229,204,103,.15);
+
+    border-radius:6px;
+
+    background:
+        rgba(229,204,103,.05);
+
+    text-align:center;
+}
+
+.mode-icon
+{
+    margin-bottom:4px;
+
+    font-size:16px;
+}
+
+.mode-name
+{
+    color:#d4dce4;
+
+    font-size:9px;
+
+    font-weight:700;
+}
 
 
     /* =========================
@@ -595,7 +701,7 @@
     .continue-button {
         width: 100%;
 
-        margin-top: 2px;
+        margin-top: 6px;
 
         box-sizing: border-box;
 
@@ -666,24 +772,57 @@
 
 
     /* =========================
-       FOOTER
-       ========================= */
+   FOOTER
+   ========================= */
 
-    .setup-footer {
-        max-width: 330px;
+.setup-footer
+{
+    width:100%;
 
-        margin-top: 22px;
+    max-width:340px;
 
-        padding-top: 16px;
+    margin-top:20px;
 
-        border-top:
-            1px solid rgba(255, 255, 255, 0.07);
+    padding-top:16px;
 
-        color: #707c87;
+    border-top:
+        1px solid rgba(255,255,255,.07);
 
-        font-size: 8px;
-        line-height: 1.4;
-    }
+    text-align:center;
+}
+
+.setup-footer-title
+{
+    margin-bottom:10px;
+
+    color:#e5cc67;
+
+    font-size:8px;
+
+    font-weight:900;
+
+    letter-spacing:1.6px;
+}
+
+.setup-footer-modes
+{
+    display:flex;
+
+    justify-content:center;
+
+    flex-wrap:wrap;
+
+    gap:14px;
+}
+
+.setup-footer-modes span
+{
+    color:#8d99a5;
+
+    font-size:9px;
+
+    font-weight:700;
+}
 
 
     /* =========================
@@ -700,9 +839,9 @@
 
         .setup-panel {
             padding:
-                28px
-                20px
-                23px;
+                34px
+        38px
+        28px;
         }
 
         .panda-mark {
@@ -754,7 +893,7 @@
 
         Session.PlayerName =
             name;
-
+        Session.ShowTutorialRecommendation = true;
         Navigation.NavigateTo("/");
     }
 

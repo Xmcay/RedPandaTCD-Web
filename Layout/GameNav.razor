@@ -127,68 +127,46 @@
         </div>
 
 
-        <!-- LEARN -->
-        <div class="nav-group"
-             @onmouseenter="() => OpenMenu(NavMenu.Learn)">
+<!-- ACADEMY -->
+<div class="nav-group"
+     @onmouseenter="() => OpenMenu(NavMenu.Academy)">
 
-            <button class="nav-category @(activeMenu == NavMenu.Learn ? "active" : "")"
-                    @onclick="() => ToggleMenu(NavMenu.Learn)">
-                Learn
-                <span class="dropdown-arrow">
-                    ▾
+    <button class="nav-category @(activeMenu == NavMenu.Academy ? "active" : "")"
+            @onclick="() => ToggleMenu(NavMenu.Academy)">
+        Academy
+        <span class="dropdown-arrow">
+            ▾
+        </span>
+    </button>
+
+    @if (activeMenu == NavMenu.Academy)
+    {
+        <div class="dropdown-menu">
+
+            <button @onclick='() => Navigate("/tutorial")'>
+                <strong>
+                    Tutorial
+                </strong>
+
+                <span>
+                    Learn the rules and mechanics.
                 </span>
             </button>
 
-            @if (activeMenu == NavMenu.Learn)
-            {
-                <div class="dropdown-menu">
+            <button @onclick='() => Navigate("/simulator")'>
+                <strong>
+                    Battle Simulator
+                </strong>
 
-                    <button @onclick='() => Navigate("/tutorial")'>
-                        <strong>
-                            Tutorial
-                        </strong>
-
-                        <span>
-                            Learn the rules and mechanics.
-                        </span>
-                    </button>
-
-                </div>
-            }
-
-        </div>
-
-
-        <!-- TOOLS -->
-        <div class="nav-group"
-             @onmouseenter="() => OpenMenu(NavMenu.Tools)">
-
-            <button class="nav-category @(activeMenu == NavMenu.Tools ? "active" : "")"
-                    @onclick="() => ToggleMenu(NavMenu.Tools)">
-                Tools
-                <span class="dropdown-arrow">
-                    ▾
+                <span>
+                    Run automated battle simulations.
                 </span>
             </button>
 
-            @if (activeMenu == NavMenu.Tools)
-            {
-                <div class="dropdown-menu">
-
-                    <button @onclick='() => Navigate("/simulator")'>
-                        <strong>
-                            Battle Simulator
-                        </strong>
-
-                        <span>
-                            Run automated battle simulations.
-                        </span>
-                    </button>
-
-                </div>
-            }
-
         </div>
+    }
+
+</div>
 
     </nav>
 
@@ -632,14 +610,13 @@
         NavMenu.None;
 
 
-    private enum NavMenu
-    {
-        None,
-        Play,
-        Collection,
-        Learn,
-        Tools
-    }
+private enum NavMenu
+{
+    None,
+    Play,
+    Collection,
+    Academy
+}
 
 
     private void ToggleMenu(

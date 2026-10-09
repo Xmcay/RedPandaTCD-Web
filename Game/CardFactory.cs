@@ -13,8 +13,8 @@ public static class CardFactory
         Type = CardType.Character,
         Archetype = Archetype.Magic,
         Cost = 5,
-        HpValue = 5,
-        ShieldValue = 5,
+        HpValue = 10,
+        ShieldValue = 7,
         ActiveAbility = "ShieldGain",
         AbilityCooldown = 1,
         PassiveAbilities = new List<string>
@@ -33,8 +33,8 @@ public static class CardFactory
         Type = CardType.Character,
         Archetype = Archetype.Magic,
         Cost = 5,
-        HpValue = 5,
-        ShieldValue = 3,
+        HpValue = 10,
+        ShieldValue = 5,
         ActiveAbility = "MagicBoost",
         AbilityCooldown = 1,
         PassiveAbilities = new List<string>
@@ -53,8 +53,8 @@ public static class CardFactory
         Type = CardType.Character,
         Archetype = Archetype.Physical,
         Cost = 5,
-        HpValue = 5,
-        ShieldValue = 5,
+        HpValue = 10,
+        ShieldValue = 7,
         ActiveAbility = "FieldShield",
         AbilityCooldown = 2,
         PassiveAbilities = new List<string>
@@ -73,8 +73,8 @@ public static class CardFactory
         Type = CardType.Character,
         Archetype = Archetype.Physical,
         Cost = 5,
-        HpValue = 5,
-        ShieldValue = 3,
+        HpValue = 10,
+        ShieldValue = 5,
         ActiveAbility = "PowerSurge",
         AbilityCooldown = 2,
         PassiveAbilities = new List<string>
@@ -93,8 +93,8 @@ public static class CardFactory
         Type = CardType.Character,
         Archetype = Archetype.Neutral,
         Cost = 5,
-        HpValue = 5,
-        ShieldValue = 4,
+        HpValue = 10,
+        ShieldValue = 6,
         ActiveAbility = "AttackBoost",
         AbilityCooldown = 1,
         PassiveAbilities = new List<string>
@@ -113,8 +113,8 @@ public static class CardFactory
         Type = CardType.Character,
         Archetype = Archetype.Neutral,
         Cost = 5,
-        HpValue = 5,
-        ShieldValue = 3,
+        HpValue = 10,
+        ShieldValue = 6,
         ActiveAbility = "Heal",
         AbilityCooldown = 2,
         PassiveAbilities = new List<string>
@@ -179,8 +179,8 @@ public static class CardFactory
         Name = "Mana Burst",
         Type = CardType.Attack,
         Archetype = Archetype.Magic,
-        Cost = 6,
-        Damage = 4,
+        Cost = 7,
+        Damage = 3,
         Hits = 2
     };
 
@@ -259,7 +259,7 @@ public static class CardFactory
         Type = CardType.Attack,
         Archetype = Archetype.Physical,
         Cost = 7,
-        Damage = 4,
+        Damage = 3,
         Hits = 2,
         InstantFatigue = true
     };

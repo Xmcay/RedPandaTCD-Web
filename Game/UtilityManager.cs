@@ -593,8 +593,7 @@ public static class UtilityManager
             return false;
         }
 
-        int moveCost =
-            player.ReorderMovesThisPhase + 1;
+        int moveCost = 1;
 
         if (player.Energy < moveCost)
         {

@@ -25,7 +25,7 @@ public class GameSessionState
 
     public TutorialState Tutorial { get; } =
         new TutorialState();
-
+    public bool ShowTutorialRecommendation { get; set; }
     public void ResetTraining()
     {
         TrainingPlayerDeck = null;

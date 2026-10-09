@@ -136,4 +136,17 @@ public static bool UpdateDeck(
 
     return true;
 }
+public static void DeleteTutorialDeck()
+{
+    for (int i = Decks.Count - 1; i >= 0; i--)
+    {
+        if (string.Equals(
+                Decks[i].Name,
+                "Tutorial Deck",
+                StringComparison.OrdinalIgnoreCase))
+        {
+            Decks.RemoveAt(i);
+        }
+    }
+}
 }
