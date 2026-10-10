@@ -4491,9 +4491,13 @@ private void RefreshReplayDisplay()
 
         CloseGameplayPopups();
 
-        PhaseManager.CompleteCurrentPlayerPhase(
-            match);
-
+        await CompleteCurrentPlayerPhaseWithEndAnimation(match);
+        Console.WriteLine(
+    $"BOT TRANSITION: Turn={match.TurnNumber}, " +
+    $"Phase={match.CurrentPhase}, " +
+    $"ActingIndex={match.ActingPlayerIndex}, " +
+    $"ActingPlayer={match.GetActingPlayer().Name}, " +
+    $"BotIsActing={botIsActing}");
         if (IsGuidedTutorialBattle &&
             actionBeforePhaseChange ==
                 TutorialAction.ContinuePhase)
@@ -4519,9 +4523,23 @@ private void RefreshReplayDisplay()
             return;
         }
 
-        await RunAutomaticHumanPlacementIfNeeded();
+               await RunBotIfNeeded();
 
+        await ResolveAutomaticEndPhase(match);
+
+        if (MatchManager.IsMatchOver(
+                match.Player1,
+                match.Player2))
+        {
+            CheckForZeroEnergy();
+            return;
+        }
+
+        // End-phase resolution may have started a new turn with the bot acting.
+        // Check again after the previous bot invocation has fully released its lock.
         await RunBotIfNeeded();
+
+        await RunAutomaticHumanPlacementIfNeeded();
 
         await ResolveAutomaticEndPhase(match);
 
@@ -4540,6 +4558,38 @@ private void RefreshReplayDisplay()
             previousTurn);
 
         StateHasChanged();
+    }
+
+    private async Task CompleteCurrentPlayerPhaseWithEndAnimation(MatchState match)
+    {
+        if (match.CurrentPhase == MatchPhase.End)
+        {
+            Player acting = match.GetActingPlayer();
+            BattleLog.SetReplayContext(
+                match.TurnNumber,
+                match.ActingPlayerIndex,
+                acting.Deck.Structure,
+                match.Player1,
+                match.Player2,
+                match);
+
+            await EndPhaseManager.ResolveAnimated(
+                acting,
+                match.TurnNumber,
+                match.ActingPlayerIndex,
+                async () =>
+                {
+                    await InvokeAsync(StateHasChanged);
+                });
+
+            // Effects were already resolved in stages; advance the phase without
+            // invoking the synchronous EndPhase resolver a second time.
+            PhaseManager.CompleteCurrentPlayerPhaseAfterResolvedEnd(
+                match);
+            return;
+        }
+
+        PhaseManager.CompleteCurrentPlayerPhase(match);
     }
 
     private async Task ResolveAutomaticEndPhase(
@@ -4561,9 +4611,8 @@ private void RefreshReplayDisplay()
             TutorialAction tutorialActionBeforeEnd =
                 RequiredTutorialAction;
 
-            PhaseManager.CompleteCurrentPlayerPhase(
-                match);
-
+            await CompleteCurrentPlayerPhaseWithEndAnimation(match);
+            
             if (IsGuidedTutorialBattle &&
                 tutorialActionBeforeEnd ==
                     TutorialAction.ContinuePhase)
@@ -4604,10 +4653,15 @@ private void RefreshReplayDisplay()
     // 5. BOT TURN HANDLING
 
    private async Task RunBotIfNeeded()
-{
-    if (Session.CurrentMatch == null ||
-        botIsActing)
+{   
+    Console.WriteLine(
+    $"BOT ENTRY: botIsActing={botIsActing}, " +
+    $"Phase={Session.CurrentMatch?.CurrentPhase}, " +
+    $"Turn={Session.CurrentMatch?.TurnNumber}");
+
+    if (Session.CurrentMatch == null || botIsActing)
     {
+        Console.WriteLine("BOT ENTRY BLOCKED: already acting or no match.");
         return;
     }
 
@@ -4629,6 +4683,11 @@ private void RefreshReplayDisplay()
         match.GetOpponent();
 
     botIsActing = true;
+
+    Console.WriteLine(
+        $"BOT LOCK ACQUIRED: match={System.Runtime.CompilerServices.RuntimeHelpers.GetHashCode(match)}, " +
+        $"turn={match.TurnNumber}, phase={match.CurrentPhase}");
+
     logCollapsed = false;
 
     CloseGameplayPopups();
@@ -4691,10 +4750,15 @@ private void RefreshReplayDisplay()
                 return;
             }
 
-            PhaseManager.CompleteCurrentPlayerPhase(
+            await CompleteCurrentPlayerPhaseWithEndAnimation(
                 match);
 
             transitionCount++;
+            Console.WriteLine(
+    $"BOT LOOP CONTINUES: Turn={match.TurnNumber}, " +
+    $"Phase={match.CurrentPhase}, " +
+    $"ActingPlayer={match.GetActingPlayer().Name}, " +
+    $"TransitionCount={transitionCount}");
 
             await HandleTutorialPhaseTransition(
                 phaseBefore,
@@ -4713,8 +4777,8 @@ private void RefreshReplayDisplay()
                     $"{bot.Name} from a stalled " +
                     $"{phaseBefore} phase.");
 
-                PhaseManager.CompleteCurrentPlayerPhase(
-                    match);
+                await CompleteCurrentPlayerPhaseWithEndAnimation(
+                match);
             }
 
             if (IsDsaTutorialBattle &&
@@ -4753,11 +4817,15 @@ private void RefreshReplayDisplay()
         Console.Error.WriteLine(
             exception.ToString());
     }
-    finally
-    {
-        botIsActing = false;
-        StateHasChanged();
-    }
+   finally
+        {
+            Console.WriteLine(
+                $"BOT LOCK RELEASED: match={System.Runtime.CompilerServices.RuntimeHelpers.GetHashCode(match)}, " +
+                $"turn={match.TurnNumber}, phase={match.CurrentPhase}");
+
+            botIsActing = false;
+            StateHasChanged();
+        }
 }
 
 private async Task RunBotUtilityPhase(

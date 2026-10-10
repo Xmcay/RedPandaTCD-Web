@@ -2,8 +2,27 @@ namespace RedPandaTCD_Web.Game;
 
 public static class PhaseManager
 {
+    // Keep the original one-argument API for existing callers and Hot Reload.
     public static void CompleteCurrentPlayerPhase(
         MatchState state)
+    {
+        CompleteCurrentPlayerPhaseCore(
+            state,
+            resolveEndPhase: true);
+    }
+
+    // Use only after ResolveAnimated has already applied this player's End Phase.
+    public static void CompleteCurrentPlayerPhaseAfterResolvedEnd(
+        MatchState state)
+    {
+        CompleteCurrentPlayerPhaseCore(
+            state,
+            resolveEndPhase: false);
+    }
+
+    private static void CompleteCurrentPlayerPhaseCore(
+        MatchState state,
+        bool resolveEndPhase)
     {
         if (MatchManager.IsMatchOver(
                 state.Player1,
@@ -20,7 +39,7 @@ public static class PhaseManager
 
         // Resolve the acting player's End Phase exactly once
         // before passing control or advancing the turn.
-        if (state.CurrentPhase == MatchPhase.End)
+        if (state.CurrentPhase == MatchPhase.End && resolveEndPhase)
         {
             EndPhaseManager.Resolve(
                 acting,

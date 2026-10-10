@@ -90,10 +90,10 @@ private static readonly IReadOnlyList<TutorialStep>
         new()
         {
             Number = 0,
-            Title = "Welcome to Battle",
+            Title = "Welcome to the Battlefield",
             Message =
-                "This is the battlefield. Reduce your opponent's Energy " +
-                "to 0 to win. You'll learn by playing a real match.",
+                "Welcome to the battlefield! Your goal is to reduce your opponent's Energy " +
+                "to 0. You'll learn the rules by playing through a real match.",
             RequiredAction =
                 TutorialAction.Acknowledge,
             HighlightTarget =
@@ -104,9 +104,10 @@ private static readonly IReadOnlyList<TutorialStep>
         new()
         {
             Number = 1,
-            Title = "Opponent Field",
+            Title = "Your Opponent's Field",
             Message =
-                "Your opponent's Character and deployed Attacks appear here.",
+                "Your opponent's Character and deployed Attacks appear here. Watch this " +
+                "area to see their current setup.",
             RequiredAction =
                 TutorialAction.Acknowledge,
             HighlightTarget =
@@ -117,9 +118,10 @@ private static readonly IReadOnlyList<TutorialStep>
         new()
         {
             Number = 2,
-            Title = "Your Field",
+            Title = "Your Battlefield",
             Message =
-                "Your Character and deployed Attacks appear here.",
+                "Your Character and deployed Attacks appear here. This is where you'll " +
+                "build your own field.",
             RequiredAction =
                 TutorialAction.Acknowledge,
             HighlightTarget =
@@ -130,10 +132,10 @@ private static readonly IReadOnlyList<TutorialStep>
         new()
         {
             Number = 3,
-            Title = "Energy",
+            Title = "Managing Energy",
             Message =
-                "Cards and abilities can cost Energy. " +
-                "Reaching 0 can end the battle.",
+                "Cards and abilities can cost Energy. Keep an eye on your supply—if your " +
+                "Energy reaches 0, you can lose the battle.",
             RequiredAction =
                 TutorialAction.Acknowledge,
             HighlightTarget =
@@ -144,10 +146,10 @@ private static readonly IReadOnlyList<TutorialStep>
         new()
         {
             Number = 4,
-            Title = "Your Hand",
+            Title = "Your Hand of Cards",
             Message =
-                "Cards you draw appear here. Your hand holds cards " +
-                "you can play, deploy, or discard.",
+                "Cards you draw appear in your hand. From here, you can play Utility cards, " +
+                "deploy Characters or Attacks, and discard cards when an action allows it.",
             RequiredAction =
                 TutorialAction.Acknowledge,
             HighlightTarget =
@@ -158,10 +160,10 @@ private static readonly IReadOnlyList<TutorialStep>
         new()
         {
             Number = 5,
-            Title = "Your Deck",
+            Title = "Understanding Your Deck",
             Message =
-                "Your deck's data structure affects how cards are stored " +
-                "and drawn. The Data Structure Tutorials explain each one.",
+                "Your deck's data structure determines how cards are stored and drawn. The " +
+                "Data Structure Tutorials explain how each structure works.",
             RequiredAction =
                 TutorialAction.Acknowledge,
             HighlightTarget =
@@ -172,10 +174,10 @@ private static readonly IReadOnlyList<TutorialStep>
         new()
         {
             Number = 6,
-            Title = "Initiative",
+            Title = "Who Acts First?",
             Message =
-                "You have Initiative on Turn 1. Initiative acts first " +
-                "in each phase and swaps each turn.",
+                "Initiative determines who acts first in each phase. The player with " +
+                "Initiative goes first, and Initiative swaps when a new turn begins.",
             RequiredAction =
                 TutorialAction.Acknowledge,
             HighlightTarget =
@@ -186,10 +188,10 @@ private static readonly IReadOnlyList<TutorialStep>
         new()
         {
             Number = 7,
-            Title = "The Battle Turn",
+            Title = "The Four Battle Phases",
             Message =
-                "Each turn goes Utility → Placement → Attack → End. " +
-                "Both players act in each phase, with Initiative first.",
+                "Each turn follows four phases: Utility, Placement, Attack, then End. Both " +
+                "players act during each phase, with the Initiative holder acting first.",
             RequiredAction =
                 TutorialAction.Acknowledge,
             HighlightTarget =
@@ -203,10 +205,10 @@ private static readonly IReadOnlyList<TutorialStep>
         new()
         {
             Number = 8,
-            Title = "Utility Cards",
+            Title = "Using Utility Cards",
             Message =
-                "Utility cards provide special effects. " +
-                "Select Energy Potion to inspect it.",
+                "Utility cards provide special effects. Select the highlighted Energy " +
+                "Potion to inspect it.",
             RequiredAction =
                 TutorialAction.SelectUtility,
             HighlightTarget =
@@ -217,9 +219,10 @@ private static readonly IReadOnlyList<TutorialStep>
         new()
         {
             Number = 9,
-            Title = "Utility Effect",
+            Title = "Play Energy Potion",
             Message =
-                "Energy Potion restores Energy. Read its effect, then play it.",
+                "Energy Potion restores Energy. Check its effect, then play it using the " +
+                "Utility action.",
             RequiredAction =
                 TutorialAction.PlayUtility,
             HighlightTarget =
@@ -230,10 +233,10 @@ private static readonly IReadOnlyList<TutorialStep>
         new()
         {
             Number = 10,
-            Title = "Battle Log",
+            Title = "Reading the Battle Log",
             Message =
-                "The Battle Log records what happens during battle. " +
-                "Press Continue when you're ready.",
+                "The Battle Log records important events, including card effects and " +
+                "changes during battle. Review it, then press Continue.",
             RequiredAction =
                 TutorialAction.ContinuePhase,
             HighlightTarget =
@@ -244,10 +247,10 @@ private static readonly IReadOnlyList<TutorialStep>
         new()
         {
             Number = 11,
-            Title = "Placement Phase",
+            Title = "The Placement Phase",
             Message =
-                "Placement prepares your field. " +
-                "Deploy Characters and Attacks here.",
+                "During Placement, prepare your field by deploying Characters and Attacks. " +
+                "You'll set up your first cards now.",
             RequiredAction =
                 TutorialAction.Acknowledge,
             HighlightTarget =
@@ -258,9 +261,9 @@ private static readonly IReadOnlyList<TutorialStep>
         new()
         {
             Number = 12,
-            Title = "Deploy Sorcerer",
+            Title = "Deploy Sorcerer Red Panda",
             Message =
-                "Deploy Sorcerer Red Panda to your Character slot.",
+                "Deploy Sorcerer Red Panda into your Character slot.",
             RequiredAction =
                 TutorialAction.DeployCharacter,
             HighlightTarget =
@@ -271,10 +274,11 @@ private static readonly IReadOnlyList<TutorialStep>
         new()
         {
             Number = 13,
-            Title = "Character Cards",
+            Title = "Character Abilities",
             Message =
-                "Characters have Entry, Passive, and Active abilities. " +
-                "Each works differently during battle.",
+                "Characters can have Entry, Passive, and Active abilities. Entry effects " +
+                "trigger when a Character is deployed, Passives apply under their " +
+                "conditions, and Actives are used deliberately.",
             RequiredAction =
                 TutorialAction.Acknowledge,
             HighlightTarget =
@@ -285,10 +289,10 @@ private static readonly IReadOnlyList<TutorialStep>
         new()
         {
             Number = 14,
-            Title = "Magic Surge",
+            Title = "Entry Ability: Magic Surge",
             Message =
-                "Sorcerer's Entry is active this turn. " +
-                "Your Magic Attacks gain +1 Damage.",
+                "Sorcerer Red Panda's Entry ability, Magic Surge, gives your Magic Attacks " +
+                "+1 Damage during the turn it enters play.",
             RequiredAction =
                 TutorialAction.Acknowledge,
             HighlightTarget =
@@ -301,7 +305,8 @@ private static readonly IReadOnlyList<TutorialStep>
             Number = 15,
             Title = "Deploy Fireball",
             Message =
-                "Deploy Fireball. It's Magic, so it receives Sorcerer's bonuses.",
+                "Deploy Fireball. It's a Magic Attack, so it benefits from Sorcerer's Magic " +
+                "damage bonuses.",
             RequiredAction =
                 TutorialAction.DeployAttack,
             HighlightTarget =
@@ -312,10 +317,11 @@ private static readonly IReadOnlyList<TutorialStep>
         new()
         {
             Number = 16,
-            Title = "Stacked Bonuses",
+            Title = "Stacking Ability Bonuses",
             Message =
-                "Sorcerer now gives Magic Attacks +2: " +
-                "+1 from Magic Surge and +1 from Arcane Focus.",
+                "Fireball now benefits from two effects: Magic Surge adds +1 Damage this " +
+                "turn, and Arcane Focus adds another +1 while no Physical Attack is " +
+                "deployed.",
             RequiredAction =
                 TutorialAction.Acknowledge,
             HighlightTarget =
@@ -326,10 +332,10 @@ private static readonly IReadOnlyList<TutorialStep>
         new()
         {
             Number = 17,
-            Title = "Conditional Passives",
+            Title = "Conditional Passive Abilities",
             Message =
-                "Deploy Piercing Strike. It's Physical, so Arcane Focus " +
-                "turns off. Magic Surge's +1 remains.",
+                "Deploy Piercing Strike. It's Physical, so deploying it disables Arcane " +
+                "Focus. Magic Surge's +1 Damage still applies this turn.",
             RequiredAction =
                 TutorialAction.DeployAttack,
             HighlightTarget =
@@ -340,9 +346,10 @@ private static readonly IReadOnlyList<TutorialStep>
         new()
         {
             Number = 18,
-            Title = "Field Ready",
+            Title = "Your Field Is Ready",
             Message =
-                "Your field is ready. Continue to finish your Placement action.",
+                "Your Character and Attacks are in place. Press Continue to finish your " +
+                "Placement action.",
             RequiredAction =
                 TutorialAction.ContinuePhase,
             HighlightTarget =
@@ -353,10 +360,10 @@ private static readonly IReadOnlyList<TutorialStep>
         new()
         {
             Number = 19,
-            Title = "Attack Phase",
+            Title = "Your First Attack",
             Message =
-                "Your deployed Attacks can now be used. " +
-                "Start with Piercing Strike.",
+                "It's the Attack phase. Use Piercing Strike first and watch how its " +
+                "piercing effect interacts with Shield.",
             RequiredAction =
                 TutorialAction.UseAttack,
             HighlightTarget =
@@ -367,10 +374,10 @@ private static readonly IReadOnlyList<TutorialStep>
         new()
         {
             Number = 20,
-            Title = "Piercing",
+            Title = "Piercing Through Shield",
             Message =
-                "Piercing damaged the Character through Shield. " +
-                "Compare the result with the Battle Log.",
+                "Piercing Strike can damage the Character through its Shield. Check the " +
+                "battlefield and Battle Log to see the result.",
             RequiredAction =
                 TutorialAction.Acknowledge,
             HighlightTarget =
@@ -381,9 +388,10 @@ private static readonly IReadOnlyList<TutorialStep>
         new()
         {
             Number = 21,
-            Title = "Fireball",
+            Title = "Attacking a Shield",
             Message =
-                "Now use Fireball. Normal hits damage Shield before HP.",
+                "Now use Fireball. Unlike a piercing Attack, a normal hit damages Shield " +
+                "before it damages HP.",
             RequiredAction =
                 TutorialAction.UseAttack,
             HighlightTarget =
@@ -394,9 +402,10 @@ private static readonly IReadOnlyList<TutorialStep>
         new()
         {
             Number = 22,
-            Title = "Before End",
+            Title = "Attack Phase Complete",
             Message =
-                "Your attacks are done. Continue to finish your Attack action.",
+                "Your Attack action is complete. Press Continue to move on; the End phase " +
+                "resolves automatically when the phase sequence reaches it.",
             RequiredAction =
                 TutorialAction.ContinuePhase,
             HighlightTarget =
@@ -407,10 +416,10 @@ private static readonly IReadOnlyList<TutorialStep>
         new()
         {
             Number = 23,
-            Title = "Defense",
+            Title = "Understanding Defense",
             Message =
-                "Your opponent attacked. Compare your Character's Shield " +
-                "and HP with the Battle Log.",
+                "Your opponent has attacked. Compare your Character's Shield and HP with " +
+                "the Battle Log to see how the incoming damage was handled.",
             RequiredAction =
                 TutorialAction.Acknowledge,
             HighlightTarget =
@@ -421,10 +430,11 @@ private static readonly IReadOnlyList<TutorialStep>
         new()
         {
             Number = 24,
-            Title = "Effect Duration",
+            Title = "Temporary Effects Expire",
             Message =
-                "Magic Surge expired. Piercing Strike still disables " +
-                "Arcane Focus, so Sorcerer gives no bonus right now.",
+                "Magic Surge lasts only for the turn Sorcerer enters play, so it has " +
+                "expired. Piercing Strike is still deployed, which keeps Arcane Focus " +
+                "inactive.",
             RequiredAction =
                 TutorialAction.Acknowledge,
             HighlightTarget =
@@ -438,10 +448,10 @@ private static readonly IReadOnlyList<TutorialStep>
         new()
         {
             Number = 25,
-            Title = "Discard & Draw",
+            Title = "Discard to Draw",
             Message =
-                "Utility actions aren't limited to Utility cards. " +
-                "Discard the highlighted card and draw a replacement.",
+                "You can use a Utility action even without playing a Utility card. Discard " +
+                "the highlighted card to draw a replacement.",
             RequiredAction =
                 TutorialAction.DiscardAndDraw,
             HighlightTarget =
@@ -452,10 +462,10 @@ private static readonly IReadOnlyList<TutorialStep>
         new()
         {
             Number = 26,
-            Title = "Card Movement",
+            Title = "Where Discarded Cards Go",
             Message =
-                "The discarded card moved to your Discard Pile, " +
-                "and another card became available.",
+                "The discarded card has moved to your Discard Pile, and a replacement has " +
+                "become available in your hand.",
             RequiredAction =
                 TutorialAction.Acknowledge,
             HighlightTarget =
@@ -466,9 +476,10 @@ private static readonly IReadOnlyList<TutorialStep>
         new()
         {
             Number = 27,
-            Title = "Finish Utility",
+            Title = "Complete Your Utility Phase",
             Message =
-                "Your Utility action is done. Continue to finish Utility.",
+                "You've finished your Utility action. Press Continue to move to the next " +
+                "phase.",
             RequiredAction =
                 TutorialAction.ContinuePhase,
             HighlightTarget =
@@ -479,10 +490,9 @@ private static readonly IReadOnlyList<TutorialStep>
         new()
         {
             Number = 28,
-            Title = "Replacing Attacks",
+            Title = "Replace an Attack",
             Message =
-                "Replace Piercing Strike with Ice Shards, " +
-                "your Multi-Hit Attack.",
+                "Replace Piercing Strike with Ice Shards, a Magic Attack that hits twice.",
             RequiredAction =
                 TutorialAction.ReplaceAttack,
             HighlightTarget =
@@ -493,10 +503,10 @@ private static readonly IReadOnlyList<TutorialStep>
         new()
         {
             Number = 29,
-            Title = "Arcane Focus Returns",
+            Title = "Passive Bonuses Revisited",
             Message =
-                "Both Attacks are Magic again. " +
-                "Arcane Focus gives them +1 Damage.",
+                "Both deployed Attacks are Magic now, so Arcane Focus is active again and " +
+                "gives them +1 Damage.",
             RequiredAction =
                 TutorialAction.Acknowledge,
             HighlightTarget =
@@ -507,9 +517,10 @@ private static readonly IReadOnlyList<TutorialStep>
         new()
         {
             Number = 30,
-            Title = "Finish Placement",
+            Title = "Complete Your Placement Phase",
             Message =
-                "Your Placement changes are done. Continue to finish Placement.",
+                "Your Placement changes are complete. Press Continue to enter the Attack " +
+                "phase.",
             RequiredAction =
                 TutorialAction.ContinuePhase,
             HighlightTarget =
@@ -520,10 +531,10 @@ private static readonly IReadOnlyList<TutorialStep>
         new()
         {
             Number = 31,
-            Title = "Active Abilities",
+            Title = "Using Active Abilities",
             Message =
-                "Active abilities are activated manually and may cost Energy. " +
-                "Use Sorcerer's Active now.",
+                "Active abilities are activated manually and may cost Energy or have a " +
+                "cooldown. Use Sorcerer Red Panda's Active ability now.",
             RequiredAction =
                 TutorialAction.UseCharacterAbility,
             HighlightTarget =
@@ -534,10 +545,10 @@ private static readonly IReadOnlyList<TutorialStep>
         new()
         {
             Number = 32,
-            Title = "Fireball Again",
+            Title = "Combine Ability Bonuses",
             Message =
-                "Use Fireball. It receives +1 from Arcane Focus " +
-                "and +1 from Sorcerer's Active.",
+                "Use Fireball again. It gains +1 Damage from Arcane Focus and +1 from " +
+                "Sorcerer's Active ability.",
             RequiredAction =
                 TutorialAction.UseAttack,
             HighlightTarget =
@@ -548,10 +559,10 @@ private static readonly IReadOnlyList<TutorialStep>
         new()
         {
             Number = 33,
-            Title = "Fireball Fatigue",
+            Title = "Understanding Fatigue",
             Message =
-                "Fireball reached its use limit and is Fatigued. " +
-                "You'll resolve it during Placement.",
+                "Fireball has reached its use limit and is now Fatigued. You'll need to " +
+                "resolve its Fatigue during Placement before using it again.",
             RequiredAction =
                 TutorialAction.Acknowledge,
             HighlightTarget =
@@ -562,9 +573,9 @@ private static readonly IReadOnlyList<TutorialStep>
         new()
         {
             Number = 34,
-            Title = "Multi-Hit",
+            Title = "Multi-Hit Attacks: Ice Shards",
             Message =
-                "Use Ice Shards. Multi-Hit Attacks strike more than once.",
+                "Use Ice Shards. It has two hits, so one use resolves as two separate hits.",
             RequiredAction =
                 TutorialAction.UseAttack,
             HighlightTarget =
@@ -575,10 +586,10 @@ private static readonly IReadOnlyList<TutorialStep>
         new()
         {
             Number = 35,
-            Title = "Multi-Hit Resolution",
+            Title = "Resolving Multiple Hits",
             Message =
-                "Each hit resolves separately. " +
-                "Compare the hits with the opponent's Shield and HP.",
+                "Each hit resolves separately. Check the Battle Log to compare how the hits " +
+                "affect your opponent's Shield and HP.",
             RequiredAction =
                 TutorialAction.Acknowledge,
             HighlightTarget =
@@ -589,9 +600,10 @@ private static readonly IReadOnlyList<TutorialStep>
         new()
         {
             Number = 36,
-            Title = "Finish Attack",
+            Title = "Finish the Attack Phase",
             Message =
-                "Your attacks are done. Continue to finish your Attack action.",
+                "Your attacks are finished for now. Press Continue to complete your Attack " +
+                "action.",
             RequiredAction =
                 TutorialAction.ContinuePhase,
             HighlightTarget =
@@ -602,10 +614,12 @@ private static readonly IReadOnlyList<TutorialStep>
         new()
         {
             Number = 37,
-            Title = "End Phase Recovery",
+            Title = "End-of-Turn Recovery",
             Message =
-                "Shield and other effects can change during End. " +
-                "Check the battlefield and Battle Log.",
+                "The End phase is where end-of-turn effects resolve. Shield and " +
+                "other turn-based effects are updated, cards may be drawn, and " +
+                "Energy is recovered. Check the battlefield and Battle Log " +
+                "to see the changes.",
             RequiredAction =
                 TutorialAction.Acknowledge,
             HighlightTarget =
@@ -616,10 +630,12 @@ private static readonly IReadOnlyList<TutorialStep>
         new()
         {
             Number = 38,
-            Title = "Active Cooldown",
+           Title = "Ability Cooldowns",
             Message =
-                "Sorcerer's Active is now on cooldown. " +
-                "Some abilities can't be used every time you act.",
+                "End-of-turn processing can also affect ability availability. " +
+                "The Sorcerer's Active ability has a cooldown, which determines " +
+                "when it can be used again. Some abilities need time before " +
+                "they become available again.",
             RequiredAction =
                 TutorialAction.Acknowledge,
             HighlightTarget =
@@ -633,9 +649,10 @@ private static readonly IReadOnlyList<TutorialStep>
         new()
         {
             Number = 39,
-            Title = "Peek",
+            Title = "Peek at Your Deck",
             Message =
-                "For your Utility action, click your deck and use Peek.",
+                "Use your Utility action to inspect your deck. Click your deck and choose " +
+                "Peek.",
             RequiredAction =
                 TutorialAction.PeekDeck,
             HighlightTarget =
@@ -646,9 +663,10 @@ private static readonly IReadOnlyList<TutorialStep>
         new()
         {
             Number = 40,
-            Title = "Queue Structure",
+            Title = "First In, First Out (FIFO)",
             Message =
-                "Your deck is a Queue: cards leave in First-In, First-Out order.",
+                "Your deck uses a Queue: cards are drawn in First-In, First-Out order. The " +
+                "card that entered the Queue earliest is retrieved first.",
             RequiredAction =
                 TutorialAction.Acknowledge,
             HighlightTarget =
@@ -659,9 +677,9 @@ private static readonly IReadOnlyList<TutorialStep>
         new()
         {
             Number = 41,
-            Title = "Finish Utility",
+            Title = "Complete Your Utility Phase",
             Message =
-                "Peek is complete. Continue to finish Utility.",
+                "You've finished Peek. Press Continue to leave the Utility phase.",
             RequiredAction =
                 TutorialAction.ContinuePhase,
             HighlightTarget =
@@ -672,9 +690,10 @@ private static readonly IReadOnlyList<TutorialStep>
         new()
         {
             Number = 42,
-            Title = "Resolving Fatigue",
+            Title = "Rest a Fatigued Attack",
             Message =
-                "Fireball is still Fatigued. Rest it before leaving Placement.",
+                "Fireball is still Fatigued. Rest it during Placement to restore its uses " +
+                "before trying it again.",
             RequiredAction =
                 TutorialAction.RestAttack,
             HighlightTarget =
@@ -685,10 +704,10 @@ private static readonly IReadOnlyList<TutorialStep>
         new()
         {
             Number = 43,
-            Title = "Replacing Characters",
+            Title = "Replace Your Character",
             Message =
-                "Characters can be replaced during Placement. " +
-                "Select your Character slot.",
+                "You can replace your Character during Placement. Select your current " +
+                "Character slot to begin.",
             RequiredAction =
                 TutorialAction.ReplaceCharacter,
             HighlightTarget =
@@ -699,9 +718,9 @@ private static readonly IReadOnlyList<TutorialStep>
         new()
         {
             Number = 44,
-            Title = "Deploy Wanderer",
+            Title = "Deploy Wanderer Red Panda",
             Message =
-                "Deploy Wanderer Red Panda.",
+                "Deploy Wanderer Red Panda into your Character slot.",
             RequiredAction =
                 TutorialAction.DeployCharacter,
             HighlightTarget =
@@ -712,10 +731,10 @@ private static readonly IReadOnlyList<TutorialStep>
         new()
         {
             Number = 45,
-            Title = "Wanderer's Entry",
+            Title = "Entry Ability: Quick Setup",
             Message =
-                "Wanderer's Entry reduces one deployed Attack's buildup " +
-                "cost by 2. Select an Attack.",
+                "Wanderer's Entry ability reduces the buildup cost of one deployed Attack " +
+                "by 2. Select the Attack you want to adjust.",
             RequiredAction =
                 TutorialAction.ResolveWandererEntry,
             HighlightTarget =
@@ -726,10 +745,10 @@ private static readonly IReadOnlyList<TutorialStep>
         new()
         {
             Number = 46,
-            Title = "Inspect Wanderer",
+            Title = "Inspect Your Character",
             Message =
-                "Inspect Wanderer on the field. " +
-                "Each Character has its own Entry, Passive, and Active abilities.",
+                "Inspect Wanderer on the field to review its abilities. Each Character has " +
+                "its own Entry, Passive, and Active effects.",
             RequiredAction =
                 TutorialAction.Acknowledge,
             HighlightTarget =
@@ -740,9 +759,10 @@ private static readonly IReadOnlyList<TutorialStep>
         new()
         {
             Number = 47,
-            Title = "Complete Placement",
+            Title = "Complete Your Placement Phase",
             Message =
-                "Wanderer's Entry is resolved. Continue to finish Placement.",
+                "Wanderer's Entry effect has been resolved. Press Continue to finish " +
+                "Placement.",
             RequiredAction =
                 TutorialAction.ContinuePhase,
             HighlightTarget =
@@ -753,9 +773,10 @@ private static readonly IReadOnlyList<TutorialStep>
         new()
         {
             Number = 48,
-            Title = "Ice Shards",
+            Title = "Ice Shards: A Second Look",
             Message =
-                "Use Ice Shards during this Attack action.",
+                "Use Ice Shards again. Notice how a multi-hit Attack resolves and how its " +
+                "damage interacts with the opponent's remaining Shield and HP.",
             RequiredAction =
                 TutorialAction.UseAttack,
             HighlightTarget =
@@ -766,10 +787,11 @@ private static readonly IReadOnlyList<TutorialStep>
         new()
         {
             Number = 49,
-            Title = "Battle Training Complete",
+            Title = "Battle Basics Complete",
             Message =
-                "You've learned the core battle flow, deployment, abilities, " +
-                "attacks, Fatigue, Utility actions, and the Battle Log.",
+                "You've practiced the core battle flow, deploying cards, using abilities, " +
+                "attacking, managing Fatigue, taking Utility actions, and reading the " +
+                "Battle Log.",
             RequiredAction =
                 TutorialAction.Acknowledge,
             HighlightTarget =
@@ -783,9 +805,10 @@ private static readonly IReadOnlyList<TutorialStep>
         new()
         {
             Number = 50,
-            Title = "Ending a Match",
+            Title = "Victory, Defeat, and Draws",
             Message =
-                "Battles can end in Victory, Defeat, or a Draw.",
+                "A match can end in Victory, Defeat, or a Draw, depending on how the battle " +
+                "concludes.",
             RequiredAction =
                 TutorialAction.Acknowledge,
             HighlightTarget =
@@ -796,10 +819,10 @@ private static readonly IReadOnlyList<TutorialStep>
         new()
         {
             Number = 51,
-            Title = "Surrender",
+            Title = "Surrendering a Match",
             Message =
-                "You can also end a match by surrendering. " +
-                "Surrender now to continue the tutorial.",
+                "You can also end a match by surrendering. Surrender now to continue this " +
+                "tutorial.",
             RequiredAction =
                 TutorialAction.Surrender,
             HighlightTarget =
@@ -810,10 +833,10 @@ private static readonly IReadOnlyList<TutorialStep>
         new()
         {
             Number = 52,
-            Title = "Observe Board",
+            Title = "Review the Final Battlefield",
             Message =
-                "Observe Board lets you inspect the final battlefield " +
-                "and Battle Log. Choose it now.",
+                "Choose Observe Board to inspect the final battlefield and review the " +
+                "Battle Log.",
             RequiredAction =
                 TutorialAction.ObserveBoard,
             HighlightTarget =
@@ -824,10 +847,10 @@ private static readonly IReadOnlyList<TutorialStep>
         new()
         {
             Number = 53,
-            Title = "Learn To Battle Tutorial Complete",
+            Title = "Tutorial Complete: Ready for Battle",
             Message =
-                "You've completed the Battle Tutorial. " +
-                "Return to the Tutorial menu when you're ready.",
+                "You've completed the Battle Tutorial. Return to the Tutorial menu whenever " +
+                "you're ready.",
             RequiredAction =
                 TutorialAction.ReturnToTutorial,
             HighlightTarget =
@@ -844,10 +867,10 @@ private static readonly IReadOnlyList<TutorialStep>
         new()
         {
             Number = 0,
-            Title = "Queue Deck",
+            Title = "How a Queue Works",
             Message =
-                "A Queue follows First-In, First-Out order. " +
-                "The card waiting at the front is retrieved first.",
+                "A Queue follows First-In, First-Out (FIFO) order: the card at the front is " +
+                "the next one retrieved.",
             RequiredAction =
                 TutorialAction.Acknowledge,
             HighlightTarget =
@@ -858,10 +881,10 @@ private static readonly IReadOnlyList<TutorialStep>
         new()
         {
             Number = 1,
-            Title = "Queue Peek",
+            Title = "Peek at the Queue",
             Message =
-                "Click the Queue deck and use Peek. Peek inspects " +
-                "up to the next two cards without drawing them.",
+                "Select the Queue deck and use Peek. It lets you inspect up to the next two " +
+                "cards without drawing them.",
             RequiredAction =
                 TutorialAction.PeekDeck,
             HighlightTarget =
@@ -872,10 +895,10 @@ private static readonly IReadOnlyList<TutorialStep>
         new()
         {
             Number = 2,
-            Title = "FIFO Order",
+            Title = "Understanding FIFO Order",
             Message =
-                "The first card shown is nearest the front of the Queue. " +
-                "Cards behind it wait until earlier cards leave.",
+                "The card shown nearest the front of the Queue will be retrieved first. " +
+                "Cards behind it must wait until the earlier cards leave.",
             RequiredAction =
                 TutorialAction.Acknowledge,
             HighlightTarget =
@@ -886,9 +909,9 @@ private static readonly IReadOnlyList<TutorialStep>
         new()
         {
             Number = 3,
-            Title = "Advance the Turn",
+            Title = "Advance to Placement",
             Message =
-                "Continue through Utility and enter Placement.",
+                "Press Continue through the remaining Utility action and enter Placement.",
             RequiredAction =
                 TutorialAction.ContinuePhase,
             HighlightTarget =
@@ -899,12 +922,11 @@ private static readonly IReadOnlyList<TutorialStep>
         new()
         {
             Number = 4,
-            Title = "Queue Placement",
+            Title = "Deploy from Your Queue",
             Message =
-                "The cards in your hand were retrieved from the Queue " +
-                "in FIFO order. Deploy up to two Attack cards now. " +
-                "The open hand slots will make the End Phase draw visible. " +
-                "Place at least one Attack card before continuing.",
+                "Your hand was filled from the Queue in FIFO order. Deploy at least one " +
+                "Attack (up to two) to your field, then continue. The open hand slots will " +
+                "help show the cards drawn during End.",
             RequiredAction =
                 TutorialAction.Acknowledge,
             HighlightTarget =
@@ -915,9 +937,9 @@ private static readonly IReadOnlyList<TutorialStep>
         new()
         {
             Number = 5,
-            Title = "Complete Placement",
+            Title = "Complete Your Placement Phase",
             Message =
-                "Continue into the Attack Phase.",
+                "Your Placement is done. Press Continue to enter the Attack phase.",
             RequiredAction =
                 TutorialAction.ContinuePhase,
             HighlightTarget =
@@ -928,9 +950,9 @@ private static readonly IReadOnlyList<TutorialStep>
         new()
         {
             Number = 6,
-            Title = "Complete Attack",
+            Title = "Complete Your Attack Phase",
             Message =
-                "Continue into the End Phase.",
+                "Your Attack action is done. Press Continue to proceed to End.",
             RequiredAction =
                 TutorialAction.ContinuePhase,
             HighlightTarget =
@@ -941,10 +963,10 @@ private static readonly IReadOnlyList<TutorialStep>
         new()
         {
             Number = 7,
-            Title = "Prepare Recycling",
+            Title = "When Cards Are Recycled",
             Message =
-                "At the end of the cycle, discarded cards can return " +
-                "to the deck when more cards are needed.",
+                "When the deck runs out of cards, discarded cards can be recycled so they " +
+                "can be drawn again.",
             RequiredAction =
                 TutorialAction.Acknowledge,
             HighlightTarget =
@@ -957,7 +979,8 @@ private static readonly IReadOnlyList<TutorialStep>
             Number = 8,
             Title = "Prepare Queue Recycling",
             Message =
-                "The recycling demonstration is being prepared.",
+                "The tutorial is setting up a Queue recycling demonstration. Follow the " +
+                "next instruction to see where recycled cards go.",
             RequiredAction =
                 TutorialAction.PrepareRecycle,
             HighlightTarget =
@@ -970,7 +993,7 @@ private static readonly IReadOnlyList<TutorialStep>
             Number = 9,
             Title = "Run the Recycling Demonstration",
             Message =
-                "Press Continue to run the tutorial's Queue recycling demonstration.",
+                "Press Continue to run the Queue recycling demonstration.",
             RequiredAction =
                 TutorialAction.ContinuePhase,
             HighlightTarget =
@@ -981,10 +1004,10 @@ private static readonly IReadOnlyList<TutorialStep>
         new()
         {
             Number = 10,
-            Title = "Queue Recycling",
+            Title = "Recycled Cards Join the Rear",
             Message =
-                "Recycled cards join the rear of the Queue. Existing cards " +
-                "at the front still leave before the newly recycled cards.",
+                "Recycled cards are added to the back of the Queue. Cards already near the " +
+                "front are still retrieved before the newly recycled cards.",
             RequiredAction =
                 TutorialAction.ObserveRecycle,
             HighlightTarget =
@@ -997,7 +1020,8 @@ private static readonly IReadOnlyList<TutorialStep>
             Number = 11,
             Title = "Queue Tutorial Complete",
             Message =
-                "You have observed FIFO retrieval, Peek, and Queue recycling.",
+                "You've seen FIFO retrieval, Peek, and how discarded cards return to the " +
+                "Queue.",
             RequiredAction =
                 TutorialAction.FinishTutorial,
             HighlightTarget =
@@ -1013,11 +1037,10 @@ private static readonly IReadOnlyList<TutorialStep>
         new()
         {
             Number = 0,
-            Title = "Priority Queue Deck",
+            Title = "How a Priority Queue Works",
             Message =
-                "A Priority Queue retrieves cards according to priority " +
-                "instead of insertion order. In this game, higher numeric " +
-                "priority is retrieved before lower priority.",
+                "A Priority Queue retrieves cards by priority instead of arrival order. In " +
+                "this game, a higher numeric priority is retrieved before a lower one.",
             RequiredAction =
                 TutorialAction.Acknowledge,
             HighlightTarget =
@@ -1028,11 +1051,11 @@ private static readonly IReadOnlyList<TutorialStep>
         new()
         {
             Number = 1,
-            Title = "Automatic Retrieval",
+            Title = "Automatic Priority Retrieval",
             Message =
-                "Priority Queue retrieval is automatic. Unlike Queue, Stack, " +
-                "Random List, and Linked List, clicking this deck provides " +
-                "no normal Utility-phase deck action.",
+                "Priority Queue draws happen automatically. Unlike the other deck " +
+                "structures, clicking this deck does not provide a normal Utility-phase " +
+                "deck action.",
             RequiredAction =
                 TutorialAction.Acknowledge,
             HighlightTarget =
@@ -1043,9 +1066,10 @@ private static readonly IReadOnlyList<TutorialStep>
         new()
         {
             Number = 2,
-            Title = "Continue to Placement",
+            Title = "Advance to Placement",
             Message =
-                "Continue and observe the cards supplied by priority order.",
+                "Press Continue and watch which cards the Priority Queue supplies to your " +
+                "hand.",
             RequiredAction =
                 TutorialAction.ContinuePhase,
             HighlightTarget =
@@ -1056,12 +1080,11 @@ private static readonly IReadOnlyList<TutorialStep>
         new()
         {
             Number = 3,
-            Title = "Priority Placement",
+            Title = "Deploy by Priority",
             Message =
-                "The hand reflects Priority Queue retrieval. Deploy up to " +
-                "two Attack cards now so the End Phase can visibly retrieve " +
-                "cards by priority. Place at least one Attack card before " +
-                "continuing.",
+                "Your hand reflects Priority Queue retrieval. Deploy at least one Attack " +
+                "(up to two), then continue. The open hand slots will help reveal the next " +
+                "cards retrieved by priority during End.",
             RequiredAction =
                 TutorialAction.Acknowledge,
             HighlightTarget =
@@ -1072,9 +1095,9 @@ private static readonly IReadOnlyList<TutorialStep>
         new()
         {
             Number = 4,
-            Title = "Complete Placement",
+            Title = "Complete Your Placement Phase",
             Message =
-                "Continue into the Attack Phase.",
+                "Your Placement is done. Press Continue to enter the Attack phase.",
             RequiredAction =
                 TutorialAction.ContinuePhase,
             HighlightTarget =
@@ -1085,9 +1108,9 @@ private static readonly IReadOnlyList<TutorialStep>
         new()
         {
             Number = 5,
-            Title = "Complete Attack",
+            Title = "Complete Your Attack Phase",
             Message =
-                "Continue into the End Phase.",
+                "Your Attack action is done. Press Continue to proceed to End.",
             RequiredAction =
                 TutorialAction.ContinuePhase,
             HighlightTarget =
@@ -1098,10 +1121,10 @@ private static readonly IReadOnlyList<TutorialStep>
         new()
         {
             Number = 6,
-            Title = "Prepare Recycling",
+            Title = "Recycling and Priority",
             Message =
-                "When discarded cards return, each card is inserted again " +
-                "using its priority.",
+                "When discarded cards are recycled, each card is inserted according to its " +
+                "priority rather than simply being placed at the front or back.",
             RequiredAction =
                 TutorialAction.Acknowledge,
             HighlightTarget =
@@ -1112,9 +1135,10 @@ private static readonly IReadOnlyList<TutorialStep>
         new()
         {
             Number = 7,
-            Title = "Prepare Priority Recycling",
+            Title = "Prepare Priority Queue Recycling",
             Message =
-                "The recycling demonstration is being prepared.",
+                "The tutorial is setting up a Priority Queue recycling demonstration. " +
+                "Follow the next instruction to see how priorities affect insertion.",
             RequiredAction =
                 TutorialAction.PrepareRecycle,
             HighlightTarget =
@@ -1127,7 +1151,7 @@ private static readonly IReadOnlyList<TutorialStep>
             Number = 8,
             Title = "Run the Recycling Demonstration",
             Message =
-                "Press Continue to run the tutorial's Priority Queue recycling demonstration.",
+                "Press Continue to run the Priority Queue recycling demonstration.",
             RequiredAction =
                 TutorialAction.ContinuePhase,
             HighlightTarget =
@@ -1138,11 +1162,10 @@ private static readonly IReadOnlyList<TutorialStep>
         new()
         {
             Number = 9,
-            Title = "Priority Queue Recycling",
+            Title = "Recycled Cards Return by Priority",
             Message =
-                "Recycled cards do not simply join the front or rear. " +
-                "They return according to priority, so a high-priority " +
-                "recycled card can be retrieved before older cards.",
+                "Recycled cards return to their priority-based positions. A high-priority " +
+                "card can be retrieved before cards that were already waiting.",
             RequiredAction =
                 TutorialAction.ObserveRecycle,
             HighlightTarget =
@@ -1155,8 +1178,8 @@ private static readonly IReadOnlyList<TutorialStep>
             Number = 10,
             Title = "Priority Queue Tutorial Complete",
             Message =
-                "You have observed priority retrieval and " +
-                "priority-based recycling.",
+                "You've seen priority-based retrieval and how recycled cards are placed " +
+                "according to priority.",
             RequiredAction =
                 TutorialAction.FinishTutorial,
             HighlightTarget =
@@ -1172,10 +1195,10 @@ private static readonly IReadOnlyList<TutorialStep>
         new()
         {
             Number = 0,
-            Title = "Stack Deck",
+            Title = "How a Stack Works",
             Message =
-                "A Stack follows Last-In, First-Out order. " +
-                "The card most recently placed on top leaves first.",
+                "A Stack follows Last-In, First-Out (LIFO) order: the card most recently " +
+                "placed on top is retrieved first.",
             RequiredAction =
                 TutorialAction.Acknowledge,
             HighlightTarget =
@@ -1186,10 +1209,10 @@ private static readonly IReadOnlyList<TutorialStep>
         new()
         {
             Number = 1,
-            Title = "Stack Peek",
+            Title = "Peek at the Stack",
             Message =
-                "Click the Stack and use Peek to inspect up to " +
-                "the top two cards.",
+                "Select the Stack deck and use Peek to inspect up to the top two cards " +
+                "without drawing them.",
             RequiredAction =
                 TutorialAction.PeekDeck,
             HighlightTarget =
@@ -1200,10 +1223,10 @@ private static readonly IReadOnlyList<TutorialStep>
         new()
         {
             Number = 2,
-            Title = "LIFO Order",
+            Title = "Understanding LIFO Order",
             Message =
-                "The top card is retrieved first. Cards underneath it " +
-                "remain blocked until the cards above is drawn.",
+                "The top card is retrieved first. Cards underneath it remain unavailable " +
+                "until the cards above them have been removed.",
             RequiredAction =
                 TutorialAction.Acknowledge,
             HighlightTarget =
@@ -1214,10 +1237,10 @@ private static readonly IReadOnlyList<TutorialStep>
         new()
         {
             Number = 3,
-            Title = "Enter Placement",
+            Title = "Advance to Placement",
             Message =
-                "Continue into Placement. Stack decks automatically " +
-                "deploy eligible Characters and Attacks.",
+                "Press Continue to enter Placement. With a Stack deck, eligible Characters " +
+                "and Attacks are deployed automatically.",
             RequiredAction =
                 TutorialAction.ContinuePhase,
             HighlightTarget =
@@ -1228,9 +1251,9 @@ private static readonly IReadOnlyList<TutorialStep>
         new()
         {
             Number = 4,
-            Title = "Automatic Stack Placement",
+            Title = "Automatic Stack Deployment",
             Message =
-                "Observe the Stack deck's automatic Placement.",
+                "Watch as the Stack automatically deploys eligible cards during Placement.",
             RequiredAction =
                 TutorialAction.ObserveAutomaticPlacement,
             HighlightTarget =
@@ -1241,11 +1264,11 @@ private static readonly IReadOnlyList<TutorialStep>
         new()
         {
             Number = 5,
-            Title = "Automatic Placement Complete",
+            Title = "Understanding Automatic Placement",
             Message =
-                "Eligible cards were deployed automatically. This reduces " +
-                "manual control but follows the Stack's direct play style. " +
-                "At least one Attack must be deployed before continuing.",
+                "The eligible cards have been deployed automatically. This reduces manual " +
+                "control but follows the Stack's direct-play behavior. Make sure at least " +
+                "one Attack is deployed before continuing.",
             RequiredAction =
                 TutorialAction.Acknowledge,
             HighlightTarget =
@@ -1256,9 +1279,9 @@ private static readonly IReadOnlyList<TutorialStep>
         new()
         {
             Number = 6,
-            Title = "Complete Placement",
+            Title = "Complete Your Placement Phase",
             Message =
-                "Continue into the Attack Phase.",
+                "Placement is complete. Press Continue to enter the Attack phase.",
             RequiredAction =
                 TutorialAction.ContinuePhase,
             HighlightTarget =
@@ -1269,9 +1292,9 @@ private static readonly IReadOnlyList<TutorialStep>
         new()
         {
             Number = 7,
-            Title = "Complete Attack",
+            Title = "Complete Your Attack Phase",
             Message =
-                "Continue into the End Phase.",
+                "Your Attack action is done. Press Continue to proceed to End.",
             RequiredAction =
                 TutorialAction.ContinuePhase,
             HighlightTarget =
@@ -1282,9 +1305,10 @@ private static readonly IReadOnlyList<TutorialStep>
         new()
         {
             Number = 8,
-            Title = "Prepare Recycling",
+            Title = "When Cards Are Recycled",
             Message =
-                "Recycled cards are pushed back onto the Stack.",
+                "Discarded cards can return to the Stack. Each recycled card is pushed onto " +
+                "the top.",
             RequiredAction =
                 TutorialAction.Acknowledge,
             HighlightTarget =
@@ -1297,7 +1321,8 @@ private static readonly IReadOnlyList<TutorialStep>
             Number = 9,
             Title = "Prepare Stack Recycling",
             Message =
-                "The recycling demonstration is being prepared.",
+                "The tutorial is setting up a Stack recycling demonstration. The next step " +
+                "shows how the top of the Stack changes.",
             RequiredAction =
                 TutorialAction.PrepareRecycle,
             HighlightTarget =
@@ -1310,7 +1335,7 @@ private static readonly IReadOnlyList<TutorialStep>
             Number = 10,
             Title = "Run the Recycling Demonstration",
             Message =
-                "Press Continue to run the tutorial's Stack recycling demonstration.",
+                "Press Continue to run the Stack recycling demonstration.",
             RequiredAction =
                 TutorialAction.ContinuePhase,
             HighlightTarget =
@@ -1321,10 +1346,10 @@ private static readonly IReadOnlyList<TutorialStep>
         new()
         {
             Number = 11,
-            Title = "Stack Recycling",
+            Title = "Recycling onto the Stack",
             Message =
-                "Each recycled card is pushed onto the top. Because Stack " +
-                "uses LIFO, the last recycled card becomes the first available.",
+                "Each recycled card is pushed onto the top. Because the Stack uses LIFO, " +
+                "the last card pushed on top is the first one retrieved.",
             RequiredAction =
                 TutorialAction.ObserveRecycle,
             HighlightTarget =
@@ -1337,8 +1362,8 @@ private static readonly IReadOnlyList<TutorialStep>
             Number = 12,
             Title = "Stack Tutorial Complete",
             Message =
-                "You have observed LIFO retrieval, Peek, automatic Placement, " +
-                "and Stack recycling.",
+                "You've seen LIFO retrieval, Peek, automatic Placement, and how recycled " +
+                "cards return to the top of the Stack.",
             RequiredAction =
                 TutorialAction.FinishTutorial,
             HighlightTarget =
@@ -1354,11 +1379,10 @@ private static readonly IReadOnlyList<TutorialStep>
         new()
         {
             Number = 0,
-            Title = "Random List Deck",
+            Title = "How Random Retrieval Works",
             Message =
-                "A Random List does not guarantee a fixed retrieval order. " +
-                "Each draw selects from the cards currently available " +
-                "in the draw pool.",
+                "A Random List draws from the cards currently available in its draw pool. " +
+                "It does not guarantee a fixed retrieval order.",
             RequiredAction =
                 TutorialAction.Acknowledge,
             HighlightTarget =
@@ -1369,10 +1393,10 @@ private static readonly IReadOnlyList<TutorialStep>
         new()
         {
             Number = 1,
-            Title = "View Draw Pool",
+            Title = "View the Draw Pool",
             Message =
-                "Click the Random List deck and choose View Draw Pool. " +
-                "The pool shows which cards may be selected by a future draw.",
+                "Select the Random List deck and choose View Draw Pool to see which cards " +
+                "are currently available to be drawn.",
             RequiredAction =
                 TutorialAction.ViewDrawPool,
             HighlightTarget =
@@ -1383,10 +1407,10 @@ private static readonly IReadOnlyList<TutorialStep>
         new()
         {
             Number = 2,
-            Title = "Random Retrieval",
+            Title = "Understanding Random Draws",
             Message =
-                "Viewing the pool does not reveal the exact next card. " +
-                "The next retrieval is selected randomly from the pool.",
+                "Viewing the pool shows which cards are available, not which card will be " +
+                "drawn next. The next card is selected randomly from that pool.",
             RequiredAction =
                 TutorialAction.Acknowledge,
             HighlightTarget =
@@ -1397,9 +1421,9 @@ private static readonly IReadOnlyList<TutorialStep>
         new()
         {
             Number = 3,
-            Title = "Continue to Placement",
+            Title = "Advance to Placement",
             Message =
-                "Continue and observe the hand produced by Random List draws.",
+                "Press Continue and observe the hand supplied by Random List draws.",
             RequiredAction =
                 TutorialAction.ContinuePhase,
             HighlightTarget =
@@ -1410,12 +1434,11 @@ private static readonly IReadOnlyList<TutorialStep>
         new()
         {
             Number = 4,
-            Title = "Random List Placement",
+            Title = "Deploy from the Draw Pool",
             Message =
-                "These cards came from the available draw pool. Deploy up to " +
-                "two Attack cards now. The open hand slots will later show " +
-                "random retrieval after recycling. Place at least one Attack " +
-                "card before continuing.",
+                "Your hand was drawn from the available pool. Deploy at least one Attack " +
+                "(up to two), then continue. The open hand slots will help show random " +
+                "draws after recycling.",
             RequiredAction =
                 TutorialAction.Acknowledge,
             HighlightTarget =
@@ -1426,9 +1449,9 @@ private static readonly IReadOnlyList<TutorialStep>
         new()
         {
             Number = 5,
-            Title = "Complete Placement",
+            Title = "Complete Your Placement Phase",
             Message =
-                "Continue into the Attack Phase.",
+                "Your Placement is done. Press Continue to enter the Attack phase.",
             RequiredAction =
                 TutorialAction.ContinuePhase,
             HighlightTarget =
@@ -1439,9 +1462,9 @@ private static readonly IReadOnlyList<TutorialStep>
         new()
         {
             Number = 6,
-            Title = "Complete Attack",
+            Title = "Complete Your Attack Phase",
             Message =
-                "Continue into the End Phase.",
+                "Your Attack action is done. Press Continue to proceed to End.",
             RequiredAction =
                 TutorialAction.ContinuePhase,
             HighlightTarget =
@@ -1452,10 +1475,10 @@ private static readonly IReadOnlyList<TutorialStep>
         new()
         {
             Number = 7,
-            Title = "Prepare Recycling",
+            Title = "Returning Cards to the Pool",
             Message =
-                "Recycled cards return to the Random List draw pool. " +
-                "Once returned, each recycled card can be selected again.",
+                "Recycled cards return to the draw pool and become available for future " +
+                "random draws.",
             RequiredAction =
                 TutorialAction.Acknowledge,
             HighlightTarget =
@@ -1468,7 +1491,8 @@ private static readonly IReadOnlyList<TutorialStep>
             Number = 8,
             Title = "Prepare Random List Recycling",
             Message =
-                "The recycling demonstration is being prepared.",
+                "The tutorial is setting up a Random List recycling demonstration. The next " +
+                "step shows the recycled cards returning to the pool.",
             RequiredAction =
                 TutorialAction.PrepareRecycle,
             HighlightTarget =
@@ -1481,7 +1505,7 @@ private static readonly IReadOnlyList<TutorialStep>
             Number = 9,
             Title = "Run the Recycling Demonstration",
             Message =
-                "Press Continue to run the tutorial's Random List recycling demonstration.",
+                "Press Continue to run the Random List recycling demonstration.",
             RequiredAction =
                 TutorialAction.ContinuePhase,
             HighlightTarget =
@@ -1492,11 +1516,10 @@ private static readonly IReadOnlyList<TutorialStep>
         new()
         {
             Number = 10,
-            Title = "Random List Recycling",
+            Title = "Recycling into the Draw Pool",
             Message =
-                "The recycled cards are available in the draw pool again. " +
-                "Their previous discard order does not determine " +
-                "which recycled card will be drawn first.",
+                "The recycled cards are available in the draw pool again. Their previous " +
+                "discard order does not determine which card is drawn first.",
             RequiredAction =
                 TutorialAction.ObserveRecycle,
             HighlightTarget =
@@ -1509,8 +1532,8 @@ private static readonly IReadOnlyList<TutorialStep>
             Number = 11,
             Title = "Random List Tutorial Complete",
             Message =
-                "You have observed the draw pool, random retrieval, " +
-                "and Random List recycling.",
+                "You've seen the draw pool, random retrieval, and how recycled cards become " +
+                "available for future draws.",
             RequiredAction =
                 TutorialAction.FinishTutorial,
             HighlightTarget =
@@ -1526,11 +1549,10 @@ private static readonly IReadOnlyList<TutorialStep>
         new()
         {
             Number = 0,
-            Title = "Linked List Deck",
+            Title = "How a Linked List Works",
             Message =
-                "A Linked List stores cards as connected nodes. " +
-                "The head node is retrieved first, and each node " +
-                "points toward the next card in the sequence.",
+                "A Linked List stores cards as connected nodes. Retrieval starts at the " +
+                "head and follows each node's link to the next card.",
             RequiredAction =
                 TutorialAction.Acknowledge,
             HighlightTarget =
@@ -1541,9 +1563,10 @@ private static readonly IReadOnlyList<TutorialStep>
         new()
         {
             Number = 1,
-            Title = "Reorder Nodes",
+            Title = "Reorder the Nodes",
             Message =
-                "Click the Linked List deck and choose Reorder Nodes.",
+                "Select the Linked List deck and choose Reorder Nodes to change the order " +
+                "of its card nodes.",
             RequiredAction =
                 TutorialAction.StartReorderNodes,
             HighlightTarget =
@@ -1554,10 +1577,10 @@ private static readonly IReadOnlyList<TutorialStep>
         new()
         {
             Number = 2,
-            Title = "Move a Node",
+            Title = "Move a Card Node",
             Message =
-                "Move one card node to a different position. " +
-                "Changing node order changes the future retrieval order.",
+                "Move one card node to a different position. This changes the sequence in " +
+                "which cards will be retrieved.",
             RequiredAction =
                 TutorialAction.MoveReorderNode,
             HighlightTarget =
@@ -1568,9 +1591,9 @@ private static readonly IReadOnlyList<TutorialStep>
         new()
         {
             Number = 3,
-            Title = "Finish Reordering",
+            Title = "Confirm the New Order",
             Message =
-                "Finish the node-reordering action to keep the new order.",
+                "Finish the reorder action to keep the new node order.",
             RequiredAction =
                 TutorialAction.FinishReorderNodes,
             HighlightTarget =
@@ -1581,10 +1604,10 @@ private static readonly IReadOnlyList<TutorialStep>
         new()
         {
             Number = 4,
-            Title = "Linked Retrieval Order",
+            Title = "Understanding Head-to-Tail Order",
             Message =
-                "The first node is now the head. Retrieval begins at the head " +
-                "and follows the links through the reordered sequence.",
+                "The first node is the head. Cards are retrieved from the head onward, " +
+                "following the links through the sequence you arranged.",
             RequiredAction =
                 TutorialAction.Acknowledge,
             HighlightTarget =
@@ -1595,9 +1618,10 @@ private static readonly IReadOnlyList<TutorialStep>
         new()
         {
             Number = 5,
-            Title = "Continue to Placement",
+            Title = "Advance to Placement",
             Message =
-                "Continue and observe the cards supplied by the linked order.",
+                "Press Continue and observe the cards supplied by the Linked List's current " +
+                "order.",
             RequiredAction =
                 TutorialAction.ContinuePhase,
             HighlightTarget =
@@ -1608,12 +1632,11 @@ private static readonly IReadOnlyList<TutorialStep>
         new()
         {
             Number = 6,
-            Title = "Linked List Placement",
+            Title = "Deploy from Your Linked List",
             Message =
-                "The hand reflects the linked-node order. Deploy up to two " +
-                "Attack cards now so the later End Phase draw can visibly " +
-                "retrieve cards from the rebuilt Linked List. Place at least " +
-                "one Attack card before continuing.",
+                "Your hand reflects the linked-node order. Deploy at least one Attack (up " +
+                "to two), then continue. The open hand slots will help show cards drawn " +
+                "later from the updated list.",
             RequiredAction =
                 TutorialAction.Acknowledge,
             HighlightTarget =
@@ -1624,9 +1647,9 @@ private static readonly IReadOnlyList<TutorialStep>
         new()
         {
             Number = 7,
-            Title = "Complete Placement",
+            Title = "Complete Your Placement Phase",
             Message =
-                "Continue into the Attack Phase.",
+                "Your Placement is done. Press Continue to enter the Attack phase.",
             RequiredAction =
                 TutorialAction.ContinuePhase,
             HighlightTarget =
@@ -1637,9 +1660,9 @@ private static readonly IReadOnlyList<TutorialStep>
         new()
         {
             Number = 8,
-            Title = "Complete Attack",
+            Title = "Complete Your Attack Phase",
             Message =
-                "Continue into the End Phase.",
+                "Your Attack action is done. Press Continue to proceed to End.",
             RequiredAction =
                 TutorialAction.ContinuePhase,
             HighlightTarget =
@@ -1650,10 +1673,10 @@ private static readonly IReadOnlyList<TutorialStep>
         new()
         {
             Number = 9,
-            Title = "Prepare Recycling",
+            Title = "Appending Recycled Nodes",
             Message =
-                "Recycled cards are appended as new nodes at the tail " +
-                "of the Linked List.",
+                "Recycled cards are appended as new nodes at the tail of the Linked List, " +
+                "after the nodes already there.",
             RequiredAction =
                 TutorialAction.Acknowledge,
             HighlightTarget =
@@ -1666,7 +1689,8 @@ private static readonly IReadOnlyList<TutorialStep>
             Number = 10,
             Title = "Prepare Linked List Recycling",
             Message =
-                "The recycling demonstration is being prepared.",
+                "The tutorial is setting up a Linked List recycling demonstration. The next " +
+                "step shows recycled cards being appended to the tail.",
             RequiredAction =
                 TutorialAction.PrepareRecycle,
             HighlightTarget =
@@ -1679,7 +1703,7 @@ private static readonly IReadOnlyList<TutorialStep>
             Number = 11,
             Title = "Run the Recycling Demonstration",
             Message =
-                "Press Continue to run the tutorial's Linked List recycling demonstration.",
+                "Press Continue to run the Linked List recycling demonstration.",
             RequiredAction =
                 TutorialAction.ContinuePhase,
             HighlightTarget =
@@ -1690,11 +1714,10 @@ private static readonly IReadOnlyList<TutorialStep>
         new()
         {
             Number = 12,
-            Title = "Linked List Recycling",
+            Title = "Recycling to the Tail",
             Message =
-                "Each recycled card becomes a node at the tail. " +
-                "Existing nodes near the head remain earlier " +
-                "in the retrieval path.",
+                "Each recycled card becomes a node at the tail. Nodes closer to the head " +
+                "remain earlier in the retrieval sequence.",
             RequiredAction =
                 TutorialAction.ObserveRecycle,
             HighlightTarget =
@@ -1707,8 +1730,8 @@ private static readonly IReadOnlyList<TutorialStep>
             Number = 13,
             Title = "Linked List Tutorial Complete",
             Message =
-                "You have observed linked retrieval, node reordering, " +
-                "and Linked List recycling.",
+                "You've seen linked-list retrieval, node reordering, and how recycled cards " +
+                "are appended to the tail.",
             RequiredAction =
                 TutorialAction.FinishTutorial,
             HighlightTarget =
